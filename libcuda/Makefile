@@ -79,7 +79,7 @@ ifeq ($(DEBUG),1)
 	CXXFLAGS +=  -Wall -Wno-unused-function -Wno-sign-compare -g -fPIC $(GL)
 	CCFLAGS += -Wall -Wno-unused-function -Wno-sign-compare -ggdb -fPIC
 else
-	CXXFLAGS += -O3 -g -Wall -Wno-unused-function -Wno-sign-compare -fPIC $(GL)
+	CXXFLAGS += -g -Wall -Wno-unused-function -Wno-sign-compare -fPIC $(GL)
 	CCFLAGS += -Wall -Wno-unused-function -Wno-sign-compare -fPIC
 endif
 
