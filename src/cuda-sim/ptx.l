@@ -231,6 +231,8 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.union  TC; return UNION_DIRECTIVE; /* not in PTX 2.1 */
 \.version TC; return VERSION_DIRECTIVE;
 \.visible TC; return VISIBLE_DIRECTIVE;
+\.explicitcluster TC; return EXPLICITCLUSTER_DIRECTIVE;
+\.reqnctapercluster TC; return REQNCTAPERCLUSTER_DIRECTIVE;
 \.weak TC; return WEAK_DIRECTIVE;
 \.address_size TC; return ADDRESS_SIZE_DIRECTIVE;
 \.weak	TC; return WEAK_DIRECTIVE;
@@ -244,6 +246,7 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 "%ctaid" TC; yylval->int_value = CTAID_REG; return SPECIAL_REGISTER;
 "%envreg"[0-9]+ TC; sscanf(yytext+7,"%u",&yylval->int_value); yylval->int_value<<=16; yylval->int_value += ENVREG_REG; return SPECIAL_REGISTER;
 "%gridid" TC; yylval->int_value = GRIDID_REG; return SPECIAL_REGISTER;
+"%is_explicit_cluster" TC; yylval->int_value = IS_EXPLICIT_CLUSTER_REG; return SPECIAL_REGISTER;
 "%laneid"  TC; yylval->int_value = LANEID_REG; return SPECIAL_REGISTER;
 "%lanemask_eq"  TC; yylval->int_value = LANEMASK_EQ_REG; return SPECIAL_REGISTER;
 "%lanemask_le"  TC; yylval->int_value = LANEMASK_LE_REG; return SPECIAL_REGISTER;
