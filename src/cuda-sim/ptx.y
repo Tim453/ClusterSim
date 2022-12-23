@@ -178,6 +178,7 @@ class ptx_recognizer;
 %token SYNC_OPTION
 %token RED_OPTION
 %token ARRIVE_OPTION
+%token WAIT_OPTION
 %token ATOMIC_POPC
 %token ATOMIC_AND
 %token ATOMIC_OR
@@ -254,6 +255,12 @@ block_spec: MAXNTID_DIRECTIVE INT_OPERAND COMMA INT_OPERAND COMMA INT_OPERAND {r
                                                                                 recognizer->maxnt_id($2, $4, $6);}
 	| MINNCTAPERSM_DIRECTIVE INT_OPERAND { recognizer->func_header_info_int(".minnctapersm", $2); printf("GPGPU-Sim: Warning: .minnctapersm ignored. \n"); }
 	| MAXNCTAPERSM_DIRECTIVE INT_OPERAND { recognizer->func_header_info_int(".maxnctapersm", $2); printf("GPGPU-Sim: Warning: .maxnctapersm ignored. \n"); }
+	| EXPLICITCLUSTER_DIRECTIVE {recognizer->func_header_info(".explicitcluster");
+										recognizer->is_explicit_cluster();}
+	| REQNCTAPERCLUSTER_DIRECTIVE INT_OPERAND COMMA INT_OPERAND COMMA INT_OPERAND {recognizer->func_header_info_int(".reqnctapercluster", $2);
+										recognizer->func_header_info_int(",", $4);
+										recognizer->func_header_info_int(",", $6);
+										recognizer->reqncta_per_cluster($2, $4, $6);}
 	;
 
 block_spec_list: block_spec
@@ -320,10 +327,6 @@ directive_statement: variable_declaration SEMI_COLON
 	| LOC_DIRECTIVE INT_OPERAND INT_OPERAND INT_OPERAND 
 	| PRAGMA_DIRECTIVE STRING SEMI_COLON { recognizer->add_pragma($2); }
 	| function_decl SEMI_COLON {/*Do nothing*/}
-	| EXPLICITCLUSTER_DIRECTIVE
-	| REQNCTAPERCLUSTER_DIRECTIVE INT_OPERAND
-	| REQNCTAPERCLUSTER_DIRECTIVE INT_OPERAND COMMA INT_OPERAND
-	| REQNCTAPERCLUSTER_DIRECTIVE INT_OPERAND COMMA INT_OPERAND COMMA INT_OPERAND
 	;
 
 variable_declaration: variable_spec identifier_list { recognizer->add_variables(); }
@@ -478,6 +481,7 @@ option: type_spec
 	| prmt_spec 
 	| SYNC_OPTION { recognizer->add_option(SYNC_OPTION); }
 	| ARRIVE_OPTION { recognizer->add_option(ARRIVE_OPTION); }
+	| WAIT_OPTION {recognizer->add_option(WAIT_OPTION); }
 	| RED_OPTION { recognizer->add_option(RED_OPTION); }
 	| UNI_OPTION { recognizer->add_option(UNI_OPTION); }
 	| WIDE_OPTION { recognizer->add_option(WIDE_OPTION); }

@@ -72,6 +72,7 @@ atom	TC; yylval->int_value = ATOM_OP; return OPCODE;
 bar.warp 	TC; yylval->int_value = NOP_OP; return OPCODE;
 bar 	TC; yylval->int_value = BAR_OP; return OPCODE;
 barrier	TC; yylval->int_value = BAR_OP; return OPCODE;
+barrier.cluster TC; yylval->int_value = NOP_OP; return OPCODE; // Replace with BARRIER_CLUSTER_OP
 bfe     TC; yylval->int_value = BFE_OP; return OPCODE;
 bfi     TC; yylval->int_value = BFI_OP; return OPCODE;
 bfind   TC; yylval->int_value = BFIND_OP; return OPCODE;
@@ -96,6 +97,7 @@ dp4a	TC; yylval->int_value = DP4A_OP; return OPCODE;
 ex2	TC; yylval->int_value = EX2_OP; return OPCODE;
 exit	TC; yylval->int_value = EXIT_OP; return OPCODE;
 fma     TC; yylval->int_value = FMA_OP; return OPCODE;
+getctarank TC; yylval->int_value = GETCTARANK_OP; return OPCODE;
 isspacep TC; yylval->int_value = ISSPACEP_OP; return OPCODE;
 ld      TC; yylval->int_value = LD_OP; return OPCODE;
 ld.volatile TC; yylval->int_value = LD_OP; return OPCODE;
@@ -105,6 +107,7 @@ mad24   TC; yylval->int_value = MAD24_OP; return OPCODE;
 mad     TC; yylval->int_value = MAD_OP; return OPCODE;
 madc	TC; yylval->int_value = MADC_OP; return OPCODE;
 madp	TC; yylval->int_value = MADP_OP; return OPCODE;
+mapa	TC; yylval->int_value = MAPA_OP; return OPCODE;
 max     TC; yylval->int_value = MAX_OP; return OPCODE;
 membar  TC; yylval->int_value = MEMBAR_OP; return OPCODE;
 min     TC; yylval->int_value = MIN_OP; return OPCODE;
@@ -241,6 +244,11 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.ptr TC; return PTR_DIRECTIVE; /* Added for new OpenCL genrated code */
 
 "%clock" TC; yylval->int_value = CLOCK_REG; return SPECIAL_REGISTER;
+"%clusterid" TC; yylval->int_value = CLUSTERID_REG; return SPECIAL_REGISTER;
+"%cluster_ctaid" TC; yylval->int_value = CLUSTER_CTAID_REG; return SPECIAL_REGISTER;
+"%cluster_ctarank" TC; yylval->int_value = CLUSTER_CTARANK_REG; return SPECIAL_REGISTER;
+"%cluster_nctarank" TC; yylval->int_value = CLUSTER_NCTARANK_REG; return SPECIAL_REGISTER;
+"%cluster_nctaid" TC; yylval->int_value = CLUSTER_NCTAID_REG; return SPECIAL_REGISTER;
 "%halfclock" TC; yylval->int_value = HALFCLOCK_ID; return SPECIAL_REGISTER;
 "%clock64" TC; yylval->int_value = CLOCK64_REG; return SPECIAL_REGISTER;
 "%ctaid" TC; yylval->int_value = CTAID_REG; return SPECIAL_REGISTER;
@@ -253,6 +261,7 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 "%lanemask_lt"  TC; yylval->int_value = LANEMASK_LT_REG; return SPECIAL_REGISTER;
 "%lanemask_ge"  TC; yylval->int_value = LANEMASK_GE_REG; return SPECIAL_REGISTER;
 "%lanemask_gt"  TC; yylval->int_value = LANEMASK_GT_REG; return SPECIAL_REGISTER;
+"%nclusterid" TC; yylval->int_value = NCLUSTERID_REG; return SPECIAL_REGISTER;
 "%nctaid" TC; yylval->int_value = NCTAID_REG; return SPECIAL_REGISTER;
 "%ntid"  TC; yylval->int_value = NTID_REG; return SPECIAL_REGISTER;
 "%nsmid"  TC; yylval->int_value = NSMID_REG; return SPECIAL_REGISTER;
@@ -354,6 +363,7 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 
 \.sync TC; return SYNC_OPTION;
 \.arrive TC; return ARRIVE_OPTION;
+\.wait TC; return WAIT_OPTION;
 \.red TC; return RED_OPTION;
 
 

@@ -210,6 +210,18 @@ unsigned ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
       // Hardware clock counter is incremented at half the shader clock
       // frequency - divide by 2 (Henry '10)
       return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle) * 2;
+    case CLUSTER_CTAID_REG:
+      return 0; // ToDo return the right value
+      //if (dim_mod == 0) return m_cluster_ctaid.x;
+      //if (dim_mod == 1) return m_cluster_ctaid.y;
+      //if (dim_mod == 2) return m_cluster_ctaid.z;
+    case CLUSTER_NCTARANK_REG:
+      return 0; // ToDo return the right value
+    case CLUSTER_NCTAID_REG:
+      return 0; // ToDo return the right value
+      //if (dim_mod == 0) return m_cluster_nctaid.x;
+      //if (dim_mod == 1) return m_cluster_nctaid.y;
+      //if (dim_mod == 2) return m_cluster_nctaid.z;
     case CTAID_REG:
       assert(dim_mod < 3);
       if (dim_mod == 0) return m_ctaid.x;
@@ -249,6 +261,8 @@ unsigned ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
     }
     case GRIDID_REG:
       return m_gridid;
+    case IS_EXPLICIT_CLUSTER_REG:
+      return this->func_info()->get_is_explicit_cluster();
     case LANEID_REG:
       return get_hw_tid() % m_core->get_warp_size();
     case LANEMASK_EQ_REG:

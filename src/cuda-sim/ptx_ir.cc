@@ -1263,6 +1263,7 @@ ptx_instruction::ptx_instruction(
     int last_ptx_inst_option = *i;
     switch (last_ptx_inst_option) {
       case SYNC_OPTION:
+      case WAIT_OPTION: // ToDo is this right?
       case ARRIVE_OPTION:
       case RED_OPTION:
         m_barrier_op = last_ptx_inst_option;
@@ -1484,6 +1485,7 @@ operand_info ptx_instruction::get_pred() const {
 }
 
 function_info::function_info(int entry_point, gpgpu_context *ctx) {
+  m_is_explicit_cluster = 0;
   gpgpu_ctx = ctx;
   m_uid = (gpgpu_ctx->function_info_sm_next_uid)++;
   m_entry_point = (entry_point == 1) ? true : false;

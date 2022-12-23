@@ -1610,6 +1610,10 @@ void bar_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
   thread->m_last_dram_callback.instruction = pIin;
 }
 
+void barrier_cluster_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
+  //TODO implement this function
+}
+
 void bfe_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   unsigned i_type = pI->get_type();
   unsigned msb = (i_type == U32_TYPE || i_type == S32_TYPE) ? 31 : 63;
@@ -3255,6 +3259,10 @@ void fma_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   mad_def(pI, thread);
 }
 
+void getctarank_impl(const ptx_instruction *pI, ptx_thread_info *thread){
+  // TODO implement this function
+}
+
 void isspacep_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   ptx_reg_t a;
   bool t = false;
@@ -4021,6 +4029,10 @@ void mad_def(const ptx_instruction *pI, ptx_thread_info *thread,
       break;
   }
   thread->set_operand_value(dst, d, i_type, thread, pI, overflow, carry);
+}
+
+void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread){
+  // TODO implement this function
 }
 
 bool isNaN(float x) { return std::isnan(x); }

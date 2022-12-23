@@ -174,6 +174,8 @@ class ptx_recognizer {
   void set_immediate_operand_type();
   void version_header(double a);
   void maxnt_id(int x, int y, int z);
+  void reqncta_per_cluster(int x, int y, int z);
+  void is_explicit_cluster();
   void parse_error_impl(const char *file, unsigned line, const char *msg, ...);
   void parse_assert_impl(int test_value, const char *file, unsigned line,
                          const char *msg, ...);
