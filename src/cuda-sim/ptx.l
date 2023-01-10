@@ -235,6 +235,7 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.version TC; return VERSION_DIRECTIVE;
 \.visible TC; return VISIBLE_DIRECTIVE;
 \.explicitcluster TC; return EXPLICITCLUSTER_DIRECTIVE;
+\.maxclusterrank TC; return MAXCLUSTERRANK_DIRECTIVE;
 \.reqnctapercluster TC; return REQNCTAPERCLUSTER_DIRECTIVE;
 \.weak TC; return WEAK_DIRECTIVE;
 \.address_size TC; return ADDRESS_SIZE_DIRECTIVE;

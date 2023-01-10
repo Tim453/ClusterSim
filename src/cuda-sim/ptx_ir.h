@@ -1377,14 +1377,25 @@ class function_info {
 
   void set_maxnt_id(unsigned maxthreads) { maxnt_id = maxthreads; }
   unsigned get_maxnt_id() { return maxnt_id; }
-  void is_explicit_cluster(){ m_is_explicit_cluster = 1; }
-  bool get_is_explicit_cluster(){ return m_is_explicit_cluster;}
+  void set_is_explicit_cluster(){ m_is_explicit_cluster = 1; }
+  unsigned get_is_explicit_cluster() const { return m_is_explicit_cluster;}
   void set_cluster_dims (unsigned x, unsigned y, unsigned z) {
     m_cluster_dims.x = x;
     m_cluster_dims.y = y;
     m_cluster_dims.z = z;
+    m_max_cluster_rank = x * y * z;
   };
-  dim3 get_cluster_dims () { return m_cluster_dims; };
+
+void set_max_cluster_rank(unsigned x){
+  m_max_cluster_rank = x;
+  // Assume a one dimensional Cluster 
+  m_cluster_dims.x = x;
+  m_cluster_dims.y = 1;
+  m_cluster_dims.z = 1;
+}
+
+  dim3 get_cluster_dims () const { return m_cluster_dims; };
+  int get_max_cluster_rank() const {return m_max_cluster_rank; };
   // backward pointer
   class gpgpu_context *gpgpu_ctx;
 
@@ -1395,6 +1406,7 @@ class function_info {
 
  private:
   dim3 m_cluster_dims;
+  unsigned m_max_cluster_rank;
   unsigned m_is_explicit_cluster;
   unsigned maxnt_id;
   unsigned m_uid;

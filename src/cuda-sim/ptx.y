@@ -68,6 +68,7 @@ class ptx_recognizer;
 %token  LOCAL_DIRECTIVE
 %token  LOC_DIRECTIVE
 %token  EXPLICITCLUSTER_DIRECTIVE
+%token  MAXCLUSTERRANK_DIRECTIVE
 %token  REQNCTAPERCLUSTER_DIRECTIVE
 %token  MAXNCTAPERSM_DIRECTIVE
 %token  MAXNNREG_DIRECTIVE
@@ -257,6 +258,8 @@ block_spec: MAXNTID_DIRECTIVE INT_OPERAND COMMA INT_OPERAND COMMA INT_OPERAND {r
 	| MAXNCTAPERSM_DIRECTIVE INT_OPERAND { recognizer->func_header_info_int(".maxnctapersm", $2); printf("GPGPU-Sim: Warning: .maxnctapersm ignored. \n"); }
 	| EXPLICITCLUSTER_DIRECTIVE {recognizer->func_header_info(".explicitcluster");
 										recognizer->is_explicit_cluster();}
+	| MAXCLUSTERRANK_DIRECTIVE INT_OPERAND {recognizer->func_header_info_int(".maxclusterrank", $2);
+										recognizer->max_cluster_rank($2);}
 	| REQNCTAPERCLUSTER_DIRECTIVE INT_OPERAND COMMA INT_OPERAND COMMA INT_OPERAND {recognizer->func_header_info_int(".reqnctapercluster", $2);
 										recognizer->func_header_info_int(",", $4);
 										recognizer->func_header_info_int(",", $6);
