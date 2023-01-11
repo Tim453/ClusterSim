@@ -377,6 +377,18 @@ class ptx_thread_info {
   void set_ctaid(dim3 ctaid) { m_ctaid = ctaid; }
   void set_ntid(dim3 tid) { m_ntid = tid; }
   void set_nctaid(dim3 cta_size) { m_nctaid = cta_size; }
+  void set_clusterid(dim3 clusterid) { m_clusterid = clusterid; }
+  void set_nclusterid(dim3 cluster_size) { m_nclusterid = cluster_size; }
+
+  // set_cluster_nctaid() needs to be called before this function to calculate m_cluster_ctarank correctly
+  void set_cluster_ctaid(dim3 cluster_ctaid) { 
+    m_cluster_ctaid = cluster_ctaid; 
+    m_cluster_ctarank = m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_ctaid.z + m_cluster_nctaid.x * m_cluster_ctaid.y + m_cluster_ctaid.x;
+  }
+  void set_cluster_nctaid(dim3 cluster_nctaid) {
+    m_cluster_nctaid = cluster_nctaid; 
+    m_cluster_nctarank = m_cluster_nctaid.x * m_cluster_nctaid.y + m_cluster_nctaid.z;
+  }
 
   unsigned get_builtin(int builtin_id, unsigned dim_mod);
 
@@ -482,6 +494,16 @@ class ptx_thread_info {
   dim3 m_tid;
   dim3 m_nctaid;
   dim3 m_ctaid;
+
+  //Identifies Clusters in the Grid
+  dim3 m_clusterid;
+  dim3 m_nclusterid;
+
+  //Identifies CTAs in a Cluster
+  dim3 m_cluster_ctaid;
+  dim3 m_cluster_nctaid;
+  unsigned m_cluster_ctarank;
+  unsigned m_cluster_nctarank;
   unsigned m_gridid;
   bool m_thread_done;
   unsigned m_hw_sid;

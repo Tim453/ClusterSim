@@ -211,17 +211,29 @@ unsigned ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
       // frequency - divide by 2 (Henry '10)
       return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle) * 2;
     case CLUSTER_CTAID_REG:
-      return 0; // ToDo return the right value
-      //if (dim_mod == 0) return m_cluster_ctaid.x;
-      //if (dim_mod == 1) return m_cluster_ctaid.y;
-      //if (dim_mod == 2) return m_cluster_ctaid.z;
+      assert(dim_mod < 3);
+      if (dim_mod == 0) return m_cluster_ctaid.x;
+      if (dim_mod == 1) return m_cluster_ctaid.y;
+      if (dim_mod == 2) return m_cluster_ctaid.z;
     case CLUSTER_NCTARANK_REG:
-      return 0; // ToDo return the right value
+      return m_cluster_nctarank;
+    case CLUSTER_CTARANK_REG:
+      return m_cluster_ctarank;
     case CLUSTER_NCTAID_REG:
-      return 0; // ToDo return the right value
-      //if (dim_mod == 0) return m_cluster_nctaid.x;
-      //if (dim_mod == 1) return m_cluster_nctaid.y;
-      //if (dim_mod == 2) return m_cluster_nctaid.z;
+      assert(dim_mod < 3);
+      if (dim_mod == 0) return m_cluster_nctaid.x;
+      if (dim_mod == 1) return m_cluster_nctaid.y;
+      if (dim_mod == 2) return m_cluster_nctaid.z;
+    case CLUSTERID_REG:
+      assert(dim_mod < 3);
+      if (dim_mod == 0) return m_clusterid.x;
+      if (dim_mod == 1) return m_clusterid.y;
+      if (dim_mod == 2) return m_clusterid.z;
+    case NCLUSTERID_REG:
+      assert(dim_mod < 3);
+      if (dim_mod == 0) return m_nclusterid.x;
+      if (dim_mod == 1) return m_nclusterid.y;
+      if (dim_mod == 2) return m_nclusterid.z;
     case CTAID_REG:
       assert(dim_mod < 3);
       if (dim_mod == 0) return m_ctaid.x;
