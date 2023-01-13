@@ -387,7 +387,7 @@ class ptx_thread_info {
   }
   void set_cluster_nctaid(dim3 cluster_nctaid) {
     m_cluster_nctaid = cluster_nctaid; 
-    m_cluster_nctarank = m_cluster_nctaid.x * m_cluster_nctaid.y + m_cluster_nctaid.z;
+    m_cluster_nctarank = m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_nctaid.z;
   }
 
   unsigned get_builtin(int builtin_id, unsigned dim_mod);
