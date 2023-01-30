@@ -1,16 +1,17 @@
-// Copyright (c) 2009-2021, Tor M. Aamodt, Tayler Hetherington, Vijay Kandiah, Nikos Hardavellas
-// The University of British Columbia, Northwestern University
+// Copyright (c) 2009-2021, Tor M. Aamodt, Tayler Hetherington, Vijay Kandiah,
+// Nikos Hardavellas The University of British Columbia, Northwestern University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -285,10 +286,11 @@ enum cache_request_status tag_array::probe(new_addr_type addr, unsigned &idx,
       // number of dirty lines / total lines in the cache
       float dirty_line_percentage =
           ((float)m_dirty / (m_config.m_nset * m_config.m_assoc)) * 100;
-      // If the cacheline is from a load op (not modified), 
+      // If the cacheline is from a load op (not modified),
       // or the total dirty cacheline is above a specific value,
-      // Then this cacheline is eligible to be considered for replacement candidate
-      // i.e. Only evict clean cachelines until total dirty cachelines reach the limit.
+      // Then this cacheline is eligible to be considered for replacement
+      // candidate i.e. Only evict clean cachelines until total dirty cachelines
+      // reach the limit.
       if (!line->is_modified_line() ||
           dirty_line_percentage >= m_config.m_wr_percent) {
         all_reserved = false;
@@ -430,7 +432,8 @@ void tag_array::fill(new_addr_type addr, unsigned time,
 void tag_array::fill(unsigned index, unsigned time, mem_fetch *mf) {
   assert(m_config.m_alloc_policy == ON_MISS);
   bool before = m_lines[index]->is_modified_line();
-  m_lines[index]->fill(time, mf->get_access_sector_mask(), mf->get_access_byte_mask());
+  m_lines[index]->fill(time, mf->get_access_sector_mask(),
+                       mf->get_access_byte_mask());
   if (m_lines[index]->is_modified_line() && !before) {
     m_dirty++;
   }
@@ -1203,15 +1206,14 @@ void data_cache::update_m_readable(mem_fetch *mf, unsigned cache_index) {
     if (mf->get_access_sector_mask().test(i)) {
       bool all_set = true;
       for (unsigned k = i * SECTOR_SIZE; k < (i + 1) * SECTOR_SIZE; k++) {
-        // If any bit in the byte mask (within the sector) is not set, 
+        // If any bit in the byte mask (within the sector) is not set,
         // the sector is unreadble
         if (!block->get_dirty_byte_mask().test(k)) {
           all_set = false;
           break;
         }
       }
-      if (all_set)
-        block->set_m_readable(true, mf->get_access_sector_mask());
+      if (all_set) block->set_m_readable(true, mf->get_access_sector_mask());
     }
   }
 }
@@ -1232,7 +1234,7 @@ cache_request_status data_cache::wr_hit_wb(new_addr_type addr,
   }
   block->set_status(MODIFIED, mf->get_access_sector_mask());
   block->set_byte_mask(mf);
-  update_m_readable(mf,cache_index);
+  update_m_readable(mf, cache_index);
 
   return HIT;
 }
@@ -1256,7 +1258,7 @@ cache_request_status data_cache::wr_hit_wt(new_addr_type addr,
   }
   block->set_status(MODIFIED, mf->get_access_sector_mask());
   block->set_byte_mask(mf);
-  update_m_readable(mf,cache_index);
+  update_m_readable(mf, cache_index);
 
   // generate a write-through
   send_write_request(mf, cache_event(WRITE_REQUEST_SENT), time, events);
@@ -1552,7 +1554,7 @@ enum cache_request_status data_cache::wr_miss_wa_lazy_fetch_on_read(
     if (m_status == HIT_RESERVED)
       block->set_readable_on_fill(true, mf->get_access_sector_mask());
   }
-  update_m_readable(mf,cache_index);
+  update_m_readable(mf, cache_index);
 
   if (m_status != RESERVATION_FAIL) {
     // If evicted block is modified and not a write-through
