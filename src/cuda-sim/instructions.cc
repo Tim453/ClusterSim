@@ -6,12 +6,13 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -1514,10 +1515,28 @@ void bar_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
   unsigned bar_op = pI->barrier_op();
   unsigned red_op = pI->get_atomic();
   unsigned ctaid = thread->get_cta_uid();
-
-  switch (bar_op) {
-    case SYNC_OPTION: {
-      if (pI->get_num_operands() > 1) {
+  bool cluster_op = pI->cluster_op();
+  if (cluster_op == false) {
+    switch (bar_op) {
+      case SYNC_OPTION: {
+        if (pI->get_num_operands() > 1) {
+          const operand_info &op0 = pI->dst();
+          const operand_info &op1 = pI->src1();
+          ptx_reg_t op0_data;
+          ptx_reg_t op1_data;
+          op0_data = thread->get_operand_value(op0, op0, U32_TYPE, thread, 1);
+          op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
+          pI->set_bar_id(op0_data.u32);
+          pI->set_bar_count(op1_data.u32);
+        } else {
+          const operand_info &op0 = pI->dst();
+          ptx_reg_t op0_data;
+          op0_data = thread->get_operand_value(op0, op0, U32_TYPE, thread, 1);
+          pI->set_bar_id(op0_data.u32);
+        }
+        break;
+      }
+      case ARRIVE_OPTION: {
         const operand_info &op0 = pI->dst();
         const operand_info &op1 = pI->src1();
         ptx_reg_t op0_data;
@@ -1526,92 +1545,79 @@ void bar_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
         op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
         pI->set_bar_id(op0_data.u32);
         pI->set_bar_count(op1_data.u32);
-      } else {
-        const operand_info &op0 = pI->dst();
-        ptx_reg_t op0_data;
-        op0_data = thread->get_operand_value(op0, op0, U32_TYPE, thread, 1);
-        pI->set_bar_id(op0_data.u32);
+        break;
       }
-      break;
-    }
-    case ARRIVE_OPTION: {
-      const operand_info &op0 = pI->dst();
-      const operand_info &op1 = pI->src1();
-      ptx_reg_t op0_data;
-      ptx_reg_t op1_data;
-      op0_data = thread->get_operand_value(op0, op0, U32_TYPE, thread, 1);
-      op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
-      pI->set_bar_id(op0_data.u32);
-      pI->set_bar_count(op1_data.u32);
-      break;
-    }
-    case RED_OPTION: {
-      if (pI->get_num_operands() > 3) {
-        const operand_info &op1 = pI->src1();
-        const operand_info &op2 = pI->src2();
-        const operand_info &op3 = pI->src3();
-        ptx_reg_t op1_data;
-        ptx_reg_t op2_data;
-        ptx_reg_t op3_data;
-        op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
-        op2_data = thread->get_operand_value(op2, op2, U32_TYPE, thread, 1);
-        op3_data = thread->get_operand_value(op3, op3, PRED_TYPE, thread, 1);
-        op3_data.u32 = !(op3_data.pred & 0x0001);
-        pI->set_bar_id(op1_data.u32);
-        pI->set_bar_count(op2_data.u32);
-        switch (red_op) {
-          case ATOMIC_POPC:
-            thread->popc_reduction(ctaid, op1_data.u32, op3_data.u32);
-            break;
-          case ATOMIC_AND:
-            thread->and_reduction(ctaid, op1_data.u32, op3_data.u32);
-            break;
-          case ATOMIC_OR:
-            thread->or_reduction(ctaid, op1_data.u32, op3_data.u32);
-            break;
-          default:
-            abort();
-            break;
+      case RED_OPTION: {
+        if (pI->get_num_operands() > 3) {
+          const operand_info &op1 = pI->src1();
+          const operand_info &op2 = pI->src2();
+          const operand_info &op3 = pI->src3();
+          ptx_reg_t op1_data;
+          ptx_reg_t op2_data;
+          ptx_reg_t op3_data;
+          op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
+          op2_data = thread->get_operand_value(op2, op2, U32_TYPE, thread, 1);
+          op3_data = thread->get_operand_value(op3, op3, PRED_TYPE, thread, 1);
+          op3_data.u32 = !(op3_data.pred & 0x0001);
+          pI->set_bar_id(op1_data.u32);
+          pI->set_bar_count(op2_data.u32);
+          switch (red_op) {
+            case ATOMIC_POPC:
+              thread->popc_reduction(ctaid, op1_data.u32, op3_data.u32);
+              break;
+            case ATOMIC_AND:
+              thread->and_reduction(ctaid, op1_data.u32, op3_data.u32);
+              break;
+            case ATOMIC_OR:
+              thread->or_reduction(ctaid, op1_data.u32, op3_data.u32);
+              break;
+            default:
+              abort();
+              break;
+          }
+        } else {
+          const operand_info &op1 = pI->src1();
+          const operand_info &op2 = pI->src2();
+          ptx_reg_t op1_data;
+          ptx_reg_t op2_data;
+          op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
+          op2_data = thread->get_operand_value(op2, op2, PRED_TYPE, thread, 1);
+          op2_data.u32 = !(op2_data.pred & 0x0001);
+          pI->set_bar_id(op1_data.u32);
+          pI->set_bar_count(thread->get_ntid().x * thread->get_ntid().y *
+                            thread->get_ntid().z);
+          switch (red_op) {
+            case ATOMIC_POPC:
+              thread->popc_reduction(ctaid, op1_data.u32, op2_data.u32);
+              break;
+            case ATOMIC_AND:
+              thread->and_reduction(ctaid, op1_data.u32, op2_data.u32);
+              break;
+            case ATOMIC_OR:
+              thread->or_reduction(ctaid, op1_data.u32, op2_data.u32);
+              break;
+            default:
+              abort();
+              break;
+          }
         }
-      } else {
-        const operand_info &op1 = pI->src1();
-        const operand_info &op2 = pI->src2();
-        ptx_reg_t op1_data;
-        ptx_reg_t op2_data;
-        op1_data = thread->get_operand_value(op1, op1, U32_TYPE, thread, 1);
-        op2_data = thread->get_operand_value(op2, op2, PRED_TYPE, thread, 1);
-        op2_data.u32 = !(op2_data.pred & 0x0001);
-        pI->set_bar_id(op1_data.u32);
-        pI->set_bar_count(thread->get_ntid().x * thread->get_ntid().y *
-                          thread->get_ntid().z);
-        switch (red_op) {
-          case ATOMIC_POPC:
-            thread->popc_reduction(ctaid, op1_data.u32, op2_data.u32);
-            break;
-          case ATOMIC_AND:
-            thread->and_reduction(ctaid, op1_data.u32, op2_data.u32);
-            break;
-          case ATOMIC_OR:
-            thread->or_reduction(ctaid, op1_data.u32, op2_data.u32);
-            break;
-          default:
-            abort();
-            break;
-        }
+        break;
       }
-      break;
+      default:
+        abort();
+        break;
     }
-    default:
-      abort();
-      break;
+  } else {
+    pI->set_cluster();
+    switch (bar_op) {
+      case WAIT_OPTION:
+        break;
+      case ARRIVE_OPTION:
+        break;
+    }
   }
-
   thread->m_last_dram_callback.function = bar_callback;
   thread->m_last_dram_callback.instruction = pIin;
-}
-
-void barrier_cluster_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
-  //TODO implement this function
 }
 
 void bfe_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
@@ -3259,8 +3265,26 @@ void fma_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   mad_def(pI, thread);
 }
 
-void getctarank_impl(const ptx_instruction *pI, ptx_thread_info *thread){
-  // TODO implement this function
+void getctarank_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
+  ptx_reg_t a, d;
+  const operand_info &dst = pI->dst();
+  const operand_info &src1 = pI->src1();
+  unsigned i_type = pI->get_type();
+
+  a = thread->get_operand_value(src1, dst, i_type, thread, 1);
+  ptx_cluster_info *cluster_info = thread->m_cluster_info;
+  unsigned cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(a.u64);
+
+  switch (i_type) {
+    case U64_TYPE:
+      d.u64 = cta_rank;
+      break;
+    default:
+      printf("Execution error: type mismatch with instruction\n");
+      assert(0);
+      break;
+  }
+  thread->set_operand_value(dst, d, i_type, thread, pI);
 }
 
 void isspacep_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
@@ -3359,8 +3383,19 @@ void decode_space(memory_space_t &space, ptx_thread_info *thread,
             addr = generic_to_local(smid, hwtid, addr);
             break;
           case shared_space:
-            mem = thread->m_shared_mem;
-            addr = generic_to_shared(smid, addr);
+            if (isspace_shared(smid, addr)) {
+              mem = thread->m_shared_mem;
+              addr = generic_to_shared(smid, addr);
+            } else {
+              ptx_cluster_info *cluster_info = thread->m_cluster_info;
+              unsigned cta_rank =
+                  cluster_info->get_cta_rank_of_shared_memory_region(addr);
+              unsigned target_smid =
+                  cluster_info->get_cta(cta_rank)->get_shader_id();
+              addr = generic_to_shared(target_smid, addr);
+              mem = cluster_info->get_cta(cta_rank)->get_shared_memory();
+            }
+
             break;
           default:
             abort();
@@ -3987,7 +4022,7 @@ void mad_def(const ptx_instruction *pI, ptx_thread_info *thread,
           fesetround(FE_TOWARDZERO);
           break;
         default:
-          //assert(0);
+          // assert(0);
           break;
       }
       d.f32 = a.f32 * b.f32 + c.f32;
@@ -4031,8 +4066,32 @@ void mad_def(const ptx_instruction *pI, ptx_thread_info *thread,
   thread->set_operand_value(dst, d, i_type, thread, pI, overflow, carry);
 }
 
-void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread){
-  // TODO implement this function
+void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
+  ptx_reg_t a, b, d;
+  const operand_info &dst = pI->dst();
+  const operand_info &src1 = pI->src1();
+  const operand_info &src2 = pI->src2();
+
+  unsigned i_type = pI->get_type();
+  a = thread->get_operand_value(src1, dst, i_type, thread, 1);
+  b = thread->get_operand_value(src2, dst, i_type, thread, 1);
+
+  int shader_id = thread->get_hw_sid();
+  int target_shader_id =
+      thread->m_cluster_info->get_cta(b.u32)->get_shader_id();
+  assert(a.u32 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX > 0);
+  addr_t addr = a.u32 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX;
+
+  switch (i_type) {
+    case U64_TYPE:
+      d.u64 = addr;
+      break;
+    default:
+      printf("Execution error: type mismatch with instruction\n");
+      assert(0);
+      break;
+  }
+  thread->set_operand_value(dst, d, i_type, thread, pI);
 }
 
 bool isNaN(float x) { return std::isnan(x); }
@@ -4337,7 +4396,7 @@ void mul_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
     case S64_TYPE:
       t.s64 = a.s64 * b.s64;
       assert(!pI->is_wide());
-      //assert(!pI->is_hi());
+      // assert(!pI->is_hi());
       d.s64 = t.s64;
       break;
     case U16_TYPE:

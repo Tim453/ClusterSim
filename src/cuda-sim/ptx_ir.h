@@ -1087,6 +1087,7 @@ class ptx_instruction : public warp_inst_t {
   unsigned saturation_mode() const { return m_saturation_mode; }
   unsigned dimension() const { return m_geom_spec; }
   unsigned barrier_op() const { return m_barrier_op; }
+  bool cluster_op() const { return m_cluster; }
   unsigned shfl_op() const { return m_shfl_op; }
   unsigned prmt_op() const { return m_prmt_op; }
   enum vote_mode_t { vote_any, vote_all, vote_uni, vote_ballot };
@@ -1162,6 +1163,7 @@ class ptx_instruction : public warp_inst_t {
   unsigned m_barrier_op;
   unsigned m_shfl_op;
   unsigned m_prmt_op;
+  bool m_cluster;
 
   std::list<int> m_scalar_type;
   memory_space_t m_space_spec;
@@ -1377,25 +1379,25 @@ class function_info {
 
   void set_maxnt_id(unsigned maxthreads) { maxnt_id = maxthreads; }
   unsigned get_maxnt_id() { return maxnt_id; }
-  void set_is_explicit_cluster(){ m_is_explicit_cluster = 1; }
-  unsigned get_is_explicit_cluster() const { return m_is_explicit_cluster;}
-  void set_cluster_dims (unsigned x, unsigned y, unsigned z) {
+  void set_is_explicit_cluster() { m_is_explicit_cluster = 1; }
+  unsigned get_is_explicit_cluster() const { return m_is_explicit_cluster; }
+  void set_cluster_dims(unsigned x, unsigned y, unsigned z) {
     m_cluster_dims.x = x;
     m_cluster_dims.y = y;
     m_cluster_dims.z = z;
     m_max_cluster_rank = x * y * z;
   };
 
-void set_max_cluster_rank(unsigned x){
-  m_max_cluster_rank = x;
-  // Assume a one dimensional Cluster 
-  m_cluster_dims.x = x;
-  m_cluster_dims.y = 1;
-  m_cluster_dims.z = 1;
-}
+  void set_max_cluster_rank(unsigned x) {
+    m_max_cluster_rank = x;
+    // Assume a one dimensional Cluster
+    m_cluster_dims.x = x;
+    m_cluster_dims.y = 1;
+    m_cluster_dims.z = 1;
+  }
 
-  dim3 get_cluster_dims () const { return m_cluster_dims; };
-  int get_max_cluster_rank() const {return m_max_cluster_rank; };
+  dim3 get_cluster_dims() const { return m_cluster_dims; };
+  int get_max_cluster_rank() const { return m_max_cluster_rank; };
   // backward pointer
   class gpgpu_context *gpgpu_ctx;
 

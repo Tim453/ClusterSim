@@ -154,6 +154,22 @@ class operand_info;
 class symbol_table;
 class function_info;
 class ptx_thread_info;
+class ptx_cta_info;
+
+class ptx_cluster_info {
+ public:
+  ptx_cluster_info(gpgpu_context *ctx);
+  void add_cta(ptx_cta_info *cta, unsigned cluster_ctarank);
+  void clear();
+  unsigned get_cta_rank_of_shared_memory_region(addr_t addr);
+  ptx_cta_info *get_cta(unsigned cta_rank) {
+    return m_ctas_in_cluster[cta_rank];
+  }
+
+ private:
+  class gpgpu_context *gpgpu_ctx;
+  std::map<unsigned, ptx_cta_info *> m_ctas_in_cluster;
+};
 
 class ptx_cta_info {
  public:
@@ -167,6 +183,13 @@ class ptx_cta_info {
   unsigned get_bar_threads() const;
   void inc_bar_threads();
   void reset_bar_threads();
+  void set_shared_memory(memory_space *shared_mem) {
+    m_shared_mem = shared_mem;
+  }
+  memory_space *get_shared_memory() { return m_shared_mem; }
+  bool is_in_generic_shared_memory(addr_t addr);
+  void set_shader_id(int shader_id) { m_shader_id = shader_id; }
+  int get_shader_id() { return m_shader_id; }
 
  private:
   // backward pointer
@@ -174,6 +197,8 @@ class ptx_cta_info {
   unsigned m_bar_threads;
   unsigned long long m_uid;
   unsigned m_sm_idx;
+  memory_space *m_shared_mem;
+  int m_shader_id;
   std::set<ptx_thread_info *> m_threads_in_cta;
   std::set<ptx_thread_info *> m_threads_that_have_exited;
   std::set<ptx_thread_info *> m_dangling_pointers;
@@ -380,14 +405,18 @@ class ptx_thread_info {
   void set_clusterid(dim3 clusterid) { m_clusterid = clusterid; }
   void set_nclusterid(dim3 cluster_size) { m_nclusterid = cluster_size; }
 
-  // set_cluster_nctaid() needs to be called before this function to calculate m_cluster_ctarank correctly
-  void set_cluster_ctaid(dim3 cluster_ctaid) { 
-    m_cluster_ctaid = cluster_ctaid; 
-    m_cluster_ctarank = m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_ctaid.z + m_cluster_nctaid.x * m_cluster_ctaid.y + m_cluster_ctaid.x;
+  // set_cluster_nctaid() needs to be called before this function to calculate
+  // m_cluster_ctarank correctly
+  void set_cluster_ctaid(dim3 cluster_ctaid) {
+    m_cluster_ctaid = cluster_ctaid;
+    m_cluster_ctarank =
+        m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_ctaid.z +
+        m_cluster_nctaid.x * m_cluster_ctaid.y + m_cluster_ctaid.x;
   }
   void set_cluster_nctaid(dim3 cluster_nctaid) {
-    m_cluster_nctaid = cluster_nctaid; 
-    m_cluster_nctarank = m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_nctaid.z;
+    m_cluster_nctaid = cluster_nctaid;
+    m_cluster_nctarank =
+        m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_nctaid.z;
   }
 
   unsigned get_builtin(int builtin_id, unsigned dim_mod);
@@ -481,6 +510,7 @@ class ptx_thread_info {
   memory_space *m_local_mem;
   ptx_warp_info *m_warp_info;
   ptx_cta_info *m_cta_info;
+  ptx_cluster_info *m_cluster_info;
   ptx_reg_t m_last_set_operand_value;
 
  private:
@@ -495,11 +525,11 @@ class ptx_thread_info {
   dim3 m_nctaid;
   dim3 m_ctaid;
 
-  //Identifies Clusters in the Grid
+  // Identifies Clusters in the Grid
   dim3 m_clusterid;
   dim3 m_nclusterid;
 
-  //Identifies CTAs in a Cluster
+  // Identifies CTAs in a Cluster
   dim3 m_cluster_ctaid;
   dim3 m_cluster_nctaid;
   unsigned m_cluster_ctarank;

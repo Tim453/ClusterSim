@@ -1,17 +1,18 @@
 // Copyright (c) 2009-2021, Tor M. Aamodt, Wilson W.L. Fung, Ali Bakhoda,
-// George L. Yuan, Andrew Turner, Inderpreet Singh, Vijay Kandiah, Nikos Hardavellas
-// The University of British Columbia, Northwestern University
-// All rights reserved.
+// George L. Yuan, Andrew Turner, Inderpreet Singh, Vijay Kandiah, Nikos
+// Hardavellas The University of British Columbia, Northwestern University All
+// rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -186,20 +187,16 @@ void shader_core_ctx::create_schedulers() {
   // must currently occur after all inputs have been initialized.
   std::string sched_config = m_config->gpgpu_scheduler_string;
   const concrete_scheduler scheduler =
-      sched_config.find("lrr") != std::string::npos
-          ? CONCRETE_SCHEDULER_LRR
-          : sched_config.find("two_level_active") != std::string::npos
-                ? CONCRETE_SCHEDULER_TWO_LEVEL_ACTIVE
-                : sched_config.find("gto") != std::string::npos
-                      ? CONCRETE_SCHEDULER_GTO
-                      : sched_config.find("rrr") != std::string::npos
-                            ? CONCRETE_SCHEDULER_RRR
-                      : sched_config.find("old") != std::string::npos
-                            ? CONCRETE_SCHEDULER_OLDEST_FIRST
-                            : sched_config.find("warp_limiting") !=
-                                      std::string::npos
-                                  ? CONCRETE_SCHEDULER_WARP_LIMITING
-                                  : NUM_CONCRETE_SCHEDULERS;
+      sched_config.find("lrr") != std::string::npos ? CONCRETE_SCHEDULER_LRR
+      : sched_config.find("two_level_active") != std::string::npos
+          ? CONCRETE_SCHEDULER_TWO_LEVEL_ACTIVE
+      : sched_config.find("gto") != std::string::npos ? CONCRETE_SCHEDULER_GTO
+      : sched_config.find("rrr") != std::string::npos ? CONCRETE_SCHEDULER_RRR
+      : sched_config.find("old") != std::string::npos
+          ? CONCRETE_SCHEDULER_OLDEST_FIRST
+      : sched_config.find("warp_limiting") != std::string::npos
+          ? CONCRETE_SCHEDULER_WARP_LIMITING
+          : NUM_CONCRETE_SCHEDULERS;
   assert(scheduler != NUM_CONCRETE_SCHEDULERS);
 
   for (unsigned i = 0; i < m_config->gpgpu_num_sched_per_core; i++) {
@@ -472,8 +469,9 @@ shader_core_ctx::shader_core_ctx(class gpgpu_sim *gpu,
                                  const memory_config *mem_config,
                                  shader_core_stats *stats)
     : core_t(gpu, NULL, config->warp_size, config->n_thread_per_shader),
-      m_barriers(this, config->max_warps_per_shader, config->max_cta_per_core,
-                 config->max_barriers_per_cta, config->warp_size),
+      m_barriers(this, cluster, config->max_warps_per_shader,
+                 config->max_cta_per_core, config->max_barriers_per_cta,
+                 config->warp_size),
       m_active_warps(0),
       m_dynamic_warp_id(0) {
   m_cluster = cluster;
@@ -486,8 +484,8 @@ shader_core_ctx::shader_core_ctx(class gpgpu_sim *gpu,
   m_sid = shader_id;
   m_tpc = tpc_id;
 
-  if(get_gpu()->get_config().g_power_simulation_enabled){
-    scaling_coeffs =  get_gpu()->get_scaling_coeffs();
+  if (get_gpu()->get_config().g_power_simulation_enabled) {
+    scaling_coeffs = get_gpu()->get_scaling_coeffs();
   }
 
   m_last_inst_gpu_sim_cycle = 0;
@@ -528,9 +526,10 @@ void shader_core_ctx::reinit(unsigned start_thread, unsigned end_thread,
   }
 }
 
-void shader_core_ctx::init_warps(unsigned cta_id, unsigned start_thread,
-                                 unsigned end_thread, unsigned ctaid,
-                                 int cta_size, kernel_info_t &kernel) {
+void shader_core_ctx::init_warps(unsigned cluster_id, unsigned cta_id,
+                                 unsigned start_thread, unsigned end_thread,
+                                 unsigned ctaid, int cta_size,
+                                 kernel_info_t &kernel) {
   //
   address_type start_pc = next_pc(start_thread);
   unsigned kernel_id = kernel.get_uid();
@@ -570,7 +569,8 @@ void shader_core_ctx::init_warps(unsigned cta_id, unsigned start_thread,
         start_pc = pc;
       }
 
-      m_warp[i]->init(start_pc, cta_id, i, active_threads, m_dynamic_warp_id);
+      m_warp[i]->init(start_pc, cta_id, cluster_id, i, active_threads,
+                      m_dynamic_warp_id);
       ++m_dynamic_warp_id;
       m_not_completed += n_active;
       ++m_active_warps;
@@ -893,7 +893,9 @@ void shader_core_ctx::decode() {
     m_warp[m_inst_fetch_buffer.m_warp_id]->inc_inst_in_pipeline();
     if (pI1) {
       m_stats->m_num_decoded_insn[m_sid]++;
-      if ((pI1->oprnd_type == INT_OP) || (pI1->oprnd_type == UN_OP))  { //these counters get added up in mcPat to compute scheduler power
+      if ((pI1->oprnd_type == INT_OP) ||
+          (pI1->oprnd_type == UN_OP)) {  // these counters get added up in mcPat
+                                         // to compute scheduler power
         m_stats->m_num_INTdecoded_insn[m_sid]++;
       } else if (pI1->oprnd_type == FP_OP) {
         m_stats->m_num_FPdecoded_insn[m_sid]++;
@@ -904,7 +906,9 @@ void shader_core_ctx::decode() {
         m_warp[m_inst_fetch_buffer.m_warp_id]->ibuffer_fill(1, pI2);
         m_warp[m_inst_fetch_buffer.m_warp_id]->inc_inst_in_pipeline();
         m_stats->m_num_decoded_insn[m_sid]++;
-        if ((pI1->oprnd_type == INT_OP) || (pI1->oprnd_type == UN_OP))  { //these counters get added up in mcPat to compute scheduler power
+        if ((pI1->oprnd_type == INT_OP) ||
+            (pI1->oprnd_type == UN_OP)) {  // these counters get added up in
+                                           // mcPat to compute scheduler power
           m_stats->m_num_INTdecoded_insn[m_sid]++;
         } else if (pI2->oprnd_type == FP_OP) {
           m_stats->m_num_FPdecoded_insn[m_sid]++;
@@ -949,10 +953,11 @@ void shader_core_ctx::fetch() {
             if (m_threadState[tid].m_active == true) {
               m_threadState[tid].m_active = false;
               unsigned cta_id = m_warp[warp_id]->get_cta_id();
+              unsigned cluster_id = m_warp[warp_id]->get_cluster_id();
               if (m_thread[tid] == NULL) {
-                register_cta_thread_exit(cta_id, m_kernel);
+                register_cta_thread_exit(cluster_id, cta_id, m_kernel);
               } else {
-                register_cta_thread_exit(cta_id,
+                register_cta_thread_exit(cluster_id, cta_id,
                                          &(m_thread[tid]->get_kernel()));
               }
               m_not_completed -= 1;
@@ -987,11 +992,10 @@ void shader_core_ctx::fetch() {
               m_gpu->gpu_tot_sim_cycle + m_gpu->gpu_sim_cycle);
           std::list<cache_event> events;
           enum cache_request_status status;
-          if (m_config->perfect_inst_const_cache){
+          if (m_config->perfect_inst_const_cache) {
             status = HIT;
             shader_cache_access_log(m_sid, INSTRUCTION, 0);
-          }
-          else
+          } else
             status = m_L1I->access(
                 (new_addr_type)ppc, mf,
                 m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle, events);
@@ -1047,7 +1051,8 @@ void shader_core_ctx::issue_warp(register_set &pipe_reg_set,
 
   if (next_inst->op == BARRIER_OP) {
     m_warp[warp_id]->store_info_of_last_inst_at_barrier(*pipe_reg);
-    m_barriers.warp_reaches_barrier(m_warp[warp_id]->get_cta_id(), warp_id,
+    m_barriers.warp_reaches_barrier(m_warp[warp_id]->get_cluster_id(),
+                                    m_warp[warp_id]->get_cta_id(), warp_id,
                                     const_cast<warp_inst_t *>(next_inst));
 
   } else if (next_inst->op == MEMORY_BARRIER_OP) {
@@ -1128,11 +1133,12 @@ void scheduler_unit::order_rrr(
   if (m_num_issued_last_cycle > 0 || warp(m_current_turn_warp).done_exit() ||
       warp(m_current_turn_warp).waiting()) {
     std::vector<shd_warp_t *>::const_iterator iter =
-      (last_issued_from_input == input_list.end()) ? 
-        input_list.begin() : last_issued_from_input + 1;
+        (last_issued_from_input == input_list.end())
+            ? input_list.begin()
+            : last_issued_from_input + 1;
     for (unsigned count = 0; count < num_warps_to_add; ++iter, ++count) {
       if (iter == input_list.end()) {
-      iter = input_list.begin();
+        iter = input_list.begin();
       }
       unsigned warp_id = (*iter)->get_warp_id();
       if (!(*iter)->done_exit() && !(*iter)->waiting()) {
@@ -2282,7 +2288,7 @@ void sp_unit::active_lanes_in_pipeline() {
 void dp_unit::active_lanes_in_pipeline() {
   unsigned active_count = pipelined_simd_unit::get_active_lanes_in_pipeline();
   assert(active_count <= m_core->get_config()->warp_size);
-  //m_core->incspactivelanes_stat(active_count);
+  // m_core->incspactivelanes_stat(active_count);
   m_core->incfuactivelanes_stat(active_count);
   m_core->incfumemactivelanes_stat(active_count);
 }
@@ -2803,7 +2809,8 @@ void ldst_unit::cycle() {
   }
 }
 
-void shader_core_ctx::register_cta_thread_exit(unsigned cta_num,
+void shader_core_ctx::register_cta_thread_exit(unsigned cluster_num,
+                                               unsigned cta_num,
                                                kernel_info_t *kernel) {
   assert(m_cta_status[cta_num] > 0);
   m_cta_status[cta_num]--;
@@ -2812,7 +2819,7 @@ void shader_core_ctx::register_cta_thread_exit(unsigned cta_num,
     m_stats->ctas_completed++;
     m_gpu->inc_completed_cta();
     m_n_active_cta--;
-    m_barriers.deallocate_barrier(cta_num);
+    m_barriers.deallocate_barrier(cluster_num, cta_num);
     shader_CTA_count_unlog(m_sid, 1);
 
     SHADER_DPRINTF(
@@ -3086,68 +3093,68 @@ void warp_inst_t::print(FILE *fout) const {
   m_config->gpgpu_ctx->func_sim->ptx_print_insn(pc, fout);
   fprintf(fout, "\n");
 }
-void shader_core_ctx::incexecstat(warp_inst_t *&inst)
-{
-    // Latency numbers for next operations are used to scale the power values
-    // for special operations, according observations from microbenchmarking
-    // TODO: put these numbers in the xml configuration
-  if(get_gpu()->get_config().g_power_simulation_enabled){
-    switch(inst->sp_op){
-    case INT__OP:
-      incialu_stat(inst->active_count(), scaling_coeffs->int_coeff);
-      break;
-    case INT_MUL_OP:
-      incimul_stat(inst->active_count(), scaling_coeffs->int_mul_coeff);
-      break;
-    case INT_MUL24_OP:
-      incimul24_stat(inst->active_count(), scaling_coeffs->int_mul24_coeff);
-      break;
-    case INT_MUL32_OP:
-      incimul32_stat(inst->active_count(), scaling_coeffs->int_mul32_coeff);
-      break;
-    case INT_DIV_OP:
-      incidiv_stat(inst->active_count(), scaling_coeffs->int_div_coeff);
-      break;
-    case FP__OP:
-      incfpalu_stat(inst->active_count(),scaling_coeffs->fp_coeff);
-      break;
-    case FP_MUL_OP:
-      incfpmul_stat(inst->active_count(), scaling_coeffs->fp_mul_coeff);
-      break;
-    case FP_DIV_OP:
-      incfpdiv_stat(inst->active_count(), scaling_coeffs->fp_div_coeff);
-      break;
-    case DP___OP:
-      incdpalu_stat(inst->active_count(), scaling_coeffs->dp_coeff);
-      break;
-    case DP_MUL_OP:
-      incdpmul_stat(inst->active_count(), scaling_coeffs->dp_mul_coeff);
-      break;
-    case DP_DIV_OP:
-      incdpdiv_stat(inst->active_count(), scaling_coeffs->dp_div_coeff);
-      break;
-    case FP_SQRT_OP:
-      incsqrt_stat(inst->active_count(), scaling_coeffs->sqrt_coeff);
-      break;
-    case FP_LG_OP:
-      inclog_stat(inst->active_count(), scaling_coeffs->log_coeff);
-      break;
-    case FP_SIN_OP:
-      incsin_stat(inst->active_count(), scaling_coeffs->sin_coeff);
-      break;
-    case FP_EXP_OP:
-      incexp_stat(inst->active_count(), scaling_coeffs->exp_coeff);
-      break;
-    case TENSOR__OP:
-      inctensor_stat(inst->active_count(), scaling_coeffs->tensor_coeff);
-      break;
-    case TEX__OP:
-      inctex_stat(inst->active_count(), scaling_coeffs->tex_coeff);
-      break;
-    default:
-      break;
+void shader_core_ctx::incexecstat(warp_inst_t *&inst) {
+  // Latency numbers for next operations are used to scale the power values
+  // for special operations, according observations from microbenchmarking
+  // TODO: put these numbers in the xml configuration
+  if (get_gpu()->get_config().g_power_simulation_enabled) {
+    switch (inst->sp_op) {
+      case INT__OP:
+        incialu_stat(inst->active_count(), scaling_coeffs->int_coeff);
+        break;
+      case INT_MUL_OP:
+        incimul_stat(inst->active_count(), scaling_coeffs->int_mul_coeff);
+        break;
+      case INT_MUL24_OP:
+        incimul24_stat(inst->active_count(), scaling_coeffs->int_mul24_coeff);
+        break;
+      case INT_MUL32_OP:
+        incimul32_stat(inst->active_count(), scaling_coeffs->int_mul32_coeff);
+        break;
+      case INT_DIV_OP:
+        incidiv_stat(inst->active_count(), scaling_coeffs->int_div_coeff);
+        break;
+      case FP__OP:
+        incfpalu_stat(inst->active_count(), scaling_coeffs->fp_coeff);
+        break;
+      case FP_MUL_OP:
+        incfpmul_stat(inst->active_count(), scaling_coeffs->fp_mul_coeff);
+        break;
+      case FP_DIV_OP:
+        incfpdiv_stat(inst->active_count(), scaling_coeffs->fp_div_coeff);
+        break;
+      case DP___OP:
+        incdpalu_stat(inst->active_count(), scaling_coeffs->dp_coeff);
+        break;
+      case DP_MUL_OP:
+        incdpmul_stat(inst->active_count(), scaling_coeffs->dp_mul_coeff);
+        break;
+      case DP_DIV_OP:
+        incdpdiv_stat(inst->active_count(), scaling_coeffs->dp_div_coeff);
+        break;
+      case FP_SQRT_OP:
+        incsqrt_stat(inst->active_count(), scaling_coeffs->sqrt_coeff);
+        break;
+      case FP_LG_OP:
+        inclog_stat(inst->active_count(), scaling_coeffs->log_coeff);
+        break;
+      case FP_SIN_OP:
+        incsin_stat(inst->active_count(), scaling_coeffs->sin_coeff);
+        break;
+      case FP_EXP_OP:
+        incexp_stat(inst->active_count(), scaling_coeffs->exp_coeff);
+        break;
+      case TENSOR__OP:
+        inctensor_stat(inst->active_count(), scaling_coeffs->tensor_coeff);
+        break;
+      case TEX__OP:
+        inctex_stat(inst->active_count(), scaling_coeffs->tex_coeff);
+        break;
+      default:
+        break;
     }
-    if(inst->const_cache_operand) //warp has const address space load as one operand
+    if (inst->const_cache_operand)  // warp has const address space load as one
+                                    // operand
       inc_const_accesses(1);
   }
 }
@@ -3596,6 +3603,7 @@ std::list<opndcoll_rfu_t::op_t> opndcoll_rfu_t::arbiter_t::allocate_reads() {
 }
 
 barrier_set_t::barrier_set_t(shader_core_ctx *shader,
+                             class simt_core_cluster *cluster,
                              unsigned max_warps_per_core,
                              unsigned max_cta_per_core,
                              unsigned max_barriers_per_cta,
@@ -3605,6 +3613,8 @@ barrier_set_t::barrier_set_t(shader_core_ctx *shader,
   m_max_barriers_per_cta = max_barriers_per_cta;
   m_warp_size = warp_size;
   m_shader = shader;
+
+  m_cluster_barrier = &cluster->m_cluster_barrier;
   if (max_warps_per_core > WARP_PER_CTA_MAX) {
     printf(
         "ERROR ** increase WARP_PER_CTA_MAX in shader.h from %u to >= %u or "
@@ -3627,7 +3637,8 @@ barrier_set_t::barrier_set_t(shader_core_ctx *shader,
 }
 
 // during cta allocation
-void barrier_set_t::allocate_barrier(unsigned cta_id, warp_set_t warps) {
+void barrier_set_t::allocate_barrier(unsigned cta_id, unsigned cluster_id,
+                                     warp_set_t warps) {
   assert(cta_id < m_max_cta_per_core);
   cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
   assert(w == m_cta_to_warps.end());  // cta should not already be active or
@@ -3641,10 +3652,15 @@ void barrier_set_t::allocate_barrier(unsigned cta_id, warp_set_t warps) {
   for (unsigned i = 0; i < m_max_barriers_per_cta; i++) {
     m_bar_id_to_warps[i] &= ~warps;
   }
+
+  unsigned cta_id_in_cluster =
+      m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+  m_cluster_barrier->m_cluster_to_cta[cluster_id].set(cta_id_in_cluster);
+  m_cluster_barrier->m_cta_active.set(cta_id_in_cluster);
 }
 
 // during cta deallocation
-void barrier_set_t::deallocate_barrier(unsigned cta_id) {
+void barrier_set_t::deallocate_barrier(unsigned cluster_id, unsigned cta_id) {
   cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
   if (w == m_cta_to_warps.end()) return;
   warp_set_t warps = w->second;
@@ -3661,53 +3677,131 @@ void barrier_set_t::deallocate_barrier(unsigned cta_id) {
     m_bar_id_to_warps[i] &= ~warps;
   }
   m_cta_to_warps.erase(w);
+
+  // deallocate cluster_barrier
+  unsigned cta_id_in_cluster =
+      m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+  assert(!m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster));
+  assert(m_cluster_barrier->m_cta_active.test(cta_id_in_cluster));
+  m_cluster_barrier->m_cta_active.reset(cta_id_in_cluster);
+  cta_set_t active_cta_in_cluster =
+      m_cluster_barrier->m_cta_active &
+      m_cluster_barrier->m_cluster_to_cta[cluster_id];
+  m_cluster_barrier->m_cluster_to_cta[cluster_id].reset(cta_id_in_cluster);
+  m_shader->get_simt_core_cluster()->m_cluster_status[cluster_id]--;
+  if (!active_cta_in_cluster.any()) {
+    m_cluster_barrier->m_cta_active &
+        ~m_cluster_barrier->m_cluster_to_cta[cluster_id];
+    m_cluster_barrier->m_cluster_to_cta[cluster_id].reset();
+    assert(m_shader->get_simt_core_cluster()->m_cluster_status[cluster_id] ==
+           0);
+  }
 }
 
 // individual warp hits barrier
-void barrier_set_t::warp_reaches_barrier(unsigned cta_id, unsigned warp_id,
-                                         warp_inst_t *inst) {
+void barrier_set_t::warp_reaches_barrier(unsigned cluster_id, unsigned cta_id,
+                                         unsigned warp_id, warp_inst_t *inst) {
   barrier_type bar_type = inst->bar_type;
-  unsigned bar_id = inst->bar_id;
-  unsigned bar_count = inst->bar_count;
-  assert(bar_id != (unsigned)-1);
-  cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
+  bool cluster_barrier = inst->cluster_barrier;
 
-  if (w == m_cta_to_warps.end()) {  // cta is active
-    printf(
-        "ERROR ** cta_id %u not found in barrier set on cycle %llu+%llu...\n",
-        cta_id, m_shader->get_gpu()->gpu_tot_sim_cycle,
-        m_shader->get_gpu()->gpu_sim_cycle);
-    dump();
-    abort();
-  }
-  assert(w->second.test(warp_id) == true);  // warp is in cta
+  if (cluster_barrier == false) {
+    unsigned bar_id = inst->bar_id;
+    unsigned bar_count = inst->bar_count;
+    assert(bar_id != (unsigned)-1);
+    cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
 
-  m_bar_id_to_warps[bar_id].set(warp_id);
-  if (bar_type == SYNC || bar_type == RED) {
-    m_warp_at_barrier.set(warp_id);
-  }
-  warp_set_t warps_in_cta = w->second;
-  warp_set_t at_barrier = warps_in_cta & m_bar_id_to_warps[bar_id];
-  warp_set_t active = warps_in_cta & m_warp_active;
-  if (bar_count == (unsigned)-1) {
-    if (at_barrier == active) {
-      // all warps have reached barrier, so release waiting warps...
-      m_bar_id_to_warps[bar_id] &= ~at_barrier;
-      m_warp_at_barrier &= ~at_barrier;
-      if (bar_type == RED) {
-        m_shader->broadcast_barrier_reduction(cta_id, bar_id, at_barrier);
+    if (w == m_cta_to_warps.end()) {  // cta is active
+      printf(
+          "ERROR ** cta_id %u not found in barrier set on cycle %llu+%llu...\n",
+          cta_id, m_shader->get_gpu()->gpu_tot_sim_cycle,
+          m_shader->get_gpu()->gpu_sim_cycle);
+      dump();
+      abort();
+    }
+    assert(w->second.test(warp_id) == true);  // warp is in cta
+
+    m_bar_id_to_warps[bar_id].set(warp_id);
+    if (bar_type == SYNC || bar_type == RED) {
+      m_warp_at_barrier.set(warp_id);
+    }
+    warp_set_t warps_in_cta = w->second;
+    warp_set_t at_barrier = warps_in_cta & m_bar_id_to_warps[bar_id];
+    warp_set_t active = warps_in_cta & m_warp_active;
+    if (bar_count == (unsigned)-1) {
+      if (at_barrier == active) {
+        // all warps have reached barrier, so release waiting warps...
+        m_bar_id_to_warps[bar_id] &= ~at_barrier;
+        m_warp_at_barrier &= ~at_barrier;
+        if (bar_type == RED) {
+          m_shader->broadcast_barrier_reduction(cta_id, bar_id, at_barrier);
+        }
+      }
+    } else {
+      // TODO: check on the hardware if the count should include warp that
+      // exited
+      if ((at_barrier.count() * m_warp_size) == bar_count) {
+        // required number of warps have reached barrier, so release waiting
+        // warps...
+        m_bar_id_to_warps[bar_id] &= ~at_barrier;
+        m_warp_at_barrier &= ~at_barrier;
+        if (bar_type == RED) {
+          m_shader->broadcast_barrier_reduction(cta_id, bar_id, at_barrier);
+        }
       }
     }
+
+    // Cluster Barrier
   } else {
-    // TODO: check on the hardware if the count should include warp that exited
-    if ((at_barrier.count() * m_warp_size) == bar_count) {
-      // required number of warps have reached barrier, so release waiting
-      // warps...
-      m_bar_id_to_warps[bar_id] &= ~at_barrier;
-      m_warp_at_barrier &= ~at_barrier;
-      if (bar_type == RED) {
-        m_shader->broadcast_barrier_reduction(cta_id, bar_id, at_barrier);
-      }
+    cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
+    unsigned cta_id_in_cluster =
+        m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+    if (w == m_cta_to_warps.end()) {  // cta is active
+      printf(
+          "ERROR ** cta_id %u not found in barrier set on cycle %llu+%llu...\n",
+          cta_id, m_shader->get_gpu()->gpu_tot_sim_cycle,
+          m_shader->get_gpu()->gpu_sim_cycle);
+      dump();
+      abort();
+    }
+    assert(w->second.test(warp_id) == true);  // warp is in cta
+
+    warp_set_t warps_in_cta;
+    warp_set_t at_barrier;
+    warp_set_t active;
+    cta_set_t ctas_in_cluster;
+    cta_set_t ctas_at_barrier;
+    cta_set_t ctas_active;
+    switch (bar_type) {
+      case WAIT:
+        m_cluster_barrier->m_cta_at_barrier.set(cta_id_in_cluster);
+        ctas_in_cluster = m_cluster_barrier->m_cluster_to_cta[cluster_id];
+        ctas_at_barrier = ctas_in_cluster & m_cluster_barrier->m_cta_arrived;
+        ctas_active = ctas_in_cluster & m_cluster_barrier->m_cta_active;
+        if (ctas_at_barrier == ctas_active) {
+          m_cluster_barrier->m_cta_arrived &= ~ctas_at_barrier;
+          m_cluster_barrier->m_cta_at_barrier &= ~ctas_at_barrier;
+        } else if (m_cluster_barrier->m_cta_arrived.test(cta_id_in_cluster) ==
+                   0) {
+          m_cluster_barrier->m_cta_at_barrier.reset(cta_id_in_cluster);
+        }
+        break;
+      case ARRIVE:
+        m_cluster_bar.set(warp_id);
+        warps_in_cta = w->second;
+        at_barrier = warps_in_cta & m_cluster_bar;
+        active = warps_in_cta & m_warp_active;
+        m_warp_at_barrier.set(warp_id);
+        // When all warps in the CTA arrived set Cluster arrived bit
+        // for that CTA
+        if (at_barrier == active) {
+          m_cluster_bar &= ~at_barrier;
+          m_warp_at_barrier &= ~at_barrier;
+          m_cluster_barrier->m_cta_arrived.set(cta_id_in_cluster);
+        }
+        break;
+      default:
+        printf("Cluster barrier only has WAIT or ARRIVE option");
+        assert(0);
     }
   }
 }
@@ -3739,6 +3833,11 @@ void barrier_set_t::warp_exit(unsigned warp_id) {
 // assertions
 bool barrier_set_t::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_warp_at_barrier.test(warp_id);
+}
+bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id) const {
+  unsigned cta_id_in_cluster =
+      m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+  return m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster);
 }
 
 void barrier_set_t::dump() {
@@ -3796,6 +3895,10 @@ bool shader_core_ctx::check_if_non_released_reduction_barrier(
 
 bool shader_core_ctx::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_barriers.warp_waiting_at_barrier(warp_id);
+}
+
+bool shader_core_ctx::warp_waiting_at_cluster_barrier(unsigned cta_id) const {
+  return m_barriers.warp_waiting_at_cluster_barrier(cta_id);
 }
 
 bool shader_core_ctx::warp_waiting_at_mem_barrier(unsigned warp_id) {
@@ -3912,6 +4015,8 @@ bool shd_warp_t::waiting() {
   } else if (m_shader->warp_waiting_at_barrier(m_warp_id)) {
     // waiting for other warps in CTA to reach barrier
     return true;
+  } else if (m_shader->warp_waiting_at_cluster_barrier(m_cta_id)) {
+    return true;
   } else if (m_shader->warp_waiting_at_mem_barrier(m_warp_id)) {
     // waiting for memory barrier
     return true;
@@ -4022,7 +4127,7 @@ void opndcoll_rfu_t::init(unsigned num_banks, shader_core_ctx *shader) {
                   sub_core_model, reg_id, m_num_banks_per_sched);
   }
   for (unsigned j = 0; j < m_dispatch_units.size(); j++) {
-    m_dispatch_units[j].init(sub_core_model,m_num_warp_scheds);
+    m_dispatch_units[j].init(sub_core_model, m_num_warp_scheds);
   }
   m_initialized = true;
 }
@@ -4289,7 +4394,21 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   m_stats = stats;
   m_memory_stats = mstats;
   m_mem_config = mem_config;
+  m_maximum_thread_block_cluster =
+      config->max_cta_per_core * config->n_simt_cores_per_cluster;
+  if (m_maximum_thread_block_cluster > CTA_PER_CLUSTER_MAX) {
+    printf(
+        "ERROR ** increase CTA_PER_CLUSTER_MAX in shader.h from %u to >= %u\n",
+        CTA_PER_CLUSTER_MAX, m_maximum_thread_block_cluster);
+    exit(1);
+  }
+
+  m_cluster_status = new unsigned[m_maximum_thread_block_cluster];
+  for (int i = 0; i < m_maximum_thread_block_cluster; i++)
+    m_cluster_status[i] = 0;
 }
+
+simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }
 
 void simt_core_cluster::core_cycle() {
   for (std::list<unsigned>::iterator it = m_core_sim_order.begin();
@@ -4350,6 +4469,62 @@ unsigned simt_core_cluster::get_n_active_sms() const {
   return n;
 }
 
+bool simt_core_cluster::next_cores_can_issue_cluster(kernel_info_t *kernel,
+                                                     unsigned position) {
+  int ctas_per_cluster = kernel->ctas_per_cluster();
+  if (ctas_per_cluster > m_config->n_simt_cores_per_cluster) {
+    printf("Not enough cores in cluster to run kernel: %s\n",
+           kernel->name().c_str());
+    exit(1);
+  }
+
+  // Check if enough cores are availble in this scheduling cycle
+  if (position + ctas_per_cluster > m_config->n_simt_cores_per_cluster)
+    return false;
+
+  for (unsigned i = position; i < position + ctas_per_cluster; i++) {
+    unsigned core =
+        (i + m_cta_issue_next_core + 1) % m_config->n_simt_cores_per_cluster;
+    if (!m_config->gpgpu_concurrent_kernel_sm) {
+      // If the same kernel is running
+      kernel_info_t *core_kernel = m_core[core]->get_kernel();
+      if (core_kernel != kernel)
+        if (m_gpu->kernel_more_cta_left(core_kernel) ||
+            m_core[core]->get_not_completed())
+          return false;
+    }
+    if (!m_core[core]->can_issue_1block(*kernel)) return false;
+  }
+  return true;
+}
+
+unsigned simt_core_cluster::issue_cta_cluster(kernel_info_t *kernel,
+                                              unsigned position) {
+  int ctas_per_cluster = kernel->ctas_per_cluster();
+  unsigned num_blocks_issued = 0;
+
+  unsigned free_cluster_slot = (unsigned)-1;
+  for (unsigned i = 0; i < m_maximum_thread_block_cluster; i++) {
+    if (m_cluster_status[i] == 0) {
+      free_cluster_slot = i;
+      break;
+    }
+  }
+  assert(free_cluster_slot != (unsigned)-1);
+
+  unsigned core;
+  for (unsigned i = position; i < position + ctas_per_cluster; i++) {
+    core = (i + m_cta_issue_next_core + 1) % m_config->n_simt_cores_per_cluster;
+    if (!m_config->gpgpu_concurrent_kernel_sm && i != position)
+      m_core[core]->set_kernel(kernel);
+    m_core[core]->issue_block2core(*kernel, free_cluster_slot);
+    num_blocks_issued++;
+  }
+  m_cta_issue_next_core = core;
+  m_cluster_status[free_cluster_slot] = num_blocks_issued;
+  return num_blocks_issued;
+}
+
 unsigned simt_core_cluster::issue_block2core() {
   unsigned num_blocks_issued = 0;
   for (unsigned i = 0; i < m_config->n_simt_cores_per_cluster; i++) {
@@ -4377,12 +4552,8 @@ unsigned simt_core_cluster::issue_block2core() {
     }
 
     if (m_gpu->kernel_more_cta_left(kernel) &&
-        //            (m_core[core]->get_n_active_cta() <
-        //            m_config->max_cta(*kernel)) ) {
-        m_core[core]->can_issue_1block(*kernel)) {
-      m_core[core]->issue_block2core(*kernel);
-      num_blocks_issued++;
-      m_cta_issue_next_core = core;
+        next_cores_can_issue_cluster(kernel, i)) {
+      num_blocks_issued += issue_cta_cluster(kernel, i);
       break;
     }
   }

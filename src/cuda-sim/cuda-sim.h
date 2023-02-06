@@ -51,7 +51,7 @@ extern void ptxinfo_opencl_addinfo(
     std::map<std::string, function_info *> &kernels);
 unsigned ptx_sim_init_thread(kernel_info_t &kernel,
                              class ptx_thread_info **thread_info, int sid,
-                             unsigned tid, unsigned threads_left,
+                             unsigned cid, unsigned tid, unsigned threads_left,
                              unsigned num_threads, class core_t *core,
                              unsigned hw_cta_id, unsigned hw_warp_id,
                              gpgpu_t *gpu,

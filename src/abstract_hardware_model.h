@@ -1,16 +1,17 @@
-// Copyright (c) 2009-2021, Tor M. Aamodt, Inderpreet Singh, Vijay Kandiah, Nikos Hardavellas
-// The University of British Columbia, Northwestern University
+// Copyright (c) 2009-2021, Tor M. Aamodt, Inderpreet Singh, Vijay Kandiah,
+// Nikos Hardavellas The University of British Columbia, Northwestern University
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -63,24 +64,24 @@ enum _memory_space_t {
 #ifndef COEFF_STRUCT
 #define COEFF_STRUCT
 
-struct PowerscalingCoefficients{
-    double int_coeff;
-    double int_mul_coeff;
-    double int_mul24_coeff;
-    double int_mul32_coeff;
-    double int_div_coeff;
-    double fp_coeff;
-    double dp_coeff;
-    double fp_mul_coeff;
-    double fp_div_coeff;
-    double dp_mul_coeff;
-    double dp_div_coeff;
-    double sqrt_coeff;
-    double log_coeff;
-    double sin_coeff;
-    double exp_coeff;
-    double tensor_coeff;
-    double tex_coeff;
+struct PowerscalingCoefficients {
+  double int_coeff;
+  double int_mul_coeff;
+  double int_mul24_coeff;
+  double int_mul32_coeff;
+  double int_div_coeff;
+  double fp_coeff;
+  double dp_coeff;
+  double fp_mul_coeff;
+  double fp_div_coeff;
+  double dp_mul_coeff;
+  double dp_div_coeff;
+  double sqrt_coeff;
+  double log_coeff;
+  double sin_coeff;
+  double exp_coeff;
+  double tensor_coeff;
+  double tex_coeff;
 };
 #endif
 
@@ -137,7 +138,7 @@ enum uarch_op_t {
 };
 typedef enum uarch_op_t op_type;
 
-enum uarch_bar_t { NOT_BAR = -1, SYNC = 1, ARRIVE, RED };
+enum uarch_bar_t { NOT_BAR = -1, SYNC = 1, ARRIVE, RED, WAIT };
 typedef enum uarch_bar_t barrier_type;
 
 enum uarch_red_t { NOT_RED = -1, POPC_RED = 1, AND_RED, OR_RED };
@@ -258,15 +259,38 @@ class kernel_info_t {
     return m_block_dim.x * m_block_dim.y * m_block_dim.z;
   }
 
+  size_t ctas_per_cluster() const {
+    return m_cluster_dim.x * m_cluster_dim.y * m_cluster_dim.z;
+  }
+
+  size_t clusters_per_grid() const { return num_blocks() / ctas_per_cluster(); }
+
   dim3 get_grid_dim() const { return m_grid_dim; }
   dim3 get_cta_dim() const { return m_block_dim; }
+  dim3 get_cluster_dim() const { return m_cluster_dim; }
+  dim3 get_next_cluster3d() const { return m_next_cluster; }
+  dim3 get_cluster_in_grid() const { return m_cluster_in_grid; }
+  dim3 get_ncluster_in_grid() const { return m_ncluster_in_grid; }
 
   void increment_cta_id() {
-    increment_x_then_y_then_z(m_next_cta, m_grid_dim);
+    m_next_cluster_ctarank++;
+    increment_x_then_y_then_z(m_next_cluster, m_cluster_dim);
+    if (m_next_cluster_ctarank >=
+        m_cluster_dim.x * m_cluster_dim.y * m_cluster_dim.z) {
+      m_next_cluster_ctarank = 0;
+      increment_x_then_y_then_z(m_cluster_in_grid, m_ncluster_in_grid);
+      m_next_cluster = {0, 0, 0};
+    }
+
     m_next_tid.x = 0;
     m_next_tid.y = 0;
     m_next_tid.z = 0;
+
+    m_next_cta.x = m_cluster_in_grid.x * m_cluster_dim.x + m_next_cluster.x;
+    m_next_cta.y = m_cluster_in_grid.y * m_cluster_dim.y + m_next_cluster.y;
+    m_next_cta.z = m_cluster_in_grid.z * m_cluster_dim.z + m_next_cluster.z;
   }
+  unsigned get_next_cluster_ctarank() const { return m_next_cluster_ctarank; }
   dim3 get_next_cta_id() const { return m_next_cta; }
   unsigned get_next_cta_id_single() const {
     return m_next_cta.x + m_grid_dim.x * m_next_cta.y +
@@ -330,10 +354,16 @@ class kernel_info_t {
 
   dim3 m_grid_dim;
   dim3 m_block_dim;
+  dim3 m_cluster_dim;
   dim3 m_next_cta;
   dim3 m_next_tid;
+  dim3 m_next_cluster;
+
+  dim3 m_cluster_in_grid;
+  dim3 m_ncluster_in_grid;
 
   unsigned m_num_cores_running;
+  unsigned m_next_cluster_ctarank;
 
   std::list<class ptx_thread_info *> m_active_threads;
   class memory_space *m_param_mem;
@@ -936,6 +966,7 @@ class inst_t {
     op = NO_OP;
     bar_type = NOT_BAR;
     red_type = NOT_RED;
+    cluster_barrier = false;
     bar_id = (unsigned)-1;
     bar_count = (unsigned)-1;
     oprnd_type = UN_OP;
@@ -972,24 +1003,29 @@ class inst_t {
             memory_op == memory_store);
   }
 
-  bool is_fp() const { return ((sp_op == FP__OP));}    //VIJAY
-  bool is_fpdiv() const { return ((sp_op == FP_DIV_OP));} 
-  bool is_fpmul() const { return ((sp_op == FP_MUL_OP));} 
-  bool is_dp() const { return ((sp_op == DP___OP));}    
-  bool is_dpdiv() const { return ((sp_op == DP_DIV_OP));} 
-  bool is_dpmul() const { return ((sp_op == DP_MUL_OP));}
-  bool is_imul() const { return ((sp_op == INT_MUL_OP));} 
-  bool is_imul24() const { return ((sp_op == INT_MUL24_OP));} 
-  bool is_imul32() const { return ((sp_op == INT_MUL32_OP));} 
-  bool is_idiv() const { return ((sp_op == INT_DIV_OP));}   
-  bool is_sfu() const {return ((sp_op == FP_SQRT_OP) || (sp_op == FP_LG_OP)  || (sp_op == FP_SIN_OP)  || (sp_op == FP_EXP_OP) || (sp_op == TENSOR__OP));}
-  bool is_alu() const {return (sp_op == INT__OP);}
+  bool is_fp() const { return ((sp_op == FP__OP)); }  // VIJAY
+  bool is_fpdiv() const { return ((sp_op == FP_DIV_OP)); }
+  bool is_fpmul() const { return ((sp_op == FP_MUL_OP)); }
+  bool is_dp() const { return ((sp_op == DP___OP)); }
+  bool is_dpdiv() const { return ((sp_op == DP_DIV_OP)); }
+  bool is_dpmul() const { return ((sp_op == DP_MUL_OP)); }
+  bool is_imul() const { return ((sp_op == INT_MUL_OP)); }
+  bool is_imul24() const { return ((sp_op == INT_MUL24_OP)); }
+  bool is_imul32() const { return ((sp_op == INT_MUL32_OP)); }
+  bool is_idiv() const { return ((sp_op == INT_DIV_OP)); }
+  bool is_sfu() const {
+    return ((sp_op == FP_SQRT_OP) || (sp_op == FP_LG_OP) ||
+            (sp_op == FP_SIN_OP) || (sp_op == FP_EXP_OP) ||
+            (sp_op == TENSOR__OP));
+  }
+  bool is_alu() const { return (sp_op == INT__OP); }
 
   unsigned get_num_operands() const { return num_operands; }
   unsigned get_num_regs() const { return num_regs; }
   void set_num_regs(unsigned num) { num_regs = num; }
   void set_num_operands(unsigned num) { num_operands = num; }
   void set_bar_id(unsigned id) { bar_id = id; }
+  void set_cluster() { cluster_barrier = true; }
   void set_bar_count(unsigned count) { bar_count = count; }
 
   address_type pc;  // program counter address of instruction
@@ -997,6 +1033,7 @@ class inst_t {
   op_type op;       // opcode (uarch visible)
 
   barrier_type bar_type;
+  bool cluster_barrier;
   reduction_type red_type;
   unsigned bar_id;
   unsigned bar_count;
@@ -1008,7 +1045,7 @@ class inst_t {
   operation_pipeline op_pipe;  // code (uarch visible) identify the pipeline of
                                // the operation (SP, SFU or MEM)
   mem_operation mem_op;        // code (uarch visible) identify memory type
-  bool const_cache_operand;   // has a load from constant memory as an operand
+  bool const_cache_operand;    // has a load from constant memory as an operand
   _memory_op_t memory_op;      // memory_op used by ptxplus
   unsigned num_operands;
   unsigned num_regs;  // count vector operand as one register operand

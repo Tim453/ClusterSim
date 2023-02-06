@@ -72,7 +72,6 @@ atom	TC; yylval->int_value = ATOM_OP; return OPCODE;
 bar.warp 	TC; yylval->int_value = NOP_OP; return OPCODE;
 bar 	TC; yylval->int_value = BAR_OP; return OPCODE;
 barrier	TC; yylval->int_value = BAR_OP; return OPCODE;
-barrier.cluster TC; yylval->int_value = NOP_OP; return OPCODE; // Replace with BARRIER_CLUSTER_OP
 bfe     TC; yylval->int_value = BFE_OP; return OPCODE;
 bfi     TC; yylval->int_value = BFI_OP; return OPCODE;
 bfind   TC; yylval->int_value = BFIND_OP; return OPCODE;
@@ -361,6 +360,8 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 
 \.wide  TC; return WIDE_OPTION;
 \.uni	TC; return UNI_OPTION;
+
+\.cluster TC; return CLUSTER_OPTION;
 
 \.sync TC; return SYNC_OPTION;
 \.arrive TC; return ARRIVE_OPTION;

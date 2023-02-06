@@ -6,12 +6,13 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -590,118 +591,126 @@ void ptx_instruction::set_fp_or_int_archop() {
   }
 }
 
-void ptx_instruction::set_mul_div_or_other_archop(){
-  sp_op=OTHER_OP;
-  if((m_opcode != MEMBAR_OP) && (m_opcode != SSY_OP) && (m_opcode != BRA_OP) && (m_opcode != BAR_OP) && (m_opcode != EXIT_OP) && (m_opcode != NOP_OP) && (m_opcode != RETP_OP) && (m_opcode != RET_OP) && (m_opcode != CALLP_OP) && (m_opcode != CALL_OP)){
-    if(get_type() == F64_TYPE || get_type() == FF64_TYPE){
-         switch(get_opcode()){
-            case MUL_OP:
-            case MAD_OP:
-            case FMA_OP:
-                sp_op=DP_MUL_OP;
-               break;
-            case DIV_OP:
-            case REM_OP:
-                sp_op=DP_DIV_OP;
-               break;
-            case RCP_OP:
-                sp_op=DP_DIV_OP;
-               break;
-            case LG2_OP:
-                sp_op=FP_LG_OP;
-               break;
-            case RSQRT_OP:
-            case SQRT_OP:
-                sp_op=FP_SQRT_OP;
-               break;            
-            case SIN_OP:
-            case COS_OP:
-                sp_op=FP_SIN_OP;
-               break;
-            case EX2_OP:
-                sp_op=FP_EXP_OP;
-               break;
-            case MMA_OP:
-                sp_op=TENSOR__OP;
-            break;
-            case TEX_OP:
-                sp_op=TEX__OP;
-            break;
-            default:
-               if((op==DP_OP) || (op==ALU_OP))
-                  sp_op=DP___OP;
-               break;
-         }
+void ptx_instruction::set_mul_div_or_other_archop() {
+  sp_op = OTHER_OP;
+  if ((m_opcode != MEMBAR_OP) && (m_opcode != SSY_OP) && (m_opcode != BRA_OP) &&
+      (m_opcode != BAR_OP) && (m_opcode != EXIT_OP) && (m_opcode != NOP_OP) &&
+      (m_opcode != RETP_OP) && (m_opcode != RET_OP) && (m_opcode != CALLP_OP) &&
+      (m_opcode != CALL_OP)) {
+    if (get_type() == F64_TYPE || get_type() == FF64_TYPE) {
+      switch (get_opcode()) {
+        case MUL_OP:
+        case MAD_OP:
+        case FMA_OP:
+          sp_op = DP_MUL_OP;
+          break;
+        case DIV_OP:
+        case REM_OP:
+          sp_op = DP_DIV_OP;
+          break;
+        case RCP_OP:
+          sp_op = DP_DIV_OP;
+          break;
+        case LG2_OP:
+          sp_op = FP_LG_OP;
+          break;
+        case RSQRT_OP:
+        case SQRT_OP:
+          sp_op = FP_SQRT_OP;
+          break;
+          break;
+          break;
+          break;
+          break;
+        case SIN_OP:
+        case COS_OP:
+          sp_op = FP_SIN_OP;
+          break;
+        case EX2_OP:
+          sp_op = FP_EXP_OP;
+          break;
+        case MMA_OP:
+          sp_op = TENSOR__OP;
+          break;
+        case TEX_OP:
+          sp_op = TEX__OP;
+          break;
+        default:
+          if ((op == DP_OP) || (op == ALU_OP)) sp_op = DP___OP;
+          break;
       }
-      else if(get_type()==F16_TYPE || get_type()==F32_TYPE){
-         switch(get_opcode()){
-            case MUL_OP:
-            case MAD_OP:
-            case FMA_OP:
-                sp_op=FP_MUL_OP;
-               break;
-            case DIV_OP:
-            case REM_OP:
-                sp_op=FP_DIV_OP;
-               break;
-            case RCP_OP:
-                sp_op=FP_DIV_OP;
-               break;
-            case LG2_OP:
-                sp_op=FP_LG_OP;
-               break;
-            case RSQRT_OP:
-            case SQRT_OP:
-                sp_op=FP_SQRT_OP;
-               break;            
-            case SIN_OP:
-            case COS_OP:
-                sp_op=FP_SIN_OP;
-               break;
-            case EX2_OP:
-                sp_op=FP_EXP_OP;
-               break;
-            case MMA_OP:
-                sp_op=TENSOR__OP;
-            break;
-            case TEX_OP:
-                sp_op=TEX__OP;
-            break;
-            default:
-               if((op==SP_OP) || (op==ALU_OP))
-                  sp_op=FP__OP;
-               break;
-         }
-      }else {
-         switch(get_opcode()){
-            case MUL24_OP:
-            case MAD24_OP:
-                sp_op=INT_MUL24_OP;
-            break;
-            case MUL_OP:
-            case MAD_OP:
-            case FMA_OP:
-               if(get_type()==U32_TYPE || get_type()==S32_TYPE || get_type()==B32_TYPE)
-                   sp_op=INT_MUL32_OP;
-               else
-                   sp_op=INT_MUL_OP;
-            break;
-            case DIV_OP:
-            case REM_OP:
-                sp_op=INT_DIV_OP;
-            break;
-            case MMA_OP:
-                sp_op=TENSOR__OP;
-            break;
-            case TEX_OP:
-                sp_op=TEX__OP;
-            break;
-            default:
-               if((op==INTP_OP) || (op==ALU_OP))
-                   sp_op=INT__OP;
-               break;
-         }
+    } else if (get_type() == F16_TYPE || get_type() == F32_TYPE) {
+      switch (get_opcode()) {
+        case MUL_OP:
+        case MAD_OP:
+        case FMA_OP:
+          sp_op = FP_MUL_OP;
+          break;
+        case DIV_OP:
+        case REM_OP:
+          sp_op = FP_DIV_OP;
+          break;
+        case RCP_OP:
+          sp_op = FP_DIV_OP;
+          break;
+        case LG2_OP:
+          sp_op = FP_LG_OP;
+          break;
+        case RSQRT_OP:
+        case SQRT_OP:
+          sp_op = FP_SQRT_OP;
+          break;
+          break;
+          break;
+          break;
+          break;
+        case SIN_OP:
+        case COS_OP:
+          sp_op = FP_SIN_OP;
+          break;
+        case EX2_OP:
+          sp_op = FP_EXP_OP;
+          break;
+        case MMA_OP:
+          sp_op = TENSOR__OP;
+          break;
+        case TEX_OP:
+          sp_op = TEX__OP;
+          break;
+        default:
+          if ((op == SP_OP) || (op == ALU_OP)) sp_op = FP__OP;
+          break;
       }
+    } else {
+      switch (get_opcode()) {
+        case MUL24_OP:
+        case MAD24_OP:
+          sp_op = INT_MUL24_OP;
+          break;
+        case MUL_OP:
+        case MAD_OP:
+        case FMA_OP:
+          if (get_type() == U32_TYPE || get_type() == S32_TYPE ||
+              get_type() == B32_TYPE)
+            sp_op = INT_MUL32_OP;
+          else
+            sp_op = INT_MUL_OP;
+          break;
+        case DIV_OP:
+        case REM_OP:
+          sp_op = INT_DIV_OP;
+          break;
+        case MMA_OP:
+          sp_op = TENSOR__OP;
+          break;
+        case TEX_OP:
+          sp_op = TEX__OP;
+          break;
+        default:
+          if ((op == INTP_OP) || (op == ALU_OP)) sp_op = INT__OP;
+          break;
+      }
+    }
   }
 }
 
@@ -713,6 +722,9 @@ void ptx_instruction::set_bar_type() {
         break;
       case ARRIVE_OPTION:
         bar_type = ARRIVE;
+        break;
+      case WAIT_OPTION:
+        bar_type = WAIT;
         break;
       case RED_OPTION:
         bar_type = RED;
@@ -959,14 +971,16 @@ void ptx_instruction::set_opcode_and_latency() {
           break;
       }
       break;
-    case MUL24_OP: //MUL24 is performed on mul32 units (with additional instructions for bitmasking) on devices with compute capability >1.x
-      latency = int_latency[2]+1;
-      initiation_interval = int_init[2]+1;
+    case MUL24_OP:  // MUL24 is performed on mul32 units (with additional
+                    // instructions for bitmasking) on devices with compute
+                    // capability >1.x
+      latency = int_latency[2] + 1;
+      initiation_interval = int_init[2] + 1;
       op = INTP_OP;
       break;
     case MAD24_OP:
-      latency = int_latency[3]+1;
-      initiation_interval = int_init[3]+1;
+      latency = int_latency[3] + 1;
+      initiation_interval = int_init[3] + 1;
       op = INTP_OP;
       break;
     case DIV_OP:
@@ -2031,7 +2045,7 @@ const warp_inst_t *gpgpu_context::ptx_fetch_inst(address_type pc) {
 
 unsigned ptx_sim_init_thread(kernel_info_t &kernel,
                              ptx_thread_info **thread_info, int sid,
-                             unsigned tid, unsigned threads_left,
+                             unsigned cid, unsigned tid, unsigned threads_left,
                              unsigned num_threads, core_t *core,
                              unsigned hw_cta_id, unsigned hw_warp_id,
                              gpgpu_t *gpu, bool isInFunctionalSimulationMode) {
@@ -2039,6 +2053,7 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
 
   static std::map<unsigned, memory_space *> shared_memory_lookup;
   static std::map<unsigned, memory_space *> sstarr_memory_lookup;
+  static std::map<unsigned, ptx_cluster_info *> ptx_cluster_lookup;
   static std::map<unsigned, ptx_cta_info *> ptx_cta_lookup;
   static std::map<unsigned, ptx_warp_info *> ptx_warp_lookup;
   static std::map<unsigned, std::map<unsigned, memory_space *> >
@@ -2086,12 +2101,25 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
 
   // initializing new CTA
   ptx_cta_info *cta_info = NULL;
+  ptx_cluster_info *cluster_info = NULL;
   memory_space *shared_mem = NULL;
   memory_space *sstarr_mem = NULL;
 
   unsigned cta_size = kernel.threads_per_cta();
   unsigned max_cta_per_sm = num_threads / cta_size;  // e.g., 256 / 48 = 5
   assert(max_cta_per_sm > 0);
+
+  if (ptx_cluster_lookup[cid] == NULL) {
+    cluster_info = new ptx_cluster_info(gpu->gpgpu_ctx);
+    ptx_cluster_lookup[cid] = cluster_info;
+  } else {
+    cluster_info = ptx_cluster_lookup[cid];
+  }
+  // If it is the first cta reset cluster_info
+  dim3 kernel_cluster3d = kernel.get_next_cluster3d();
+  if (kernel_cluster3d.x == 0 && kernel_cluster3d.y == 0 &&
+      kernel_cluster3d.z == 0)
+    cluster_info->clear();
 
   // unsigned sm_idx = (tid/cta_size)*gpgpu_param_num_shaders + sid;
   unsigned sm_idx =
@@ -2121,6 +2149,9 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
     cta_info = ptx_cta_lookup[sm_idx];
     cta_info->check_cta_thread_status_and_reset();
   }
+  cluster_info->add_cta(cta_info, kernel.get_next_cluster_ctarank());
+  cta_info->set_shader_id(sid);
+  cta_info->set_shared_memory(shared_mem);
 
   std::map<unsigned, memory_space *> &local_mem_lookup =
       local_memory_lookup[sid];
@@ -2128,6 +2159,8 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
     dim3 ctaid3d = kernel.get_next_cta_id();
     unsigned new_tid = kernel.get_next_thread_id();
     dim3 tid3d = kernel.get_next_thread_id_3d();
+    dim3 cluster3d = kernel.get_next_cluster3d();
+    dim3 cluster_in_grid = kernel.get_cluster_in_grid();
     kernel.increment_thread_id();
     new_tid += tid;
     ptx_thread_info *thd = new ptx_thread_info(kernel);
@@ -2156,6 +2189,10 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
     thd->set_ntid(kernel.get_cta_dim());
     thd->set_ctaid(ctaid3d);
     thd->set_tid(tid3d);
+    thd->set_cluster_nctaid(kernel.get_cluster_dim());
+    thd->set_cluster_ctaid(cluster3d);
+    thd->set_clusterid(cluster_in_grid);
+    thd->set_nclusterid(kernel.get_ncluster_in_grid());
     if (kernel.entry()->get_ptx_version().extensions())
       thd->cpy_tid_to_reg(tid3d);
     thd->set_valid();
@@ -2166,6 +2203,7 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
     thd->func_info()->param_to_shared(thd->m_shared_mem, st);
     thd->func_info()->param_to_shared(thd->m_sstarr_mem, st);
     thd->m_cta_info = cta_info;
+    thd->m_cluster_info = cluster_info;
     cta_info->add_thread(thd);
     thd->m_local_mem = local_mem;
     if (g_debug_execution == -1) {
@@ -2580,7 +2618,7 @@ void functionalCoreSim::initializeCTA(unsigned ctaid_cp) {
 
   // get threads for a cta
   for (unsigned i = 0; i < m_kernel->threads_per_cta(); i++) {
-    ptx_sim_init_thread(*m_kernel, &m_thread[i], 0, i,
+    ptx_sim_init_thread(*m_kernel, &m_thread[i], 0, 0, i,
                         m_kernel->threads_per_cta() - i,
                         m_kernel->threads_per_cta(), this, 0, i / m_warp_size,
                         (gpgpu_t *)m_gpu, true);

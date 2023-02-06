@@ -180,6 +180,7 @@ class ptx_recognizer;
 %token RED_OPTION
 %token ARRIVE_OPTION
 %token WAIT_OPTION
+%token CLUSTER_OPTION
 %token ATOMIC_POPC
 %token ATOMIC_AND
 %token ATOMIC_OR
@@ -482,6 +483,7 @@ option: type_spec
 	| rounding_mode
 	| wmma_spec 
 	| prmt_spec 
+	| CLUSTER_OPTION { recognizer->add_option(CLUSTER_OPTION); }
 	| SYNC_OPTION { recognizer->add_option(SYNC_OPTION); }
 	| ARRIVE_OPTION { recognizer->add_option(ARRIVE_OPTION); }
 	| WAIT_OPTION {recognizer->add_option(WAIT_OPTION); }

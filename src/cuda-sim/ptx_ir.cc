@@ -6,12 +6,13 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -1221,6 +1222,7 @@ ptx_instruction::ptx_instruction(
   m_abs = false;
   m_neg = false;
   m_to_option = false;
+  m_cluster = false;
   m_cache_option = 0;
   m_rounding_mode = RN_OPTION;
   m_compare_op = -1;
@@ -1263,10 +1265,13 @@ ptx_instruction::ptx_instruction(
     int last_ptx_inst_option = *i;
     switch (last_ptx_inst_option) {
       case SYNC_OPTION:
-      case WAIT_OPTION: // ToDo is this right?
+      case WAIT_OPTION:
       case ARRIVE_OPTION:
       case RED_OPTION:
         m_barrier_op = last_ptx_inst_option;
+        break;
+      case CLUSTER_OPTION:
+        m_cluster = true;
         break;
       case EQU_OPTION:
       case NEU_OPTION:
@@ -1386,7 +1391,7 @@ ptx_instruction::ptx_instruction(
       case CS_OPTION:
       case LU_OPTION:
       case CV_OPTION:
-      case WB_OPTION: 
+      case WB_OPTION:
       case WT_OPTION:
         m_cache_option = last_ptx_inst_option;
         break;

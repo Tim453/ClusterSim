@@ -1,16 +1,17 @@
-// Copyright (c) 2009-2021, Tor M. Aamodt, Inderpreet Singh, Timothy Rogers, Vijay Kandiah, Nikos Hardavellas
-// The University of British Columbia, Northwestern University
-// All rights reserved.
+// Copyright (c) 2009-2021, Tor M. Aamodt, Inderpreet Singh, Timothy Rogers,
+// Vijay Kandiah, Nikos Hardavellas The University of British Columbia,
+// Northwestern University All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice, this
+// 1. Redistributions of source code must retain the above copyright notice,
+// this
 //    list of conditions and the following disclaimer;
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution;
-// 3. Neither the names of The University of British Columbia, Northwestern 
+// 3. Neither the names of The University of British Columbia, Northwestern
 //    University nor the names of their contributors may be used to
 //    endorse or promote products derived from this software without specific
 //    prior written permission.
@@ -26,7 +27,6 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-
 
 #include "abstract_hardware_model.h"
 #include <sys/stat.h>
@@ -283,7 +283,7 @@ void warp_inst_t::broadcast_barrier_reduction(
 void warp_inst_t::generate_mem_accesses() {
   if (empty() || op == MEMORY_BARRIER_OP || m_mem_accesses_created) return;
   if (!((op == LOAD_OP) || (op == TENSOR_CORE_LOAD_OP) || (op == STORE_OP) ||
-        (op == TENSOR_CORE_STORE_OP) ))
+        (op == TENSOR_CORE_STORE_OP)))
     return;
   if (m_warp_active_mask.count() == 0) return;  // predicated off
 
@@ -291,8 +291,8 @@ void warp_inst_t::generate_mem_accesses() {
 
   assert(is_load() || is_store());
 
-  //if((space.get_type() != tex_space) && (space.get_type() != const_space))
-    assert(m_per_scalar_thread_valid);  // need address information per thread
+  // if((space.get_type() != tex_space) && (space.get_type() != const_space))
+  assert(m_per_scalar_thread_valid);  // need address information per thread
 
   bool is_write = is_store();
 
@@ -758,9 +758,23 @@ kernel_info_t::kernel_info_t(dim3 gridDim, dim3 blockDim,
   m_kernel_entry = entry;
   m_grid_dim = gridDim;
   m_block_dim = blockDim;
+  m_cluster_dim = m_kernel_entry->get_cluster_dims();
+  assert(m_grid_dim.x % m_cluster_dim.x == 0);
+  assert(m_grid_dim.y % m_cluster_dim.y == 0);
+  assert(m_grid_dim.z % m_cluster_dim.z == 0);
+  m_ncluster_in_grid.x = m_grid_dim.x / m_cluster_dim.x;
+  m_ncluster_in_grid.y = m_grid_dim.y / m_cluster_dim.y;
+  m_ncluster_in_grid.z = m_grid_dim.z / m_cluster_dim.z;
+  m_cluster_in_grid.x = 0;
+  m_cluster_in_grid.y = 0;
+  m_cluster_in_grid.z = 0;
+  m_next_cluster.x = 0;
+  m_next_cluster.y = 0;
+  m_next_cluster.z = 0;
   m_next_cta.x = 0;
   m_next_cta.y = 0;
   m_next_cta.z = 0;
+  m_next_cluster_ctarank = 0;
   m_next_tid = m_next_cta;
   m_num_cores_running = 0;
   m_uid = (entry->gpgpu_ctx->kernel_info_m_next_uid)++;
@@ -789,9 +803,23 @@ kernel_info_t::kernel_info_t(
   m_kernel_entry = entry;
   m_grid_dim = gridDim;
   m_block_dim = blockDim;
+  m_cluster_dim = m_kernel_entry->get_cluster_dims();
+  assert(m_grid_dim.x % m_cluster_dim.x == 0);
+  assert(m_grid_dim.y % m_cluster_dim.y == 0);
+  assert(m_grid_dim.z % m_cluster_dim.z == 0);
+  m_ncluster_in_grid.x = m_grid_dim.x / m_cluster_dim.x;
+  m_ncluster_in_grid.y = m_grid_dim.y / m_cluster_dim.y;
+  m_ncluster_in_grid.z = m_grid_dim.z / m_cluster_dim.z;
+  m_cluster_in_grid.x = 0;
+  m_cluster_in_grid.y = 0;
+  m_cluster_in_grid.z = 0;
+  m_next_cluster.x = 0;
+  m_next_cluster.y = 0;
+  m_next_cluster.z = 0;
   m_next_cta.x = 0;
   m_next_cta.y = 0;
   m_next_cta.z = 0;
+  m_next_cluster_ctarank = 0;
   m_next_tid = m_next_cta;
   m_num_cores_running = 0;
   m_uid = (entry->gpgpu_ctx->kernel_info_m_next_uid)++;

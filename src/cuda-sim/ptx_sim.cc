@@ -38,6 +38,21 @@ typedef void *yyscan_t;
 
 void feature_not_implemented(const char *f);
 
+ptx_cluster_info::ptx_cluster_info(gpgpu_context *ctx) { gpgpu_ctx = ctx; }
+
+void ptx_cluster_info::add_cta(ptx_cta_info *cta, unsigned cluster_ctarank) {
+  m_ctas_in_cluster[cluster_ctarank] = cta;
+}
+
+void ptx_cluster_info::clear() { m_ctas_in_cluster.clear(); }
+
+unsigned ptx_cluster_info::get_cta_rank_of_shared_memory_region(addr_t addr) {
+  for (auto const &cta : m_ctas_in_cluster) {
+    if (cta.second->is_in_generic_shared_memory(addr)) return cta.first;
+  }
+  assert(0);
+}
+
 ptx_cta_info::ptx_cta_info(unsigned sm_idx, gpgpu_context *ctx) {
   assert(ctx->func_sim->g_ptx_cta_info_sm_idx_used.find(sm_idx) ==
          ctx->func_sim->g_ptx_cta_info_sm_idx_used.end());
@@ -51,6 +66,10 @@ ptx_cta_info::ptx_cta_info(unsigned sm_idx, gpgpu_context *ctx) {
 
 void ptx_cta_info::add_thread(ptx_thread_info *thd) {
   m_threads_in_cta.insert(thd);
+}
+
+bool ptx_cta_info::is_in_generic_shared_memory(addr_t addr) {
+  return isspace_shared(m_shader_id, addr);
 }
 
 unsigned ptx_cta_info::num_threads() const { return m_threads_in_cta.size(); }
@@ -165,6 +184,7 @@ ptx_thread_info::ptx_thread_info(kernel_info_t &kernel) : m_kernel(kernel) {
   m_sstarr_mem = NULL;
   m_warp_info = NULL;
   m_cta_info = NULL;
+  m_cluster_info = NULL;
   m_local_mem = NULL;
   m_symbol_table = NULL;
   m_func_info = NULL;
