@@ -3653,8 +3653,8 @@ void barrier_set_t::allocate_barrier(unsigned cta_id, unsigned cluster_id,
     m_bar_id_to_warps[i] &= ~warps;
   }
 
-  unsigned cta_id_in_cluster =
-      m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+  unsigned cid = m_shader->get_config()->sid_to_cid(m_shader->get_sid());
+  unsigned cta_id_in_cluster = m_shader->get_config()->max_cta_per_core * cid + cta_id;
   m_cluster_barrier->m_cluster_to_cta[cluster_id].set(cta_id_in_cluster);
   m_cluster_barrier->m_cta_active.set(cta_id_in_cluster);
 }
@@ -3679,8 +3679,8 @@ void barrier_set_t::deallocate_barrier(unsigned cluster_id, unsigned cta_id) {
   m_cta_to_warps.erase(w);
 
   // deallocate cluster_barrier
-  unsigned cta_id_in_cluster =
-      m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+  unsigned cid = m_shader->get_config()->sid_to_cid(m_shader->get_sid());
+  unsigned cta_id_in_cluster = m_shader->get_config()->max_cta_per_core * cid + cta_id;
   assert(!m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster));
   assert(m_cluster_barrier->m_cta_active.test(cta_id_in_cluster));
   m_cluster_barrier->m_cta_active.reset(cta_id_in_cluster);
@@ -3753,8 +3753,8 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_id, unsigned cta_id,
     // Cluster Barrier
   } else {
     cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
-    unsigned cta_id_in_cluster =
-        m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+    unsigned cid = m_shader->get_config()->sid_to_cid(m_shader->get_sid());
+    unsigned cta_id_in_cluster = m_shader->get_config()->max_cta_per_core * cid + cta_id;
     if (w == m_cta_to_warps.end()) {  // cta is active
       printf(
           "ERROR ** cta_id %u not found in barrier set on cycle %llu+%llu...\n",
@@ -3835,8 +3835,8 @@ bool barrier_set_t::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_warp_at_barrier.test(warp_id);
 }
 bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id) const {
-  unsigned cta_id_in_cluster =
-      m_shader->get_config()->max_cta_per_core * m_shader->get_sid() + cta_id;
+  unsigned cid = m_shader->get_config()->sid_to_cid(m_shader->get_sid());
+  unsigned cta_id_in_cluster = m_shader->get_config()->max_cta_per_core * cid + cta_id;
   return m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster);
 }
 
