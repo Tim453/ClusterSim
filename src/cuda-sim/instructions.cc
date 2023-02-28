@@ -1176,6 +1176,8 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
   }
 
   // Check state space
+  unsigned cta_rank;
+  ptx_cluster_info *cluster_info = thread->m_cluster_info;
   addr_t effective_address = src1_data.u64;
   memory_space_t space = pI->get_space();
   if (space == undefined_space) {
@@ -1185,8 +1187,17 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
       space = global_space;
     } else if (whichspace(effective_address) == shared_space) {
       unsigned smid = thread->get_hw_sid();
-      effective_address = generic_to_shared(smid, effective_address);
       space = shared_space;
+      if (isspace_shared(smid, effective_address)) {
+        cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            effective_address);
+        effective_address = generic_to_shared(smid, effective_address);
+      } else {
+        cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            effective_address);
+        unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
+        effective_address = generic_to_shared(target_smid, effective_address);
+      }
     } else {
       abort();
     }
@@ -1196,9 +1207,9 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
   memory_space *mem = NULL;
   if (space == global_space)
     mem = thread->get_global_memory();
-  else if (space == shared_space)
-    mem = thread->m_shared_mem;
-  else
+  else if (space == shared_space) {
+    mem = cluster_info->get_cta(cta_rank)->get_shared_memory();
+  } else
     abort();
 
   // Copy value pointed to in operand 'a' into register 'd'
@@ -1491,8 +1502,19 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
       space = global_space;
     } else if (whichspace(effective_address) == shared_space) {
       unsigned smid = thread->get_hw_sid();
-      effective_address_final = generic_to_shared(smid, effective_address);
       space = shared_space;
+      if (isspace_shared(smid, effective_address)) {
+        effective_address_final = generic_to_shared(smid, effective_address);
+        thread->m_last_shared_memory_target_shader_id = smid;
+      } else {
+        ptx_cluster_info *cluster_info = thread->m_cluster_info;
+        unsigned cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            effective_address);
+        unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
+        thread->m_last_shared_memory_target_shader_id = target_smid;
+        effective_address_final =
+            generic_to_shared(target_smid, effective_address);
+      }
     } else {
       abort();
     }
@@ -3362,6 +3384,7 @@ void decode_space(memory_space_t &space, ptx_thread_info *thread,
       break;
     case shared_space:
       mem = thread->m_shared_mem;
+      thread->m_last_shared_memory_target_shader_id = smid;
       break;
     case sstarr_space:
       mem = thread->m_sstarr_mem;
@@ -3386,12 +3409,14 @@ void decode_space(memory_space_t &space, ptx_thread_info *thread,
             if (isspace_shared(smid, addr)) {
               mem = thread->m_shared_mem;
               addr = generic_to_shared(smid, addr);
+              thread->m_last_shared_memory_target_shader_id = smid;
             } else {
               ptx_cluster_info *cluster_info = thread->m_cluster_info;
               unsigned cta_rank =
                   cluster_info->get_cta_rank_of_shared_memory_region(addr);
               unsigned target_smid =
                   cluster_info->get_cta(cta_rank)->get_shader_id();
+              thread->m_last_shared_memory_target_shader_id = target_smid;
               addr = generic_to_shared(target_smid, addr);
               mem = cluster_info->get_cta(cta_rank)->get_shared_memory();
             }

@@ -1902,6 +1902,7 @@ void ptx_thread_info::ptx_exec_inst(warp_inst_t &inst, unsigned lane_id) {
     memory_space_t insn_space = undefined_space;
     _memory_op_t insn_memory_op = no_memory_op;
     unsigned insn_data_size = 0;
+    unsigned target_shader_id;
     if ((pI->has_memory_read() || pI->has_memory_write())) {
       if (!((inst_opcode == MMA_LD_OP || inst_opcode == MMA_ST_OP))) {
         insn_memaddr = last_eaddr();
@@ -1909,6 +1910,7 @@ void ptx_thread_info::ptx_exec_inst(warp_inst_t &inst, unsigned lane_id) {
         unsigned to_type = pI->get_type();
         insn_data_size = datatype2size(to_type);
         insn_memory_op = pI->has_memory_read() ? memory_load : memory_store;
+        target_shader_id = last_shmem_shader_id();
       }
     }
 
@@ -1925,6 +1927,7 @@ void ptx_thread_info::ptx_exec_inst(warp_inst_t &inst, unsigned lane_id) {
                         last_callback().instruction, this, true /*atomic*/);
       unsigned to_type = pI->get_type();
       insn_data_size = datatype2size(to_type);
+      target_shader_id = last_shmem_shader_id();
     }
 
     if (pI->get_opcode() == TEX_OP) {
@@ -2017,6 +2020,8 @@ void ptx_thread_info::ptx_exec_inst(warp_inst_t &inst, unsigned lane_id) {
       if (!((inst_opcode == MMA_LD_OP || inst_opcode == MMA_ST_OP))) {
         inst.space = insn_space;
         inst.set_addr(lane_id, insn_memaddr);
+        inst.set_target_shmem_shader_id(lane_id, target_shader_id);
+        inst.m_sid = m_hw_sid;
         inst.data_size = insn_data_size;  // simpleAtomicIntrinsics
         assert(inst.memory_op == insn_memory_op);
       }

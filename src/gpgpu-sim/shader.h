@@ -41,6 +41,7 @@
 #include <deque>
 #include <list>
 #include <map>
+#include <queue>
 #include <set>
 #include <utility>
 #include <vector>
@@ -1357,7 +1358,7 @@ class cache_t;
 
 class ldst_unit : public pipelined_simd_unit {
  public:
-  ldst_unit(mem_fetch_interface *icnt,
+  ldst_unit(class sm_2_sm_network *network, mem_fetch_interface *icnt,
             shader_core_mem_fetch_allocator *mf_allocator,
             shader_core_ctx *core, opndcoll_rfu_t *operand_collector,
             Scoreboard *scoreboard, const shader_core_config *config,
@@ -1425,6 +1426,10 @@ class ldst_unit : public pipelined_simd_unit {
             unsigned sid, unsigned tpc);
 
  protected:
+  void send_cluster_request(warp_inst_t &warp);
+  void process_cluster_request();
+  bool cluster_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
+                     mem_stage_access_type &fail_type);
   bool shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
                     mem_stage_access_type &fail_type);
   bool constant_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
@@ -1449,6 +1454,9 @@ class ldst_unit : public pipelined_simd_unit {
   class shader_core_ctx *m_core;
   unsigned m_sid;
   unsigned m_tpc;
+  class sm_2_sm_network *m_sm_2_sm_network;
+  unsigned m_cid;
+  std::map<unsigned, std::bitset<64>> m_cluster_request_status;
 
   tex_cache *m_L1T;        // texture cache
   read_only_cache *m_L1C;  // constant cache
@@ -2608,6 +2616,39 @@ class exec_shader_core_ctx : public shader_core_ctx {
                                                const warp_inst_t *pI);
 };
 
+typedef struct sm_2_sm_message_t {
+  unsigned target_shader_id;
+  unsigned origin_shader_id;
+
+  // Thread that sends the message
+  unsigned thread_id;
+  // Reference to the warp that send the message
+  warp_inst_t *warp;
+  bool is_read;
+  unsigned address;
+
+  // If true it is the response to a previous request
+  bool is_response;
+} sm_2_sm_message_t;
+
+class sm_2_sm_network {
+ public:
+  sm_2_sm_network(unsigned cores_per_cluster, const shader_core_config *config);
+  ~sm_2_sm_network();
+  void send(sm_2_sm_message_t request);
+  sm_2_sm_message_t receive(unsigned shader_id);
+  void cycle();
+  bool has_message(unsigned shader_id) const {
+    return !m_receive_queue[shader_id].empty();
+  }
+
+ protected:
+  unsigned m_cores_per_cluster;
+  const shader_core_config *m_config;
+  std::vector<std::queue<sm_2_sm_message_t>> m_send_queue;
+  std::vector<std::queue<sm_2_sm_message_t>> m_receive_queue;
+};
+
 class simt_core_cluster {
  public:
   simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
@@ -2662,6 +2703,7 @@ class simt_core_cluster {
   unsigned get_maximum_thread_block_cluster() const {
     return m_maximum_thread_block_cluster;
   }
+  sm_2_sm_network *get_sm_2_sm_network() const { return m_sm_2_sm_network; }
 
   cluster_barrier_set_t m_cluster_barrier;
   // Stores the number of ctas running in a cluster slot
@@ -2672,6 +2714,7 @@ class simt_core_cluster {
   unsigned m_maximum_thread_block_cluster;
 
  protected:
+  sm_2_sm_network *m_sm_2_sm_network;
   unsigned m_cluster_id;
   gpgpu_sim *m_gpu;
   const shader_core_config *m_config;

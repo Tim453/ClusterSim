@@ -1127,6 +1127,9 @@ class warp_inst_t : public inst_t {
     }
     m_per_scalar_thread[n].memreqaddr[0] = addr;
   }
+  void set_target_shmem_shader_id(unsigned n, unsigned target_shader_id) {
+    m_per_scalar_thread[n].target_shader_id = target_shader_id;
+  }
   void set_addr(unsigned n, new_addr_type *addr, unsigned num_addrs) {
     if (!m_per_scalar_thread_valid) {
       m_per_scalar_thread.resize(m_config->warp_size);
@@ -1237,7 +1240,14 @@ class warp_inst_t : public inst_t {
     if (cycles > 0) cycles--;
     return cycles > 0;
   }
-
+  void response_arrived(unsigned thread) {
+    assert(m_pending_cluster_memory_requests.test(thread));
+    m_pending_cluster_memory_requests.reset(thread);
+  }
+  bool cluster_request_complete() {
+    return !m_pending_cluster_memory_requests.any();
+  }
+  std::vector<struct sm_2_sm_message_t> get_cluster_requests();
   bool has_dispatch_delay() { return cycles > 0; }
 
   void print(FILE *fout) const;
@@ -1268,6 +1278,7 @@ class warp_inst_t : public inst_t {
       for (unsigned i = 0; i < MAX_ACCESSES_PER_INSN_PER_THREAD; i++)
         memreqaddr[i] = 0;
     }
+    unsigned target_shader_id;
     dram_callback_t callback;
     new_addr_type
         memreqaddr[MAX_ACCESSES_PER_INSN_PER_THREAD];  // effective address,
@@ -1276,6 +1287,8 @@ class warp_inst_t : public inst_t {
                                                        // 32B access in 8 chunks
                                                        // of 4B each)
   };
+
+  std::bitset<32> m_pending_cluster_memory_requests;
   bool m_per_scalar_thread_valid;
   std::vector<per_thread_info> m_per_scalar_thread;
   bool m_mem_accesses_created;
@@ -1286,6 +1299,8 @@ class warp_inst_t : public inst_t {
   // Jin: cdp support
  public:
   int m_is_cdp;
+  unsigned m_sid;
+  bool m_create_cluster_memory_request;
 };
 
 void move_warp(warp_inst_t *&dst, warp_inst_t *&src);

@@ -443,8 +443,8 @@ void shader_core_ctx::create_exec_pipeline() {
       m_issue_port.push_back(m_config->m_specialized_unit[j].OC_EX_SPEC_ID);
     }
   }
-
-  m_ldst_unit = new ldst_unit(m_icnt, m_mem_fetch_allocator, this,
+  sm_2_sm_network *network = m_cluster->get_sm_2_sm_network();
+  m_ldst_unit = new ldst_unit(network, m_icnt, m_mem_fetch_allocator, this,
                               &m_operand_collector, m_scoreboard, m_config,
                               m_memory_config, m_stats, m_sid, m_tpc);
   m_fu.push_back(m_ldst_unit);
@@ -1871,6 +1871,21 @@ void shader_core_ctx::writeback() {
   }
 }
 
+void ldst_unit::process_cluster_request() {
+  if (m_sm_2_sm_network->has_message(m_cid)) {
+    sm_2_sm_message_t message = m_sm_2_sm_network->receive(m_cid);
+    if (message.is_response) {
+      unsigned tid = message.thread_id;
+      message.warp->response_arrived(tid);
+    } else {  // Process the request and send the message back to the sender
+      message.is_response = true;
+      message.target_shader_id = message.origin_shader_id;
+      message.origin_shader_id = m_cid;
+      m_sm_2_sm_network->send(message);
+    }
+  }
+}
+
 bool ldst_unit::shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
                              mem_stage_access_type &fail_type) {
   if (inst.space.get_type() != shared_space) return true;
@@ -1882,6 +1897,7 @@ bool ldst_unit::shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
   }
 
   bool stall = inst.dispatch_delay();
+  stall |= !inst.cluster_request_complete();
   if (stall) {
     fail_type = S_MEM;
     rc_fail = BK_CONF;
@@ -2481,9 +2497,10 @@ void ldst_unit::init(mem_fetch_interface *icnt,
   m_next_global = NULL;
   m_last_inst_gpu_sim_cycle = 0;
   m_last_inst_gpu_tot_sim_cycle = 0;
+  m_cid = m_config->sid_to_cid(m_core->get_sid());
 }
 
-ldst_unit::ldst_unit(mem_fetch_interface *icnt,
+ldst_unit::ldst_unit(sm_2_sm_network *network, mem_fetch_interface *icnt,
                      shader_core_mem_fetch_allocator *mf_allocator,
                      shader_core_ctx *core, opndcoll_rfu_t *operand_collector,
                      Scoreboard *scoreboard, const shader_core_config *config,
@@ -2509,6 +2526,7 @@ ldst_unit::ldst_unit(mem_fetch_interface *icnt,
                                  (mem_fetch *)NULL);
   }
   m_name = "MEM ";
+  m_sm_2_sm_network = network;
 }
 
 ldst_unit::ldst_unit(mem_fetch_interface *icnt,
@@ -2746,6 +2764,16 @@ void ldst_unit::cycle() {
   }
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;
+
+  if (pipe_reg.m_create_cluster_memory_request) {
+    std::vector<sm_2_sm_message_t> messages = pipe_reg.get_cluster_requests();
+    for (size_t i = 0; i < messages.size(); i++) {
+      m_sm_2_sm_network->send(messages[i]);
+    }
+    pipe_reg.m_create_cluster_memory_request = false;
+  }
+  process_cluster_request();
+
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
   mem_stage_access_type type;
   bool done = true;
@@ -4385,6 +4413,39 @@ void exec_simt_core_cluster::create_shader_core_ctx() {
   }
 }
 
+sm_2_sm_network::sm_2_sm_network(unsigned cores_per_cluster,
+                                 const shader_core_config *config) {
+  m_cores_per_cluster = cores_per_cluster;
+  m_send_queue.resize(cores_per_cluster);
+  m_receive_queue.resize(cores_per_cluster);
+  m_config = config;
+}
+
+void sm_2_sm_network::send(sm_2_sm_message_t message) {
+  unsigned sender_id = message.origin_shader_id;
+  sender_id = m_config->sid_to_cid(sender_id);
+  m_send_queue[sender_id].push(message);
+}
+
+sm_2_sm_message_t sm_2_sm_network::receive(unsigned shader_id) {
+  shader_id = m_config->sid_to_cid(shader_id);
+  sm_2_sm_message_t response = m_receive_queue[shader_id].front();
+  m_receive_queue[shader_id].pop();
+  return response;
+}
+
+void sm_2_sm_network::cycle() {
+  for (size_t i = 0; i < m_cores_per_cluster; i++) {
+    if (!m_send_queue[i].empty()) {
+      sm_2_sm_message_t message = m_send_queue[i].front();
+      unsigned target_shader = message.target_shader_id;
+      target_shader = m_config->sid_to_cid(target_shader);
+      m_receive_queue[target_shader].push(message);
+      m_send_queue[i].pop();
+    }
+  }
+}
+
 simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
                                      const shader_core_config *config,
                                      const memory_config *mem_config,
@@ -4410,6 +4471,8 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   m_cluster_status = new unsigned[m_maximum_thread_block_cluster];
   for (int i = 0; i < m_maximum_thread_block_cluster; i++)
     m_cluster_status[i] = 0;
+  m_sm_2_sm_network =
+      new sm_2_sm_network(config->n_simt_cores_per_cluster, config);
 }
 
 simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }
@@ -4424,6 +4487,7 @@ void simt_core_cluster::core_cycle() {
     m_core_sim_order.splice(m_core_sim_order.end(), m_core_sim_order,
                             m_core_sim_order.begin());
   }
+  m_sm_2_sm_network->cycle();
 }
 
 void simt_core_cluster::reinit() {

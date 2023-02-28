@@ -377,6 +377,9 @@ class ptx_thread_info {
   unsigned get_icount() const { return m_icount; }
   void set_valid() { m_valid = true; }
   addr_t last_eaddr() const { return m_last_effective_address; }
+  unsigned last_shmem_shader_id() const {
+    return m_last_shared_memory_target_shader_id;
+  }
   memory_space_t last_space() const { return m_last_memory_space; }
   dram_callback_t last_callback() const { return m_last_dram_callback; }
   unsigned long long get_cta_uid() { return m_cta_info->get_sm_idx(); }
@@ -501,6 +504,8 @@ class ptx_thread_info {
   kernel_info_t &get_kernel() { return m_kernel; }
 
  public:
+  unsigned m_last_shared_memory_target_shader_id;
+  ;
   addr_t m_last_effective_address;
   bool m_branch_taken;
   memory_space_t m_last_memory_space;
