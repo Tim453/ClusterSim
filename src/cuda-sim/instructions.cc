@@ -1201,6 +1201,10 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
     } else {
       abort();
     }
+  } else if (space == shared_space){
+    addr_t generic_address = shared_to_generic(thread->get_hw_sid(), effective_address);
+    cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            generic_address);
   }
   assert(space == global_space || space == shared_space);
 
@@ -1520,6 +1524,9 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
     }
   } else {
     assert(space == global_space || space == shared_space);
+    if(space == shared_space){
+      thread->m_last_shared_memory_target_shader_id = thread->get_hw_sid();
+    }
     effective_address_final = effective_address;
   }
 
