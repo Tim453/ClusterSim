@@ -282,9 +282,8 @@ void warp_inst_t::broadcast_barrier_reduction(
 
 std::vector<sm_2_sm_message_t> warp_inst_t::get_cluster_requests() {
   std::vector<sm_2_sm_message_t> messages;
-  unsigned size = m_pending_cluster_memory_requests.count();
   for (size_t i = 0; i < m_per_scalar_thread.size(); i++) {
-    if (m_per_scalar_thread[i].target_shader_id != m_sid) {
+    if (active(i) && m_per_scalar_thread[i].target_shader_id != m_sid) {
       unsigned target_shader_id = m_per_scalar_thread[i].target_shader_id;
       unsigned origin_shader_id = m_sid;
       unsigned tid = i;
