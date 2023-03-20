@@ -323,6 +323,7 @@ class ptx_thread_info {
     m_gpu = gpu;
     m_core = core;
     m_hw_sid = sid;
+    m_last_shared_memory_target_shader_id = sid;
     m_hw_ctaid = cta_id;
     m_hw_wid = wid;
     m_hw_tid = tid;
