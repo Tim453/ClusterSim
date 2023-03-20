@@ -161,6 +161,7 @@ class ptx_cluster_info {
   ptx_cluster_info(gpgpu_context *ctx);
   void add_cta(ptx_cta_info *cta, unsigned cluster_ctarank);
   void clear();
+  unsigned ctas_in_cluster() { return m_ctas_in_cluster.size(); }
   unsigned get_cta_rank_of_shared_memory_region(addr_t addr);
   ptx_cta_info *get_cta(unsigned cta_rank) {
     return m_ctas_in_cluster[cta_rank];

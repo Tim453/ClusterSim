@@ -1201,10 +1201,11 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
     } else {
       abort();
     }
-  } else if (space == shared_space){
-    addr_t generic_address = shared_to_generic(thread->get_hw_sid(), effective_address);
-    cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
-            generic_address);
+  } else if (space == shared_space) {
+    addr_t generic_address =
+        shared_to_generic(thread->get_hw_sid(), effective_address);
+    cta_rank =
+        cluster_info->get_cta_rank_of_shared_memory_region(generic_address);
   }
   assert(space == global_space || space == shared_space);
 
@@ -1524,7 +1525,7 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
     }
   } else {
     assert(space == global_space || space == shared_space);
-    if(space == shared_space){
+    if (space == shared_space) {
       thread->m_last_shared_memory_target_shader_id = thread->get_hw_sid();
     }
     effective_address_final = effective_address;
@@ -4107,6 +4108,14 @@ void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   unsigned i_type = pI->get_type();
   a = thread->get_operand_value(src1, dst, i_type, thread, 1);
   b = thread->get_operand_value(src2, dst, i_type, thread, 1);
+  unsigned ctas_in_cluster = thread->m_cluster_info->ctas_in_cluster();
+  if (b.u32 >= ctas_in_cluster) {
+    std::cout << "Mapa Error!\n";
+    std::cout << "Target CTA Rank: " << b.u32
+              << " is larger than the maximum CTA Rank in this cluster: "
+              << ctas_in_cluster - 1 << "\n";
+    exit(EXIT_FAILURE);
+  }
 
   int shader_id = thread->get_hw_sid();
   int target_shader_id =
