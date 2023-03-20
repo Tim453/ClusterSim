@@ -833,9 +833,18 @@ kernel_info_t::kernel_info_t(
   m_grid_dim = gridDim;
   m_block_dim = blockDim;
   m_cluster_dim = m_kernel_entry->get_cluster_dims();
-  assert(m_grid_dim.x % m_cluster_dim.x == 0);
-  assert(m_grid_dim.y % m_cluster_dim.y == 0);
-  assert(m_grid_dim.z % m_cluster_dim.z == 0);
+  if(m_grid_dim.x % m_cluster_dim.x != 0){
+    std::cout << "Error! GridDim.x=" << m_grid_dim.x << " has to be a multiple of ClusterDim.x=" << m_cluster_dim.x << "\n";
+    exit(EXIT_FAILURE);
+  } else if (m_grid_dim.y % m_cluster_dim.y != 0)
+  {
+    std::cout << "Error! GridDim.y=" << m_grid_dim.y << " has to be a multiple of ClusterDim.y=" << m_cluster_dim.y << "\n";
+    exit(EXIT_FAILURE);
+  } else if (m_grid_dim.z % m_cluster_dim.z != 0)
+  {
+    std::cout << "Error! GridDim.z=" << m_grid_dim.z << " has to be a multiple of ClusterDim.z=" << m_cluster_dim.z << "\n";
+    exit(EXIT_FAILURE);
+  }
   m_ncluster_in_grid.x = m_grid_dim.x / m_cluster_dim.x;
   m_ncluster_in_grid.y = m_grid_dim.y / m_cluster_dim.y;
   m_ncluster_in_grid.z = m_grid_dim.z / m_cluster_dim.z;
