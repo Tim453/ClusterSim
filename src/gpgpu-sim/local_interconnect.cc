@@ -122,7 +122,7 @@ void xbar_router::Advance() {
 
 void xbar_router::RR_Advance() {
   bool active = false;
-  vector<bool> issued(total_nodes, false);
+  std::vector<bool> issued(total_nodes, false);
   unsigned conflict_sub = 0;
   unsigned reqs = 0;
 
@@ -177,7 +177,7 @@ void xbar_router::RR_Advance() {
 // IEEE/ACM transactions on networking 2 (1999): 188-201.
 // https://www.cs.rutgers.edu/~sn624/552-F18/papers/islip.pdf
 void xbar_router::iSLIP_Advance() {
-  vector<unsigned> node_tmp;
+  std::vector<unsigned> node_tmp;
   bool active = false;
 
   unsigned conflict_sub = 0;

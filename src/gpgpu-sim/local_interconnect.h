@@ -33,7 +33,6 @@
 #include <map>
 #include <queue>
 #include <vector>
-using namespace std;
 
 enum Interconnect_type { REQ_NET = 0, REPLY_NET = 1 };
 
@@ -89,11 +88,11 @@ class xbar_router {
     void* data;
     unsigned output_deviceID;
   };
-  vector<queue<Packet> > in_buffers;
-  vector<queue<Packet> > out_buffers;
+  std::vector<std::queue<Packet> > in_buffers;
+  std::vector<std::queue<Packet> > out_buffers;
   unsigned _n_shader, _n_mem, total_nodes;
   unsigned in_buffer_limit, out_buffer_limit;
-  vector<unsigned> next_node;  // used for iSLIP arbit
+  std::vector<unsigned> next_node;  // used for iSLIP arbit
   unsigned next_node_id;       // used for RR arbit
   unsigned m_id;
   enum Interconnect_type router_type;
@@ -133,7 +132,7 @@ class LocalInterconnect {
 
   unsigned n_shader, n_mem;
   unsigned n_subnets;
-  vector<xbar_router*> net;
+  std::vector<xbar_router*> net;
 };
 
 #endif
