@@ -93,7 +93,7 @@ class xbar_router {
   unsigned _n_shader, _n_mem, total_nodes;
   unsigned in_buffer_limit, out_buffer_limit;
   std::vector<unsigned> next_node;  // used for iSLIP arbit
-  unsigned next_node_id;       // used for RR arbit
+  unsigned next_node_id;            // used for RR arbit
   unsigned m_id;
   enum Interconnect_type router_type;
   unsigned active_in_buffers, active_out_buffers;
@@ -117,10 +117,15 @@ class LocalInterconnect {
   void Init();
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
             unsigned int size);
+  void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
+            unsigned int size, Interconnect_type network_type);
   void* Pop(unsigned ouput_deviceID);
+  void* Pop(unsigned ouput_deviceID, Interconnect_type network_type);
   void Advance();
   bool Busy() const;
   bool HasBuffer(unsigned deviceID, unsigned int size) const;
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const;
   void DisplayStats() const;
   void DisplayOverallStats() const;
   unsigned GetFlitSize() const;

@@ -1872,17 +1872,28 @@ void shader_core_ctx::writeback() {
 }
 
 void ldst_unit::process_cluster_request() {
-  if (m_sm_2_sm_network->has_message(m_cid)) {
-    sm_2_sm_message_t message = m_sm_2_sm_network->receive(m_cid);
-    if (message.is_response) {
-      unsigned tid = message.thread_id;
-      message.warp->response_arrived(tid);
-    } else {  // Process the request and send the message back to the sender
-      message.is_response = true;
-      message.target_shader_id = message.origin_shader_id;
-      message.origin_shader_id = m_cid;
-      m_sm_2_sm_network->send(message);
-    }
+  // Handle Reply
+  cluster_shmem_request *reply =
+      (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REPLY_NET);
+  if (reply != nullptr) {
+    assert(reply->is_response);
+    reply->get_warp()->response_arrived(reply->tid);
+  }
+
+  // Handle Request
+  if (m_cluster_request == nullptr)
+    m_cluster_request =
+        (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REQ_NET);
+
+  if (m_cluster_request == nullptr) return;
+
+  assert(!m_cluster_request->is_response);
+  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET)) {
+    m_cluster_request->send_response();
+    // ToDo use correct message size
+    m_sm_2_sm_network->Push(m_cid, m_cluster_request->origin_shader_id,
+                            m_cluster_request, 1, REPLY_NET);
+    m_cluster_request = nullptr;
   }
 }
 
@@ -2765,12 +2776,15 @@ void ldst_unit::cycle() {
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
-  if (pipe_reg.m_create_cluster_memory_request) {
-    std::vector<sm_2_sm_message_t> messages = pipe_reg.get_cluster_requests();
-    for (size_t i = 0; i < messages.size(); i++) {
-      m_sm_2_sm_network->send(messages[i]);
+  if (pipe_reg.m_create_cluster_memory_request &&
+      m_sm_2_sm_network->HasBuffer(m_cid, 1, REQ_NET)) {
+    cluster_shmem_request *request = pipe_reg.get_next_open_cluster_request();
+    if (request != nullptr) {
+      // ToDo use correct message size
+      m_sm_2_sm_network->Push(m_cid, request->target_shader_id, request, 1,
+                              REQ_NET);
+      request->send_request();
     }
-    pipe_reg.m_create_cluster_memory_request = false;
   }
   process_cluster_request();
 
@@ -4413,39 +4427,6 @@ void exec_simt_core_cluster::create_shader_core_ctx() {
   }
 }
 
-sm_2_sm_network::sm_2_sm_network(unsigned cores_per_cluster,
-                                 const shader_core_config *config) {
-  m_cores_per_cluster = cores_per_cluster;
-  m_send_queue.resize(cores_per_cluster);
-  m_receive_queue.resize(cores_per_cluster);
-  m_config = config;
-}
-
-void sm_2_sm_network::send(sm_2_sm_message_t message) {
-  unsigned sender_id = message.origin_shader_id;
-  sender_id = m_config->sid_to_cid(sender_id);
-  m_send_queue[sender_id].push(message);
-}
-
-sm_2_sm_message_t sm_2_sm_network::receive(unsigned shader_id) {
-  shader_id = m_config->sid_to_cid(shader_id);
-  sm_2_sm_message_t response = m_receive_queue[shader_id].front();
-  m_receive_queue[shader_id].pop();
-  return response;
-}
-
-void sm_2_sm_network::cycle() {
-  for (size_t i = 0; i < m_cores_per_cluster; i++) {
-    if (!m_send_queue[i].empty()) {
-      sm_2_sm_message_t message = m_send_queue[i].front();
-      unsigned target_shader = message.target_shader_id;
-      target_shader = m_config->sid_to_cid(target_shader);
-      m_receive_queue[target_shader].push(message);
-      m_send_queue[i].pop();
-    }
-  }
-}
-
 simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
                                      const shader_core_config *config,
                                      const memory_config *mem_config,
@@ -4472,7 +4453,7 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   for (int i = 0; i < m_maximum_thread_block_cluster; i++)
     m_cluster_status[i] = 0;
   m_sm_2_sm_network =
-      new sm_2_sm_network(config->n_simt_cores_per_cluster, config);
+      new local_crossbar(config->n_simt_cores_per_cluster, config);
 }
 
 simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }
@@ -4487,7 +4468,7 @@ void simt_core_cluster::core_cycle() {
     m_core_sim_order.splice(m_core_sim_order.end(), m_core_sim_order,
                             m_core_sim_order.begin());
   }
-  m_sm_2_sm_network->cycle();
+  m_sm_2_sm_network->Advance();
 }
 
 void simt_core_cluster::reinit() {

@@ -1241,13 +1241,13 @@ class warp_inst_t : public inst_t {
     return cycles > 0;
   }
   void response_arrived(unsigned thread) {
-    assert(m_pending_cluster_memory_requests.test(thread));
-    m_pending_cluster_memory_requests.reset(thread);
+    delete m_pending_cluster_memory_requests[thread];
+    m_pending_cluster_memory_requests.erase(thread);
   }
   bool cluster_request_complete() {
-    return !m_pending_cluster_memory_requests.any();
+    return m_pending_cluster_memory_requests.empty();
   }
-  std::vector<struct sm_2_sm_message_t> get_cluster_requests();
+  class cluster_shmem_request *get_next_open_cluster_request();
   bool has_dispatch_delay() { return cycles > 0; }
 
   void print(FILE *fout) const;
@@ -1288,7 +1288,8 @@ class warp_inst_t : public inst_t {
                                                        // of 4B each)
   };
 
-  std::bitset<32> m_pending_cluster_memory_requests;
+  std::map<unsigned, class cluster_shmem_request *>
+      m_pending_cluster_memory_requests;
   bool m_per_scalar_thread_valid;
   std::vector<per_thread_info> m_per_scalar_thread;
   bool m_mem_accesses_created;

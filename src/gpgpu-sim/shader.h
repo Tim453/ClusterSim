@@ -52,8 +52,10 @@
 #include "delayqueue.h"
 #include "dram.h"
 #include "gpu-cache.h"
+#include "local_interconnect.h"
 #include "mem_fetch.h"
 #include "scoreboard.h"
+#include "sm_2_sm_network.h"
 #include "stack.h"
 #include "stats.h"
 #include "traffic_breakdown.h"
@@ -1454,7 +1456,8 @@ class ldst_unit : public pipelined_simd_unit {
   class shader_core_ctx *m_core;
   unsigned m_sid;
   unsigned m_tpc;
-  class sm_2_sm_network *m_sm_2_sm_network;
+  sm_2_sm_network *m_sm_2_sm_network;
+  cluster_shmem_request *m_cluster_request;
   unsigned m_cid;
   std::map<unsigned, std::bitset<64>> m_cluster_request_status;
 
@@ -2614,39 +2617,6 @@ class exec_shader_core_ctx : public shader_core_ctx {
                                        unsigned *pc, unsigned *rpc);
   virtual const active_mask_t &get_active_mask(unsigned warp_id,
                                                const warp_inst_t *pI);
-};
-
-typedef struct sm_2_sm_message_t {
-  unsigned target_shader_id;
-  unsigned origin_shader_id;
-
-  // Thread that sends the message
-  unsigned thread_id;
-  // Reference to the warp that send the message
-  warp_inst_t *warp;
-  bool is_read;
-  unsigned address;
-
-  // If true it is the response to a previous request
-  bool is_response;
-} sm_2_sm_message_t;
-
-class sm_2_sm_network {
- public:
-  sm_2_sm_network(unsigned cores_per_cluster, const shader_core_config *config);
-  ~sm_2_sm_network();
-  void send(sm_2_sm_message_t request);
-  sm_2_sm_message_t receive(unsigned shader_id);
-  void cycle();
-  bool has_message(unsigned shader_id) const {
-    return !m_receive_queue[shader_id].empty();
-  }
-
- protected:
-  unsigned m_cores_per_cluster;
-  const shader_core_config *m_config;
-  std::vector<std::queue<sm_2_sm_message_t>> m_send_queue;
-  std::vector<std::queue<sm_2_sm_message_t>> m_receive_queue;
 };
 
 class simt_core_cluster {

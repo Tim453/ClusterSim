@@ -323,6 +323,25 @@ void LocalInterconnect::Init() {
 }
 
 void LocalInterconnect::Push(unsigned input_deviceID, unsigned output_deviceID,
+                             void* data, unsigned int size,
+                             Interconnect_type network) {
+  int subnet;
+  if (network == REPLY_NET) {
+    subnet = 1;
+  } else if (network == REQ_NET) {
+    subnet = 0;
+  } else
+    assert(0);
+
+  // it should have free buffer
+  // assume all the packets have size of one
+  // no flits are implemented
+  assert(net[subnet]->Has_Buffer_In(input_deviceID, 1));
+
+  net[subnet]->Push(input_deviceID, output_deviceID, data, size);
+}
+
+void LocalInterconnect::Push(unsigned input_deviceID, unsigned output_deviceID,
                              void* data, unsigned int size) {
   unsigned subnet;
   if (n_subnets == 1) {
@@ -341,6 +360,18 @@ void LocalInterconnect::Push(unsigned input_deviceID, unsigned output_deviceID,
   assert(net[subnet]->Has_Buffer_In(input_deviceID, 1));
 
   net[subnet]->Push(input_deviceID, output_deviceID, data, size);
+}
+
+void* LocalInterconnect::Pop(unsigned ouput_deviceID,
+                             Interconnect_type network) {
+  int subnet;
+  if (network == REPLY_NET) {
+    subnet = 1;
+  } else if (network == REQ_NET) {
+    subnet = 0;
+  } else
+    assert(0);
+  return net[subnet]->Pop(ouput_deviceID);
 }
 
 void* LocalInterconnect::Pop(unsigned ouput_deviceID) {
@@ -372,6 +403,19 @@ bool LocalInterconnect::HasBuffer(unsigned deviceID, unsigned int size) const {
   else
     has_buffer = net[REQ_NET]->Has_Buffer_In(deviceID, 1, true);
 
+  return has_buffer;
+}
+
+bool LocalInterconnect::HasBuffer(unsigned deviceID, unsigned int size,
+                                  Interconnect_type network) const {
+  bool has_buffer = false;
+
+  if (network == REPLY_NET)  // deviceID is memory node
+    has_buffer = net[REPLY_NET]->Has_Buffer_In(deviceID, 1, true);
+  else if (network == REQ_NET)
+    has_buffer = net[REQ_NET]->Has_Buffer_In(deviceID, 1, true);
+  else
+    assert(0);
   return has_buffer;
 }
 
