@@ -31,7 +31,7 @@ local_crossbar::local_crossbar(unsigned n_shader,
                               .out_buffer_limit = 10,
                               .subnets = 2,
                               .arbiter_algo = NAIVE_RR,
-                              .verbose = 1,
+                              .verbose = 0,
                               .grant_cycles = 1};
   m_localicnt_interface = new LocalInterconnect(m_inct_config);
   m_localicnt_interface->CreateInterconnect(n_shader, 0);
