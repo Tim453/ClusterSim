@@ -824,11 +824,17 @@ kernels should use the texture bindings seen at the time of launch and textures
 kernel_info_t::kernel_info_t(
     dim3 gridDim, dim3 blockDim, class function_info *entry,
     std::map<std::string, const struct cudaArray *> nameToCudaArray,
-    std::map<std::string, const struct textureInfo *> nameToTextureInfo) {
+    std::map<std::string, const struct textureInfo *> nameToTextureInfo,
+    dim3 clusterDim) {
   m_kernel_entry = entry;
   m_grid_dim = gridDim;
   m_block_dim = blockDim;
-  m_cluster_dim = m_kernel_entry->get_cluster_dims();
+
+  if (m_kernel_entry->get_is_explicit_cluster())
+    m_cluster_dim = m_kernel_entry->get_cluster_dims();
+  else
+    m_cluster_dim = clusterDim;
+
   if (m_grid_dim.x % m_cluster_dim.x != 0) {
     std::cout << "Error! GridDim.x=" << m_grid_dim.x
               << " has to be a multiple of ClusterDim.x=" << m_cluster_dim.x

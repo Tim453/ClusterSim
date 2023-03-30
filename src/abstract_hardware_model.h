@@ -236,7 +236,8 @@ class kernel_info_t {
   kernel_info_t(
       dim3 gridDim, dim3 blockDim, class function_info *entry,
       std::map<std::string, const struct cudaArray *> nameToCudaArray,
-      std::map<std::string, const struct textureInfo *> nameToTextureInfo);
+      std::map<std::string, const struct textureInfo *> nameToTextureInfo,
+      dim3 clusterDim = dim3(1, 1, 1));
   ~kernel_info_t();
 
   void inc_running() { m_num_cores_running++; }

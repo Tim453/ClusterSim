@@ -817,7 +817,8 @@ void cudaRegisterVarInternal(
 
 cudaError_t cudaConfigureCallInternal(dim3 gridDim, dim3 blockDim,
                                       size_t sharedMem, cudaStream_t stream,
-                                      gpgpu_context *gpgpu_ctx = NULL) {
+                                      gpgpu_context *gpgpu_ctx = NULL,
+                                      dim3 clusterDim = dim3(1, 1, 1)) {
   gpgpu_context *ctx;
   if (gpgpu_ctx) {
     ctx = gpgpu_ctx;
@@ -829,7 +830,7 @@ cudaError_t cudaConfigureCallInternal(dim3 gridDim, dim3 blockDim,
   }
   struct CUstream_st *s = (struct CUstream_st *)stream;
   ctx->api->g_cuda_launch_stack.push_back(
-      kernel_config(gridDim, blockDim, sharedMem, s));
+      kernel_config(gridDim, blockDim, clusterDim, sharedMem, s));
   return g_last_cudaError = cudaSuccess;
 }
 
@@ -947,7 +948,7 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
          stream ? stream->get_uid() : 0);
   kernel_info_t *grid = ctx->api->gpgpu_cuda_ptx_sim_init_grid(
       hostFun, config.get_args(), config.grid_dim(), config.block_dim(),
-      context);
+      context, config.cluster_dim());
   // do dynamic PDOM analysis for performance simulation scenario
   std::string kname = grid->name();
   function_info *kernel_func_info = grid->entry();
@@ -962,6 +963,7 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
   }
   dim3 gridDim = config.grid_dim();
   dim3 blockDim = config.block_dim();
+  dim3 clusterDim = grid->get_cluster_dim();
 
   gpgpu_t *gpu = context->get_device()->get_gpgpu();
   checkpoint *g_checkpoint;
@@ -997,9 +999,11 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
   }
   printf(
       "GPGPU-Sim PTX: pushing kernel \'%s\' to stream %u, gridDim= (%u,%u,%u) "
+      "clusterDim = (%u,%u,%u) "
       "blockDim = (%u,%u,%u) \n",
       kname.c_str(), stream ? stream->get_uid() : 0, gridDim.x, gridDim.y,
-      gridDim.z, blockDim.x, blockDim.y, blockDim.z);
+      gridDim.z, clusterDim.x, clusterDim.y, clusterDim.z, blockDim.x,
+      blockDim.y, blockDim.z);
   stream_operation op(grid, ctx->func_sim->g_ptx_sim_mode, stream);
   ctx->the_gpgpusim->g_stream_manager->push(op);
   ctx->api->g_cuda_launch_stack.pop_back();
@@ -2766,6 +2770,38 @@ __host__ cudaError_t CUDARTAPI cudaLaunchKernel(const char *hostFun,
                                   stream);
 }
 
+__host__ cudaError_t CUDARTAPI cudaLaunchKernelExC(
+    const cudaLaunchConfig_t *config, const void *func, void **args) {
+
+  dim3 clusterDim(0, 0, 0);
+  for (unsigned i = 0; i < config->numAttrs; i++) {
+    if (config->attrs[i].id == cudaLaunchAttributeClusterDimension) {
+      clusterDim.x = config->attrs[i].val.clusterDim.x;
+      clusterDim.y = config->attrs[i].val.clusterDim.y;
+      clusterDim.z = config->attrs[i].val.clusterDim.z;
+    }
+  }
+  gpgpu_context *ctx = GPGPU_Context();
+  CUctx_st *context = GPGPUSim_Context(ctx);
+  function_info *entry = context->get_kernel((const char *)func);
+
+  cudaConfigureCallInternal(config->gridDim, config->blockDim,
+                            config->dynamicSmemBytes, config->stream, ctx,
+                            clusterDim);
+
+  if (g_debug_execution >= 3) {
+    announce_call(__my_func__);
+  }
+  
+  for (unsigned i = 0; i < entry->num_args(); i++) {
+    std::pair<size_t, unsigned> p = entry->get_param_config(i);
+    cudaSetupArgumentInternal(args[i], p.first, p.second);
+  }
+  
+  cudaLaunchInternal((const char *)func);
+  return g_last_cudaError = cudaSuccess;
+}
+
 /*******************************************************************************
  *                                                                              *
  *                                                                              *
@@ -4053,7 +4089,7 @@ int cuda_runtime_api::load_constants(symbol_table *symtab, addr_t min_gaddr,
 
 kernel_info_t *cuda_runtime_api::gpgpu_cuda_ptx_sim_init_grid(
     const char *hostFun, gpgpu_ptx_sim_arg_list_t args, struct dim3 gridDim,
-    struct dim3 blockDim, CUctx_st *context) {
+    struct dim3 blockDim, CUctx_st *context, dim3 clusterDim) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
@@ -4065,7 +4101,7 @@ kernel_info_t *cuda_runtime_api::gpgpu_cuda_ptx_sim_init_grid(
   */
   kernel_info_t *result =
       new kernel_info_t(gridDim, blockDim, entry, gpu->getNameArrayMapping(),
-                        gpu->getNameInfoMapping());
+                        gpu->getNameInfoMapping(), clusterDim);
   if (entry == NULL) {
     printf(
         "GPGPU-Sim PTX: ERROR launching kernel -- no PTX implementation found "
