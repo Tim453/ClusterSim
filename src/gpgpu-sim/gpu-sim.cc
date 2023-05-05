@@ -441,6 +441,9 @@ void shader_core_config::reg_options(class OptionParser *opp) {
   option_parser_register(opp, "-gpgpu_adaptive_cache_config", OPT_BOOL,
                          &adaptive_cache_config, "adaptive_cache_config", "0");
   option_parser_register(
+      opp, "-sm_2_sm_network_type", OPT_CSTR, &sm_2_sm_network_type,
+      "Network type to connect the SMs in a cluster", "crossbar");
+  option_parser_register(
       opp, "-gpgpu_shmem_sizeDefault", OPT_UINT32, &gpgpu_shmem_sizeDefault,
       "Size of shared memory per shader core (default 16kB)", "16384");
   option_parser_register(

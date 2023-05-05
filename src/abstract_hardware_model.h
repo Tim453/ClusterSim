@@ -451,6 +451,7 @@ class core_config {
   bool gmem_skip_L1D;  // on = global memory access always skip the L1 cache
 
   bool adaptive_cache_config;
+  char *sm_2_sm_network_type;
 };
 
 // bounded stack that implements simt reconvergence using pdom mechanism from
