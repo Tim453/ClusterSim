@@ -2772,7 +2772,6 @@ __host__ cudaError_t CUDARTAPI cudaLaunchKernel(const char *hostFun,
 
 __host__ cudaError_t CUDARTAPI cudaLaunchKernelExC(
     const cudaLaunchConfig_t *config, const void *func, void **args) {
-
   dim3 clusterDim(0, 0, 0);
   for (unsigned i = 0; i < config->numAttrs; i++) {
     if (config->attrs[i].id == cudaLaunchAttributeClusterDimension) {
@@ -2792,12 +2791,12 @@ __host__ cudaError_t CUDARTAPI cudaLaunchKernelExC(
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
-  
+
   for (unsigned i = 0; i < entry->num_args(); i++) {
     std::pair<size_t, unsigned> p = entry->get_param_config(i);
     cudaSetupArgumentInternal(args[i], p.first, p.second);
   }
-  
+
   cudaLaunchInternal((const char *)func);
   return g_last_cudaError = cudaSuccess;
 }

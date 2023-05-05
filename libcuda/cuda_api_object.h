@@ -115,9 +115,9 @@ struct CUctx_st {
   }
 
   function_info *get_kernel(const char *hostFun) {
-    if(m_kernel_lookup.find((const char*)nullptr) == m_kernel_lookup.end())
+    if (m_kernel_lookup.find((const char *)nullptr) == m_kernel_lookup.end())
       printf("Not found \n");
-    if(m_kernel_lookup.find(hostFun) == m_kernel_lookup.end())
+    if (m_kernel_lookup.find(hostFun) == m_kernel_lookup.end())
       printf("Not found \n");
     std::map<const void *, function_info *>::iterator i =
         m_kernel_lookup.find(hostFun);
