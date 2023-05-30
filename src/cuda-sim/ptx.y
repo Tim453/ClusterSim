@@ -203,7 +203,10 @@ class ptx_recognizer;
 %token  BALLOT_OPTION
 %token  GLOBAL_OPTION
 %token  CTA_OPTION
+%token  GPU_OPTION
 %token  SYS_OPTION
+%token  RELEASE_OPTION
+%token  ACQUIRE_OPTION
 %token  EXIT_OPTION
 %token  ABS_OPTION
 %token  TO_OPTION
@@ -495,7 +498,10 @@ option: type_spec
 	| BALLOT_OPTION { recognizer->add_option(BALLOT_OPTION); }
 	| GLOBAL_OPTION { recognizer->add_option(GLOBAL_OPTION); }
 	| CTA_OPTION { recognizer->add_option(CTA_OPTION); }
+	| GPU_OPTION { recognizer->add_option(GPU_OPTION); }
 	| SYS_OPTION { recognizer->add_option(SYS_OPTION); }
+	| RELEASE_OPTION { recognizer->add_option(RELEASE_OPTION); }
+	| ACQUIRE_OPTION { recognizer->add_option(ACQUIRE_OPTION); }
 	| GEOM_MODIFIER_1D { recognizer->add_option(GEOM_MODIFIER_1D); }
 	| GEOM_MODIFIER_2D { recognizer->add_option(GEOM_MODIFIER_2D); }
 	| GEOM_MODIFIER_3D { recognizer->add_option(GEOM_MODIFIER_3D); }

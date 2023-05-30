@@ -1369,8 +1369,17 @@ ptx_instruction::ptx_instruction(
       case CTA_OPTION:
         m_membar_level = CTA_OPTION;
         break;
+      case GPU_OPTION:
+        m_membar_level = GPU_OPTION;
+        break;
       case SYS_OPTION:
         m_membar_level = SYS_OPTION;
+        break;
+      case RELEASE_OPTION:
+        //ToDo
+        break;
+      case ACQUIRE_OPTION:
+        //ToDo
         break;
       case FTZ_OPTION:
         break;

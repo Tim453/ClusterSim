@@ -377,7 +377,11 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.ballot	TC; return BALLOT_OPTION;
 \.gl    TC; return GLOBAL_OPTION;
 \.cta   TC; return CTA_OPTION;
+\.gpu   TC; return GPU_OPTION;
 \.sys   TC; return SYS_OPTION;
+
+\.release   TC; return RELEASE_OPTION;
+\.acquire   TC; return ACQUIRE_OPTION;
 
 \.exit   TC; return EXIT_OPTION;
 

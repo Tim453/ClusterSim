@@ -266,8 +266,11 @@ unsigned ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
       dim3 gdim = this->get_core()->get_kernel_info()->get_grid_dim();
       switch (index) {
         case 0:
+          return 0;
         case 1:
         case 2:
+          // Needed for grid synchronisation. Not sure if 1 is the correct value
+          return 1;
         case 3:
         case 4:
         case 5:
