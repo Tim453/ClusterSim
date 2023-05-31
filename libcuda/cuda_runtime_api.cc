@@ -223,6 +223,7 @@ struct _cuda_device_id *gpgpu_context::GPGPUSim_Init() {
 #if (CUDART_VERSION > 5050)
     prop->regsPerMultiprocessor = the_gpu->num_registers_per_core();
     prop->sharedMemPerMultiprocessor = the_gpu->shared_mem_size();
+    prop->cooperativeLaunch = 1;
 #endif
     prop->sharedMemPerBlock = the_gpu->shared_mem_per_block();
     prop->regsPerBlock = the_gpu->num_registers_per_block();
@@ -1737,6 +1738,9 @@ cudaDeviceGetAttributeInternal(int *value, enum cudaDeviceAttr attr, int device,
       case 19:
         *value = 0;
         break;
+      case 20:  // CudaDevAttrComputeMode
+        *value = 0;
+        break;
       case 21:
       case 22:
       case 23:
@@ -2768,6 +2772,29 @@ __host__ cudaError_t CUDARTAPI cudaLaunchKernel(const char *hostFun,
                                                 cudaStream_t stream) {
   return cudaLaunchKernelInternal(hostFun, gridDim, blockDim, args, sharedMem,
                                   stream);
+}
+
+__host__ cudaError_t cudaLaunchCooperativeKernel(const void *func, dim3 gridDim,
+                                                 dim3 blockDim, void **args,
+                                                 size_t sharedMem,
+                                                 cudaStream_t stream) {
+  gpgpu_context *ctx = GPGPU_Context();
+  CUctx_st *context = GPGPUSim_Context(ctx);
+  function_info *entry = context->get_kernel((const char *)func);
+
+  cudaConfigureCallInternal(gridDim, blockDim, sharedMem, stream, ctx);
+
+  if (g_debug_execution >= 3) {
+    announce_call(__my_func__);
+  }
+
+  for (unsigned i = 0; i < entry->num_args(); i++) {
+    std::pair<size_t, unsigned> p = entry->get_param_config(i);
+    cudaSetupArgumentInternal(args[i], p.first, p.second);
+  }
+
+  cudaLaunchInternal((const char *)func);
+  return g_last_cudaError = cudaSuccess;
 }
 
 __host__ cudaError_t CUDARTAPI cudaLaunchKernelExC(

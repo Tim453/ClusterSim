@@ -1376,10 +1376,10 @@ ptx_instruction::ptx_instruction(
         m_membar_level = SYS_OPTION;
         break;
       case RELEASE_OPTION:
-        //ToDo
+        // ToDo
         break;
       case ACQUIRE_OPTION:
-        //ToDo
+        // ToDo
         break;
       case FTZ_OPTION:
         break;
