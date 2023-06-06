@@ -209,7 +209,13 @@ gpgpu_sim *gpgpu_context::gpgpu_ptx_sim_init_perf() {
   the_gpgpusim->g_the_gpu_config->reg_options(
       opp);  // register GPU microrachitecture options
 
-  option_parser_cmdline(opp, sg_argc, sg_argv);  // parse configuration options
+  const char *custom_arg[3] = {"", "-config", "gpgpusim.config"};
+  if(std::getenv("GPUSIM_CONFIG") != nullptr){
+    std::cout << "Using config File: " << std::getenv("GPUSIM_CONFIG") << "\n";
+    custom_arg[2] = std::getenv("GPUSIM_CONFIG");
+  }
+  
+  option_parser_cmdline(opp, sg_argc, custom_arg);  // parse configuration options
   fprintf(stdout, "GPGPU-Sim: Configuration options:\n\n");
   option_parser_print(opp, stdout);
   // Set the Numeric locale to a standard locale where a decimal point is a
