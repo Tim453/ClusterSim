@@ -61,3 +61,112 @@ bool local_crossbar::HasBuffer(unsigned deviceID, unsigned int size,
                                Interconnect_type network) const {
   return m_localicnt_interface->HasBuffer(deviceID, size, network);
 }
+
+ringbus::ringbus(unsigned n_shader, const class shader_core_config* config)
+    : sm_2_sm_network(n_shader, config) {
+  in_buffer[0].resize(n_shader);
+  in_buffer[1].resize(n_shader);
+  out_buffer[0].resize(n_shader);
+  out_buffer[1].resize(n_shader);
+  bus[0].resize(n_shader);
+  bus[1].resize(n_shader);
+}
+
+void ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
+                   void* data, unsigned int size, Interconnect_type network) {
+  output_deviceID = m_config->sid_to_cid(output_deviceID);
+  input_deviceID = m_config->sid_to_cid(input_deviceID);
+
+  struct message mess {
+    .target = output_deviceID, .data = data
+  };
+  if (network == REQ_NET) {
+    in_buffer[0].at(input_deviceID).push(mess);
+    assert(in_buffer[0].at(input_deviceID).size() <= in_buffer_limit);
+  } else if (network == REPLY_NET) {
+    in_buffer[1].at(input_deviceID).push(mess);
+    assert(in_buffer[1].at(input_deviceID).size() <= in_buffer_limit);
+  } else {
+    assert(0);
+  }
+}
+
+void* ringbus::Pop(unsigned output_deviceID, Interconnect_type network) {
+  output_deviceID = m_config->sid_to_cid(output_deviceID);
+
+  void* data;
+  if (network == REQ_NET && !out_buffer[0].at(output_deviceID).empty()) {
+    data = out_buffer[0].at(output_deviceID).front().data;
+    out_buffer[0].at(output_deviceID).pop();
+    return data;
+  } else if (network == REPLY_NET &&
+             !out_buffer[1].at(output_deviceID).empty()) {
+    data = out_buffer[1].at(output_deviceID).front().data;
+    out_buffer[1].at(output_deviceID).pop();
+    return data;
+  } else {
+    return nullptr;
+  }
+}
+
+bool ringbus::HasBuffer(unsigned deviceID, unsigned int size,
+                        Interconnect_type network) const {
+  deviceID = m_config->sid_to_cid(deviceID);
+  if (network == REQ_NET) {
+    bool result = in_buffer[0].at(deviceID).size() < in_buffer_limit;
+    return result;
+  } else {
+    bool result = in_buffer[1].at(deviceID).size() < in_buffer_limit;
+    return result;
+  }
+}
+
+void ringbus::Advance() {
+  // Request Net
+  for (int i = 0; i < bus[0].size(); i++) {
+    struct message mess;
+    int next_bus_node = (i + 1) % bus[0].size();
+
+    if (!bus[0].at(i).empty()) {
+      mess = bus[0].at(i).front();
+      if (mess.target == i && out_buffer[0].at(i).size() < out_buffer_limit) {
+        out_buffer[0].at(i).push(mess);
+        bus[0].at(i).pop();
+      } else if (mess.target != i &&
+                 bus[0].at(next_bus_node).size() < bus_buffer_limit) {
+        bus[0].at(next_bus_node).push(mess);
+        bus[0].at(i).pop();
+      }
+    }
+    if (bus[0].at(i).size() < bus_buffer_limit && !in_buffer[0].at(i).empty()) {
+      mess = in_buffer[0].at(i).front();
+      in_buffer[0].at(i).pop();
+      bus[0].at(i).push(mess);
+    }
+  }
+
+  // Response net
+  for (int i = bus[1].size() - 1; i >= 0; i--) {
+    struct message mess;
+    int next_bus_node = (i - 1) % bus[1].size();
+
+    if (!bus[1].at(i).empty()) {
+      mess = bus[1].at(i).front();
+      if (mess.target == i && out_buffer[1].at(i).size() < out_buffer_limit) {
+        out_buffer[1].at(i).push(mess);
+        bus[1].at(i).pop();
+      } else if (mess.target != i &&
+                 bus[1].at(next_bus_node).size() < bus_buffer_limit) {
+        bus[1].at(next_bus_node).push(mess);
+        bus[1].at(i).pop();
+      }
+    }
+    if (bus[1].at(i).size() < bus_buffer_limit && !in_buffer[1].at(i).empty()) {
+      mess = in_buffer[1].at(i).front();
+      in_buffer[1].at(i).pop();
+      bus[1].at(i).push(mess);
+    }
+  }
+}
+
+bool ringbus::Busy() const { return false; }

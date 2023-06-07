@@ -1871,7 +1871,7 @@ void shader_core_ctx::writeback() {
   }
 }
 
-void ldst_unit::process_cluster_request() {
+void ldst_unit::process_cluster_request(bool handle_cluster_request) {
   // Handle Reply
   cluster_shmem_request *reply =
       (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REPLY_NET);
@@ -1881,19 +1881,21 @@ void ldst_unit::process_cluster_request() {
   }
 
   // Handle Request
-  if (m_cluster_request == nullptr)
-    m_cluster_request =
-        (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REQ_NET);
+  if (handle_cluster_request) {
+    if (m_cluster_request == nullptr)
+      m_cluster_request =
+          (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REQ_NET);
 
-  if (m_cluster_request == nullptr) return;
+    if (m_cluster_request == nullptr) return;
 
-  assert(!m_cluster_request->is_response);
-  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET)) {
-    m_cluster_request->send_response();
-    // ToDo use correct message size
-    m_sm_2_sm_network->Push(m_cid, m_cluster_request->origin_shader_id,
-                            m_cluster_request, 1, REPLY_NET);
-    m_cluster_request = nullptr;
+    assert(!m_cluster_request->is_response);
+    if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET)) {
+      m_cluster_request->send_response();
+      // ToDo use correct message size
+      m_sm_2_sm_network->Push(m_cid, m_cluster_request->origin_shader_id,
+                              m_cluster_request, 1, REPLY_NET);
+      m_cluster_request = nullptr;
+    }
   }
 }
 
@@ -2786,7 +2788,10 @@ void ldst_unit::cycle() {
       request->send_request();
     }
   }
-  process_cluster_request();
+
+  // Only process Cluster Requests, when there is no local shared memory access
+  // going on.
+  process_cluster_request(pipe_reg.has_dispatch_delay());
 
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
   mem_stage_access_type type;
@@ -4452,8 +4457,13 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   m_cluster_status = new unsigned[m_maximum_thread_block_cluster];
   for (int i = 0; i < m_maximum_thread_block_cluster; i++)
     m_cluster_status[i] = 0;
-  m_sm_2_sm_network =
-      new local_crossbar(config->n_simt_cores_per_cluster, config);
+
+  if (strcmp(m_config->sm_2_sm_network_type, "ringbus") == 0) {
+    m_sm_2_sm_network = new ringbus(config->n_simt_cores_per_cluster, config);
+  } else {
+    m_sm_2_sm_network =
+        new local_crossbar(config->n_simt_cores_per_cluster, config);
+  }
 }
 
 simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }
