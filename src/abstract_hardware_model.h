@@ -512,10 +512,10 @@ class simt_stack {
 const unsigned long long GLOBAL_HEAP_START = 0xC0000000;
 // Volta max shmem size is 96kB
 const unsigned long long SHARED_MEM_SIZE_MAX = 96 * (1 << 10);
-// Max Local memory 4kB
-const unsigned long long LOCAL_MEM_SIZE_MAX = 1 << 12;
-// Max SMs = 280
-const unsigned MAX_STREAMING_MULTIPROCESSORS = 280;
+// Volta max local mem is 16kB
+const unsigned long long LOCAL_MEM_SIZE_MAX = 1 << 14;
+// Volta Titan V has 80 SMs
+const unsigned MAX_STREAMING_MULTIPROCESSORS = 80;
 // Max 2048 threads / SM
 const unsigned MAX_THREAD_PER_SM = 1 << 11;
 // MAX 64 warps / SM
