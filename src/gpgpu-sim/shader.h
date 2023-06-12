@@ -1429,7 +1429,7 @@ class ldst_unit : public pipelined_simd_unit {
 
  protected:
   void send_cluster_request(warp_inst_t &warp);
-  void process_cluster_request(bool handle_cluster_request);
+  void process_cluster_request();
   bool cluster_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
                      mem_stage_access_type &fail_type);
   bool shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,

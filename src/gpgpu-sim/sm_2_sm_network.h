@@ -90,38 +90,4 @@ class local_crossbar : public sm_2_sm_network {
   inct_config m_inct_config;
 };
 
-class ringbus : public sm_2_sm_network {
- public:
-  ringbus(unsigned n_shader, const class shader_core_config* config);
-  ~ringbus();
-  void Init();
-  void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
-            unsigned int size, Interconnect_type network);
-  void* Pop(unsigned output_deviceID, Interconnect_type network);
-  void Advance();
-  bool Busy() const;
-  bool HasBuffer(unsigned deviceID, unsigned int size,
-                 Interconnect_type network) const;
-  void DisplayStats() const;
-  void DisplayOverallStats() const;
-  unsigned GetFlitSize() const;
-
-  void DisplayState(FILE* fp) const;
-
- private:
-  struct message {
-    int target;
-    void* data;
-  };
-
-  // Shader >>> Network >>> Buffer
-  std::array<std::vector<std::queue<message>>, 2> in_buffer;
-  std::array<std::vector<std::queue<message>>, 2> out_buffer;
-  std::array<std::vector<std::queue<message>>, 2> bus;
-
-  const int in_buffer_limit = 10;
-  const int out_buffer_limit = 10;
-  const int bus_buffer_limit = 10;
-};
-
 #endif  // SM_2_SM_NETWORK_H
