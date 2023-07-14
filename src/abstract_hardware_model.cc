@@ -340,6 +340,7 @@ void warp_inst_t::generate_mem_accesses() {
     case sstarr_space: {
       unsigned subwarp_size = m_config->warp_size / m_config->mem_warp_parts;
       unsigned total_accesses = 0;
+      bool ignore_request = false;
       for (unsigned subwarp = 0; subwarp < m_config->mem_warp_parts;
            subwarp++) {
         // data structures used per part warp
@@ -352,8 +353,7 @@ void warp_inst_t::generate_mem_accesses() {
           if (!active(thread)) continue;
           int res = strcmp(m_config->sm_2_sm_network_type, "none");
 
-          if (strcmp(m_config->sm_2_sm_network_type, "none") == 0 ||
-              m_per_scalar_thread[thread].target_shader_id == m_sid) {
+          if (m_per_scalar_thread[thread].target_shader_id == m_sid) {
             new_addr_type addr = m_per_scalar_thread[thread].memreqaddr[0];
             // FIXME: deferred allocation of shared memory should not accumulate
             // across kernel launches assert( addr < m_config->gpgpu_shmem_size
@@ -362,7 +362,7 @@ void warp_inst_t::generate_mem_accesses() {
             new_addr_type word =
                 line_size_based_tag_func(addr, m_config->WORD_SIZE);
             bank_accs[bank][word]++;
-          } else {
+          } else if (!(strcmp(m_config->sm_2_sm_network_type, "none") == 0)){
             // create a bus request
             assert(m_per_scalar_thread[thread].memreqaddr[0] <
                    SHARED_MEM_SIZE_MAX);
@@ -372,6 +372,8 @@ void warp_inst_t::generate_mem_accesses() {
                 thread);
             m_pending_cluster_memory_requests[thread] = request;
             m_create_cluster_memory_request = true;
+          } else {
+            ignore_request = true;
           }
         }
 
@@ -437,7 +439,7 @@ void warp_inst_t::generate_mem_accesses() {
           total_accesses += max_bank_accesses;
         }
       }
-      assert((m_create_cluster_memory_request || total_accesses > 0) &&
+      assert((ignore_request || m_create_cluster_memory_request || total_accesses > 0) &&
              total_accesses <= m_config->warp_size);
       cycles = total_accesses;  // shared memory conflicts modeled as larger
                                 // initiation interval
