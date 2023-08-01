@@ -88,6 +88,8 @@ class local_crossbar : public sm_2_sm_network {
  private:
   LocalInterconnect* m_localicnt_interface;
   inct_config m_inct_config;
+  std::ofstream m_request_net_log;
+  std::ofstream m_reply_net_log;
 };
 
 #endif  // SM_2_SM_NETWORK_H

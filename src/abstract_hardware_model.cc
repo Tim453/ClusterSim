@@ -362,7 +362,7 @@ void warp_inst_t::generate_mem_accesses() {
             new_addr_type word =
                 line_size_based_tag_func(addr, m_config->WORD_SIZE);
             bank_accs[bank][word]++;
-          } else if (!(strcmp(m_config->sm_2_sm_network_type, "none") == 0)){
+          } else if (!(strcmp(m_config->sm_2_sm_network_type, "none") == 0)) {
             // create a bus request
             assert(m_per_scalar_thread[thread].memreqaddr[0] <
                    SHARED_MEM_SIZE_MAX);
@@ -439,7 +439,8 @@ void warp_inst_t::generate_mem_accesses() {
           total_accesses += max_bank_accesses;
         }
       }
-      assert((ignore_request || m_create_cluster_memory_request || total_accesses > 0) &&
+      assert((ignore_request || m_create_cluster_memory_request ||
+              total_accesses > 0) &&
              total_accesses <= m_config->warp_size);
       cycles = total_accesses;  // shared memory conflicts modeled as larger
                                 // initiation interval

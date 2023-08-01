@@ -388,6 +388,24 @@ void LocalInterconnect::Advance() {
   }
 }
 
+std::vector<int> LocalInterconnect::getopenRequests() {
+  std::vector<int> requests;
+  requests.resize(n_shader);
+  for (unsigned i = 0; i < n_shader; i++) {
+    requests.at(i) = net[REQ_NET]->in_buffers[i].size();
+  }
+  return requests;
+}
+
+std::vector<int> LocalInterconnect::getopenResponse() {
+  std::vector<int> responses;
+  responses.resize(n_shader);
+  for (unsigned i = 0; i < n_shader; i++) {
+    responses.at(i) = net[REPLY_NET]->in_buffers[i].size();
+  }
+  return responses;
+}
+
 bool LocalInterconnect::Busy() const {
   for (unsigned i = 0; i < n_subnets; ++i) {
     if (net[i]->Busy()) return true;

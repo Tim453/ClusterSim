@@ -35,9 +35,28 @@ local_crossbar::local_crossbar(unsigned n_shader,
                               .grant_cycles = 1};
   m_localicnt_interface = new LocalInterconnect(m_inct_config);
   m_localicnt_interface->CreateInterconnect(n_shader, 0);
+
+  if (m_config->sm_2_sm_network_log) {
+    m_request_net_log.open("request.csv");
+    m_reply_net_log.open("reply.csv");
+
+    m_request_net_log << "SM0";
+    m_reply_net_log << "SM0";
+    for (int i = 1; i < n_shader; i++) {
+      m_request_net_log << ",SM" << i;
+      m_reply_net_log << ",SM" << i;
+    }
+    m_request_net_log << "\n";
+    m_reply_net_log << "\n";
+  }
 }
 
-local_crossbar::~local_crossbar() { delete m_localicnt_interface; }
+local_crossbar::~local_crossbar() {
+  delete m_localicnt_interface;
+
+  m_request_net_log.close();
+  m_reply_net_log.close();
+}
 
 void* local_crossbar::Pop(unsigned ouput_deviceID, Interconnect_type network) {
   ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
@@ -53,7 +72,23 @@ void local_crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
                                      size, network);
 }
 
-void local_crossbar::Advance() { return m_localicnt_interface->Advance(); }
+void local_crossbar::Advance() {
+  if (m_config->sm_2_sm_network_log) {
+    std::vector<int> requests = m_localicnt_interface->getopenRequests();
+    std::vector<int> response = m_localicnt_interface->getopenResponse();
+
+    m_request_net_log << requests.at(0);
+    m_reply_net_log << response.at(0);
+    for (int i = 1; i < requests.size(); i++) {
+      m_request_net_log << "," << requests.at(i);
+      m_reply_net_log << "," << response.at(i);
+    }
+    m_request_net_log << "\n";
+    m_reply_net_log << "\n";
+  }
+
+  return m_localicnt_interface->Advance();
+}
 
 bool local_crossbar::Busy() const { return m_localicnt_interface->Busy(); }
 
