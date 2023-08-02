@@ -388,7 +388,7 @@ void LocalInterconnect::Advance() {
   }
 }
 
-std::vector<int> LocalInterconnect::getopenRequests() {
+std::vector<int> LocalInterconnect::get_req_in_size() {
   std::vector<int> requests;
   requests.resize(n_shader);
   for (unsigned i = 0; i < n_shader; i++) {
@@ -397,11 +397,29 @@ std::vector<int> LocalInterconnect::getopenRequests() {
   return requests;
 }
 
-std::vector<int> LocalInterconnect::getopenResponse() {
+std::vector<int> LocalInterconnect::get_req_out_size() {
+  std::vector<int> requests;
+  requests.resize(n_shader);
+  for (unsigned i = 0; i < n_shader; i++) {
+    requests.at(i) = net[REQ_NET]->out_buffers[i].size();
+  }
+  return requests;
+}
+
+std::vector<int> LocalInterconnect::get_reply_in_size() {
   std::vector<int> responses;
   responses.resize(n_shader);
   for (unsigned i = 0; i < n_shader; i++) {
     responses.at(i) = net[REPLY_NET]->in_buffers[i].size();
+  }
+  return responses;
+}
+
+std::vector<int> LocalInterconnect::get_reply_out_size() {
+  std::vector<int> responses;
+  responses.resize(n_shader);
+  for (unsigned i = 0; i < n_shader; i++) {
+    responses.at(i) = net[REPLY_NET]->out_buffers[i].size();
   }
   return responses;
 }

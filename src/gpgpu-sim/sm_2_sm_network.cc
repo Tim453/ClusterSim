@@ -1,5 +1,5 @@
 #include "sm_2_sm_network.h"
-
+#include "gpu-sim.h"
 cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
                                              bool is_write, bool is_atomic,
                                              unsigned origin_shader_id,
@@ -18,15 +18,18 @@ cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
 }
 
 sm_2_sm_network::sm_2_sm_network(unsigned n_shader,
-                                 const class shader_core_config* config) {
+                                 const class shader_core_config* config,
+                                 const class gpgpu_sim* gpu) {
   m_n_shader = n_shader;
   m_config = config;
+  m_gpu = gpu;
   m_type = CROSSBAR;
 }
 
 local_crossbar::local_crossbar(unsigned n_shader,
-                               const class shader_core_config* config)
-    : sm_2_sm_network(n_shader, config) {
+                               const class shader_core_config* config,
+                               const class gpgpu_sim* gpu)
+    : sm_2_sm_network(n_shader, config, gpu) {
   m_inct_config = inct_config{.in_buffer_limit = 10,
                               .out_buffer_limit = 10,
                               .subnets = 2,
@@ -37,25 +40,40 @@ local_crossbar::local_crossbar(unsigned n_shader,
   m_localicnt_interface->CreateInterconnect(n_shader, 0);
 
   if (m_config->sm_2_sm_network_log) {
-    m_request_net_log.open("request.csv");
-    m_reply_net_log.open("reply.csv");
+    assert(m_config->n_simt_clusters == 1);
+    m_request_net_in_log.open("req_in.csv");
+    m_request_net_out_log.open("req_out.csv");
+    m_reply_net_in_log.open("reply_in.csv");
+    m_reply_net_out_log.open("reply_out.csv");
 
-    m_request_net_log << "SM0";
-    m_reply_net_log << "SM0";
-    for (int i = 1; i < n_shader; i++) {
-      m_request_net_log << ",SM" << i;
-      m_reply_net_log << ",SM" << i;
+    m_request_net_in_log << "Cycle";
+    m_reply_net_in_log << "Cycle";
+    m_request_net_out_log << "Cycle";
+    m_reply_net_out_log << "Cycle";
+    for (int i = 0; i < n_shader; i++) {
+      m_request_net_in_log << ",SM_" << i;
+      m_reply_net_in_log << ",SM_" << i;
+      m_request_net_out_log << ",SM_" << i;
+      m_reply_net_out_log << ",SM_" << i;
     }
-    m_request_net_log << "\n";
-    m_reply_net_log << "\n";
+    m_request_net_in_log << std::endl;
+    m_reply_net_in_log << std::endl;
+    m_request_net_out_log << std::endl;
+    m_reply_net_out_log << std::endl;
   }
 }
 
 local_crossbar::~local_crossbar() {
   delete m_localicnt_interface;
 
-  m_request_net_log.close();
-  m_reply_net_log.close();
+  m_reply_net_in_log.flush();
+  m_reply_net_out_log.flush();
+  m_request_net_in_log.flush();
+  m_request_net_out_log.flush();
+  m_request_net_in_log.close();
+  m_request_net_out_log.close();
+  m_reply_net_in_log.close();
+  m_reply_net_out_log.close();
 }
 
 void* local_crossbar::Pop(unsigned ouput_deviceID, Interconnect_type network) {
@@ -73,21 +91,29 @@ void local_crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
 }
 
 void local_crossbar::Advance() {
+  m_localicnt_interface->Advance();
+
   if (m_config->sm_2_sm_network_log) {
-    std::vector<int> requests = m_localicnt_interface->getopenRequests();
-    std::vector<int> response = m_localicnt_interface->getopenResponse();
+    std::vector<int> req_in = m_localicnt_interface->get_req_in_size();
+    std::vector<int> req_out = m_localicnt_interface->get_req_out_size();
+    std::vector<int> reply_in = m_localicnt_interface->get_reply_in_size();
+    std::vector<int> reply_out = m_localicnt_interface->get_reply_out_size();
 
-    m_request_net_log << requests.at(0);
-    m_reply_net_log << response.at(0);
-    for (int i = 1; i < requests.size(); i++) {
-      m_request_net_log << "," << requests.at(i);
-      m_reply_net_log << "," << response.at(i);
+    m_request_net_in_log << m_gpu->gpu_sim_cycle;
+    m_request_net_out_log << m_gpu->gpu_sim_cycle;
+    m_reply_net_in_log << m_gpu->gpu_sim_cycle;
+    m_reply_net_out_log << m_gpu->gpu_sim_cycle;
+    for (int i = 0; i < req_in.size(); i++) {
+      m_request_net_in_log << "," << req_in.at(i);
+      m_request_net_out_log << "," << req_out.at(i);
+      m_reply_net_in_log << "," << reply_in.at(i);
+      m_reply_net_out_log << "," << reply_out.at(i);
     }
-    m_request_net_log << "\n";
-    m_reply_net_log << "\n";
+    m_request_net_in_log << std::endl;
+    m_request_net_out_log << std::endl;
+    m_reply_net_in_log << std::endl;
+    m_reply_net_out_log << std::endl;
   }
-
-  return m_localicnt_interface->Advance();
 }
 
 bool local_crossbar::Busy() const { return m_localicnt_interface->Busy(); }

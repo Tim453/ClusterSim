@@ -132,8 +132,10 @@ class LocalInterconnect {
 
   void DisplayState(FILE* fp) const;
 
-  std::vector<int> getopenRequests();
-  std::vector<int> getopenResponse();
+  std::vector<int> get_req_in_size();
+  std::vector<int> get_req_out_size();
+  std::vector<int> get_reply_in_size();
+  std::vector<int> get_reply_out_size();
 
  protected:
   const inct_config& m_inct_config;

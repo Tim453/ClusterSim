@@ -44,7 +44,8 @@ class sm_2_sm_network {
   enum Network_type { CROSSBAR, BOOKSIM };
   // Functions for local interconnect
 
-  sm_2_sm_network(unsigned n_shader, const class shader_core_config* config);
+  sm_2_sm_network(unsigned n_shader, const class shader_core_config* config,
+                  const class gpgpu_sim* gpu);
 
   // void Init();
   virtual void Push(unsigned input_deviceID, unsigned output_deviceID,
@@ -65,11 +66,13 @@ class sm_2_sm_network {
   Network_type m_type;
   unsigned m_n_shader, m_n_mem;
   const class shader_core_config* m_config;
+  const class gpgpu_sim* m_gpu;
 };
 
 class local_crossbar : public sm_2_sm_network {
  public:
-  local_crossbar(unsigned n_shader, const class shader_core_config* config);
+  local_crossbar(unsigned n_shader, const class shader_core_config* config,
+                 const class gpgpu_sim* gpu);
   ~local_crossbar();
   void Init();
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
@@ -88,8 +91,10 @@ class local_crossbar : public sm_2_sm_network {
  private:
   LocalInterconnect* m_localicnt_interface;
   inct_config m_inct_config;
-  std::ofstream m_request_net_log;
-  std::ofstream m_reply_net_log;
+  std::ofstream m_request_net_in_log;
+  std::ofstream m_request_net_out_log;
+  std::ofstream m_reply_net_in_log;
+  std::ofstream m_reply_net_out_log;
 };
 
 #endif  // SM_2_SM_NETWORK_H

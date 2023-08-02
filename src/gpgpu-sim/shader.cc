@@ -4453,7 +4453,7 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   for (int i = 0; i < m_maximum_thread_block_cluster; i++)
     m_cluster_status[i] = 0;
   m_sm_2_sm_network =
-      new local_crossbar(config->n_simt_cores_per_cluster, config);
+      new local_crossbar(config->n_simt_cores_per_cluster, config, m_gpu);
 }
 
 simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }
