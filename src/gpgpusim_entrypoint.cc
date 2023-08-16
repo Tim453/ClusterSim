@@ -205,6 +205,7 @@ gpgpu_sim *gpgpu_context::gpgpu_ptx_sim_init_perf() {
   func_sim->ptx_opcocde_latency_options(opp);
 
   icnt_reg_options(opp);
+  sm2sm_network_options(opp);
   the_gpgpusim->g_the_gpu_config = new gpgpu_sim_config(this);
   the_gpgpusim->g_the_gpu_config->reg_options(
       opp);  // register GPU microrachitecture options

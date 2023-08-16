@@ -5,6 +5,8 @@
 #include "local_interconnect.h"
 #include "shader.h"
 
+void sm2sm_network_options(class OptionParser* opp);
+
 class cluster_shmem_request {
  public:
   cluster_shmem_request(warp_inst_t* warp, addr_t address, bool is_write,
@@ -90,7 +92,7 @@ class local_crossbar : public sm_2_sm_network {
 
  private:
   LocalInterconnect* m_localicnt_interface;
-  inct_config m_inct_config;
+  
   std::ofstream m_request_net_in_log;
   std::ofstream m_request_net_out_log;
   std::ofstream m_reply_net_in_log;
