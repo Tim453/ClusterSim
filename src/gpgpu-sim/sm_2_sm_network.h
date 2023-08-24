@@ -13,6 +13,8 @@ class cluster_shmem_request {
                         bool is_atomic, unsigned origin_shader_id,
                         unsigned target_shader_id, unsigned tid);
   void send_response() { m_is_response = true; }
+  // Called when data came from the target SM, then the request can be treated as a normal request
+  void atomic_sendback() {m_is_atomic = false; m_is_response = false;}
   warp_inst_t* get_warp() { return m_warp; }
   void send_request() { m_is_send = true; }
 
