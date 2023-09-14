@@ -1458,6 +1458,7 @@ class ldst_unit : public pipelined_simd_unit {
   unsigned m_tpc;
   sm_2_sm_network *m_sm_2_sm_network;
   cluster_shmem_request *m_cluster_request;
+  cluster_shmem_request *m_cluster_reply;
   unsigned m_cid;
   std::map<unsigned, std::bitset<64>> m_cluster_request_status;
 

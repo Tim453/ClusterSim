@@ -4,18 +4,22 @@
 inct_config sm2sm_crossbar_config;
 
 void sm2sm_network_options(class OptionParser* opp) {
-
   sm2sm_crossbar_config.subnets = 2;
   sm2sm_crossbar_config.verbose = 0;
 
-  option_parser_register(opp, "-sm_2_sm_network_in_buffer_limit", OPT_INT32, &sm2sm_crossbar_config.in_buffer_limit,
+  option_parser_register(opp, "-sm_2_sm_network_in_buffer_limit", OPT_INT32,
+                         &sm2sm_crossbar_config.in_buffer_limit,
                          "Input Buffer Size of the SM 2 SM network", "32");
-  option_parser_register(opp, "-sm_2_sm_network_out_buffer_limit", OPT_INT32, &sm2sm_crossbar_config.out_buffer_limit,
+  option_parser_register(opp, "-sm_2_sm_network_out_buffer_limit", OPT_INT32,
+                         &sm2sm_crossbar_config.out_buffer_limit,
                          "Output Buffer Size of the SM 2 SM network", "32");
-  option_parser_register(opp, "-sm_2_sm_network_grant_cycles", OPT_INT32, &sm2sm_crossbar_config.grant_cycles,
+  option_parser_register(opp, "-sm_2_sm_network_grant_cycles", OPT_INT32,
+                         &sm2sm_crossbar_config.grant_cycles,
                          "Grant Cycles of the SM 2 SM network", "1");
-  option_parser_register(opp, "-sm_2_sm_network_arbiter_algo", OPT_INT32, &sm2sm_crossbar_config.arbiter_algo,
-                         "Arbiter Algorithm of the SM 2 SM network NAIVE_RR=0, iSLIP=1", "0");
+  option_parser_register(
+      opp, "-sm_2_sm_network_arbiter_algo", OPT_INT32,
+      &sm2sm_crossbar_config.arbiter_algo,
+      "Arbiter Algorithm of the SM 2 SM network NAIVE_RR=0, iSLIP=1", "0");
 }
 
 cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
@@ -48,7 +52,6 @@ local_crossbar::local_crossbar(unsigned n_shader,
                                const class shader_core_config* config,
                                const class gpgpu_sim* gpu)
     : sm_2_sm_network(n_shader, config, gpu) {
-
   m_localicnt_interface = new LocalInterconnect(sm2sm_crossbar_config);
   m_localicnt_interface->CreateInterconnect(n_shader, 0);
 

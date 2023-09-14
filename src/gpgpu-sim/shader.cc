@@ -1873,22 +1873,20 @@ void shader_core_ctx::writeback() {
 
 void ldst_unit::process_cluster_request() {
   // Handle Reply
-  static cluster_shmem_request *reply;
+  if (m_cluster_reply == nullptr)
+    m_cluster_reply =
+        (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REPLY_NET);
 
-  if(reply == nullptr)
-      reply = (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REPLY_NET);
-  
-  if (reply != nullptr && reply->is_atomic == false) {
-    assert(reply->is_response);
-    reply->get_warp()->response_arrived(reply->tid);
-    reply = nullptr;
+  if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == false) {
+    assert(m_cluster_reply->is_response);
+    m_cluster_reply->get_warp()->response_arrived(m_cluster_reply->tid);
+    m_cluster_reply = nullptr;
     // The atomic instructions need to be resend
-  } else if(reply != nullptr && reply->is_atomic == true){
-    
+  } else if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == true) {
     if (m_cluster_request == nullptr) {
-      reply->atomic_sendback();
-      m_cluster_request = reply;
-      reply = nullptr;
+      m_cluster_reply->atomic_sendback();
+      m_cluster_request = m_cluster_reply;
+      m_cluster_reply = nullptr;
     }
   }
 
