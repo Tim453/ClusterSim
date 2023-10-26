@@ -193,6 +193,7 @@ enum _memory_op_t { no_memory_op = 0, memory_load, memory_store };
 #include <deque>
 #include <list>
 #include <map>
+#include <queue>
 #include <vector>
 
 #if !defined(__VECTOR_TYPES_H__)
@@ -1243,14 +1244,18 @@ class warp_inst_t : public inst_t {
     if (cycles > 0) cycles--;
     return cycles > 0;
   }
-  void response_arrived(unsigned thread) {
-    delete m_pending_cluster_memory_requests[thread];
-    m_pending_cluster_memory_requests.erase(thread);
+  void response_arrived(class cluster_shmem_request *request) {
+    delete request;
+    m_outstanding_cluster_requests--;
+    assert(m_outstanding_cluster_requests >= 0);
   }
   bool cluster_request_complete() {
-    return m_pending_cluster_memory_requests.empty();
+    return m_outstanding_cluster_requests == 0;
   }
   class cluster_shmem_request *get_next_open_cluster_request();
+  bool has_pending_cluster_request() {
+    return !m_pending_cluster_memory_requests.empty();
+  }
   bool has_dispatch_delay() { return cycles > 0; }
 
   void print(FILE *fout) const;
@@ -1275,6 +1280,8 @@ class warp_inst_t : public inst_t {
   active_mask_t
       m_warp_issued_mask;  // active mask at issue (prior to predication test)
                            // -- for instruction counting
+  std::queue<class cluster_shmem_request *> m_pending_cluster_memory_requests;
+  unsigned m_outstanding_cluster_requests;
 
   struct per_thread_info {
     per_thread_info() {
@@ -1291,8 +1298,6 @@ class warp_inst_t : public inst_t {
                                                        // of 4B each)
   };
 
-  std::map<unsigned, class cluster_shmem_request *>
-      m_pending_cluster_memory_requests;
   bool m_per_scalar_thread_valid;
   std::vector<per_thread_info> m_per_scalar_thread;
   bool m_mem_accesses_created;
@@ -1304,7 +1309,6 @@ class warp_inst_t : public inst_t {
  public:
   int m_is_cdp;
   unsigned m_sid;
-  bool m_create_cluster_memory_request;
 };
 
 void move_warp(warp_inst_t *&dst, warp_inst_t *&src);

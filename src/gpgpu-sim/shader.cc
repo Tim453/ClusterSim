@@ -1879,7 +1879,7 @@ void ldst_unit::process_cluster_request() {
 
   if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == false) {
     assert(m_cluster_reply->is_response);
-    m_cluster_reply->get_warp()->response_arrived(m_cluster_reply->tid);
+    m_cluster_reply->get_warp()->response_arrived(m_cluster_reply);
     m_cluster_reply = nullptr;
     // The atomic instructions need to be resend
   } else if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == true) {
@@ -1891,14 +1891,18 @@ void ldst_unit::process_cluster_request() {
   }
 
   // Handle Request
-  if (m_cluster_request == nullptr)
+  if (m_cluster_request == nullptr && m_cluster_request_latency == 0) {
     m_cluster_request =
         (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REQ_NET);
+    if (m_cluster_request == nullptr) return;
+    m_cluster_request_latency = m_cluster_request->latency;
+  }
 
-  if (m_cluster_request == nullptr) return;
+  if (m_cluster_request_latency >= 0) m_cluster_request_latency--;
 
   assert(!m_cluster_request->is_response);
-  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET)) {
+  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET) &&
+      m_cluster_request_latency == 0) {
     m_cluster_request->send_response();
     // ToDo use correct message size
     m_sm_2_sm_network->Push(m_cid, m_cluster_request->origin_shader_id,
@@ -2786,16 +2790,18 @@ void ldst_unit::cycle() {
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
-  if (pipe_reg.m_create_cluster_memory_request &&
-      m_sm_2_sm_network->HasBuffer(m_cid, 1, REQ_NET)) {
+  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REQ_NET) &&
+      pipe_reg.has_pending_cluster_request()) {
     cluster_shmem_request *request = pipe_reg.get_next_open_cluster_request();
-    if (request != nullptr) {
-      // ToDo use correct message size
-      m_sm_2_sm_network->Push(m_cid, request->target_shader_id, request, 1,
-                              REQ_NET);
-      request->send_request();
-    }
+    m_sm_2_sm_network->Push(m_cid, request->target_shader_id, request, 1,
+                            REQ_NET);
+    request->send_request();
   }
+
+  // Only process incomming requests when the local shared memory is not
+  // accessed
+  // if (pipe_reg.space.get_type() != shared_space ||
+  // !pipe_reg.has_dispatch_delay())
   process_cluster_request();
 
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
@@ -4462,8 +4468,12 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   m_cluster_status = new unsigned[m_maximum_thread_block_cluster];
   for (int i = 0; i < m_maximum_thread_block_cluster; i++)
     m_cluster_status[i] = 0;
-  m_sm_2_sm_network =
-      new local_crossbar(config->n_simt_cores_per_cluster, config, m_gpu);
+  if ((strcmp(m_config->sm_2_sm_network_type, "crossbar") == 0))
+    m_sm_2_sm_network =
+        new local_crossbar(config->n_simt_cores_per_cluster, config, m_gpu);
+  else if ((strcmp(m_config->sm_2_sm_network_type, "ideal") == 0))
+    m_sm_2_sm_network =
+        new ideal_network(config->n_simt_cores_per_cluster, config, m_gpu);
 }
 
 simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }

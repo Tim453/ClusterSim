@@ -1457,6 +1457,7 @@ class ldst_unit : public pipelined_simd_unit {
   unsigned m_sid;
   unsigned m_tpc;
   sm_2_sm_network *m_sm_2_sm_network;
+  unsigned m_cluster_request_latency;
   cluster_shmem_request *m_cluster_request;
   cluster_shmem_request *m_cluster_reply;
   unsigned m_cid;

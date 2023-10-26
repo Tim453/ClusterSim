@@ -26,7 +26,7 @@ cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
                                              bool is_write, bool is_atomic,
                                              unsigned origin_shader_id,
                                              unsigned target_shader_id,
-                                             unsigned tid) {
+                                             unsigned tid, unsigned latency) {
   m_warp = warp;
   m_address = address;
   m_is_write = is_write;
@@ -37,6 +37,7 @@ cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
   m_is_send = false;
   m_is_response = false;
   m_is_complete = false;
+  m_latency = latency;
 }
 
 sm_2_sm_network::sm_2_sm_network(unsigned n_shader,

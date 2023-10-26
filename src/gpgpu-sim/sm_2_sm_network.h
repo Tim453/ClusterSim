@@ -11,7 +11,8 @@ class cluster_shmem_request {
  public:
   cluster_shmem_request(warp_inst_t* warp, addr_t address, bool is_write,
                         bool is_atomic, unsigned origin_shader_id,
-                        unsigned target_shader_id, unsigned tid);
+                        unsigned target_shader_id, unsigned tid,
+                        unsigned latency);
   void send_response() { m_is_response = true; }
   // Called when data came from the target SM, then the request can be treated
   // as a normal request
@@ -35,6 +36,8 @@ class cluster_shmem_request {
   unsigned m_origin_shader_id;
   unsigned m_target_shader_id;
   unsigned m_size;
+  // Time it takes to process the request for the target SM.
+  unsigned m_latency;
 
  public:
   const bool& is_write = m_is_write;
@@ -45,6 +48,7 @@ class cluster_shmem_request {
   const unsigned& target_shader_id = m_target_shader_id;
   const unsigned& tid = m_tid;
   const addr_t address = m_address;
+  const unsigned& latency = m_latency;
 };
 
 class sm_2_sm_network {
