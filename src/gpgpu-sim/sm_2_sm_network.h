@@ -105,4 +105,35 @@ class local_crossbar : public sm_2_sm_network {
   std::ofstream m_reply_net_out_log;
 };
 
+class ideal_network : public sm_2_sm_network {
+ public:
+  ideal_network(unsigned n_shader, const class shader_core_config* config,
+                const class gpgpu_sim* gpu)
+      : sm_2_sm_network(n_shader, config, gpu) {
+    out_request.resize(n_shader);
+    out_response.resize(n_shader);
+  }
+  ~ideal_network();
+  void Init();
+  void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
+            unsigned int size, Interconnect_type network);
+  void* Pop(unsigned ouput_deviceID, Interconnect_type network);
+
+  void Advance() { ; };
+  bool Busy() const { return false; };
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const {
+    return true;
+  }
+  void DisplayStats() const { ; };
+  void DisplayOverallStats() const { ; };
+  unsigned GetFlitSize() const { return 1; };
+
+  void DisplayState(FILE* fp) const { ; };
+
+ private:
+  std::vector<std::queue<void*>> out_request;
+  std::vector<std::queue<void*>> out_response;
+};
+
 #endif  // SM_2_SM_NETWORK_H

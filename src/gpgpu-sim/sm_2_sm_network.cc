@@ -138,3 +138,27 @@ bool local_crossbar::HasBuffer(unsigned deviceID, unsigned int size,
                                Interconnect_type network) const {
   return m_localicnt_interface->HasBuffer(deviceID, size, network);
 }
+
+void ideal_network::Push(unsigned input_deviceID, unsigned output_deviceID,
+                         void* data, unsigned int size,
+                         Interconnect_type network) {
+  output_deviceID = m_config->sid_to_cid(output_deviceID);
+  if (network == REQ_NET) {
+    out_request[output_deviceID].push(data);
+  } else if (network == REPLY_NET) {
+    out_response[output_deviceID].push(data);
+  }
+}
+
+void* ideal_network::Pop(unsigned ouput_deviceID, Interconnect_type network) {
+  void* result = nullptr;
+  ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
+  if (network == REQ_NET && !out_request[ouput_deviceID].empty()) {
+    result = out_request[ouput_deviceID].front();
+    out_request[ouput_deviceID].pop();
+  } else if (network == REPLY_NET && !out_response[ouput_deviceID].empty()) {
+    result = out_response[ouput_deviceID].front();
+    out_response[ouput_deviceID].pop();
+  }
+  return result;
+}
