@@ -1884,8 +1884,11 @@ void ldst_unit::process_cluster_request() {
     // The atomic instructions need to be resend
   } else if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == true) {
     if (m_cluster_request == nullptr) {
+      assert(m_cluster_request_latency == 0);
       m_cluster_reply->atomic_sendback();
       m_cluster_request = m_cluster_reply;
+      // ToDo Here we need to use the number of cycles it takes to do the calculation 
+      m_cluster_request_latency = m_cluster_request->latency;
       m_cluster_reply = nullptr;
     }
   }
