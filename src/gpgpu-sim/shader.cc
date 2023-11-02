@@ -1887,7 +1887,8 @@ void ldst_unit::process_cluster_request() {
       assert(m_cluster_request_latency == 0);
       m_cluster_reply->atomic_sendback();
       m_cluster_request = m_cluster_reply;
-      // ToDo Here we need to use the number of cycles it takes to do the calculation 
+      // ToDo Here we need to use the number of cycles it takes to do the
+      // calculation
       m_cluster_request_latency = m_cluster_request->latency;
       m_cluster_reply = nullptr;
     }
@@ -4480,7 +4481,7 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   // Network needs to be there, although it will not be used
   else if ((strcmp(m_config->sm_2_sm_network_type, "none") == 0))
     m_sm_2_sm_network =
-      new ideal_network(config->n_simt_cores_per_cluster, config, m_gpu);
+        new ideal_network(config->n_simt_cores_per_cluster, config, m_gpu);
 }
 
 simt_core_cluster::~simt_core_cluster() { delete[] m_cluster_status; }

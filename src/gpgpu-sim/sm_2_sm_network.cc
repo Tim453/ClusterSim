@@ -145,9 +145,9 @@ void ideal_network::Push(unsigned input_deviceID, unsigned output_deviceID,
                          Interconnect_type network) {
   output_deviceID = m_config->sid_to_cid(output_deviceID);
   if (network == REQ_NET) {
-    out_request[output_deviceID].push(data);
+    in_request[output_deviceID].push(data);
   } else if (network == REPLY_NET) {
-    out_response[output_deviceID].push(data);
+    in_response[output_deviceID].push(data);
   }
 }
 
@@ -162,4 +162,17 @@ void* ideal_network::Pop(unsigned ouput_deviceID, Interconnect_type network) {
     out_response[ouput_deviceID].pop();
   }
   return result;
+}
+
+void ideal_network::Advance() {
+  for (int i = 0; i < m_n_shader; i++) {
+    while (!in_request[i].empty()) {
+      out_request[i].push(in_request[i].front());
+      in_request[i].pop();
+    }
+    while (!in_response[i].empty()) {
+      out_response[i].push(in_response[i].front());
+      in_response[i].pop();
+    }
+  }
 }
