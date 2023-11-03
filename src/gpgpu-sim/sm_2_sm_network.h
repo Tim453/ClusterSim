@@ -144,4 +144,52 @@ class ideal_network : public sm_2_sm_network {
   std::vector<std::queue<void*>> out_response;
 };
 
+class ringbus : public sm_2_sm_network {
+ public:
+  ringbus(unsigned n_shader, const class shader_core_config* config,
+          const class gpgpu_sim* gpu)
+      : sm_2_sm_network(n_shader, config, gpu) {
+    m_request_ring.resize(n_shader);
+    m_response_ring.resize(n_shader);
+    m_out_request.resize(n_shader);
+    m_out_response.resize(n_shader);
+    m_in_request.resize(n_shader);
+    m_in_response.resize(n_shader);
+  }
+  void Init();
+  void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
+            unsigned int size, Interconnect_type network);
+  void* Pop(unsigned ouput_deviceID, Interconnect_type network);
+
+  void Advance();
+  bool Busy() const { return false; };
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const {
+    return true;
+  }
+  void DisplayStats() const { ; };
+  void DisplayOverallStats() const { ; };
+  unsigned GetFlitSize() const { return 1; };
+
+  void DisplayState(FILE* fp) const { ; };
+
+ private:
+  struct Packet {
+    Packet(void* m_data, unsigned m_output_deviceID) {
+      data = m_data;
+      output_deviceID = m_output_deviceID;
+    }
+    void* data;
+    unsigned output_deviceID;
+  };
+  const unsigned m_ring_buffer_size = 8;
+  const unsigned m_in_out_buffer_size = 8;
+  std::vector<std::queue<Packet>> m_request_ring;
+  std::vector<std::queue<Packet>> m_response_ring;
+  std::vector<std::queue<Packet>> m_in_request;
+  std::vector<std::queue<Packet>> m_out_request;
+  std::vector<std::queue<Packet>> m_in_response;
+  std::vector<std::queue<Packet>> m_out_response;
+};
+
 #endif  // SM_2_SM_NETWORK_H

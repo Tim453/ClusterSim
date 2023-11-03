@@ -4478,6 +4478,9 @@ simt_core_cluster::simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
   else if ((strcmp(m_config->sm_2_sm_network_type, "ideal") == 0))
     m_sm_2_sm_network =
         new ideal_network(config->n_simt_cores_per_cluster, config, m_gpu);
+  else if ((strcmp(m_config->sm_2_sm_network_type, "ringbus") == 0))
+    m_sm_2_sm_network =
+        new ringbus(config->n_simt_cores_per_cluster, config, m_gpu);
   // Network needs to be there, although it will not be used
   else if ((strcmp(m_config->sm_2_sm_network_type, "none") == 0))
     m_sm_2_sm_network =
