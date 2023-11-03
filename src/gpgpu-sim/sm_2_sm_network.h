@@ -116,6 +116,8 @@ class ideal_network : public sm_2_sm_network {
       : sm_2_sm_network(n_shader, config, gpu) {
     out_request.resize(n_shader);
     out_response.resize(n_shader);
+    in_request.resize(n_shader);
+    in_response.resize(n_shader);
   }
   ~ideal_network();
   void Init();
@@ -123,7 +125,7 @@ class ideal_network : public sm_2_sm_network {
             unsigned int size, Interconnect_type network);
   void* Pop(unsigned ouput_deviceID, Interconnect_type network);
 
-  void Advance() { ; };
+  void Advance();
   bool Busy() const { return false; };
   bool HasBuffer(unsigned deviceID, unsigned int size,
                  Interconnect_type network) const {
@@ -136,7 +138,9 @@ class ideal_network : public sm_2_sm_network {
   void DisplayState(FILE* fp) const { ; };
 
  private:
+  std::vector<std::queue<void*>> in_request;
   std::vector<std::queue<void*>> out_request;
+  std::vector<std::queue<void*>> in_response;
   std::vector<std::queue<void*>> out_response;
 };
 
