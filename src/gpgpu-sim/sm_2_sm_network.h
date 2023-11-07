@@ -147,16 +147,7 @@ class ideal_network : public sm_2_sm_network {
 class ringbus : public sm_2_sm_network {
  public:
   ringbus(unsigned n_shader, const class shader_core_config* config,
-          const class gpgpu_sim* gpu)
-      : sm_2_sm_network(n_shader, config, gpu) {
-    m_ring[REQ_NET].resize(n_shader);
-    m_ring[REPLY_NET].resize(n_shader);
-    
-    m_out[REQ_NET].resize(n_shader);
-    m_out[REPLY_NET].resize(n_shader);
-    m_in[REQ_NET].resize(n_shader);
-    m_in[REPLY_NET].resize(n_shader);
-  }
+          const class gpgpu_sim* gpu);
   void Init();
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
             unsigned int size, Interconnect_type network);
@@ -185,6 +176,7 @@ class ringbus : public sm_2_sm_network {
   };
   const unsigned m_ring_buffer_size = 8;
   const unsigned m_in_out_buffer_size = 8;
+  bool m_bidirectional;
   std::array<std::vector<std::queue<Packet>>, 2> m_ring;
   std::array<std::vector<std::queue<Packet>>, 2> m_in;
   std::array<std::vector<std::queue<Packet>>, 2> m_out;

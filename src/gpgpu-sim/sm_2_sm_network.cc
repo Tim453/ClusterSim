@@ -1,7 +1,10 @@
 #include "sm_2_sm_network.h"
+#include <algorithm>
 #include "gpu-sim.h"
 
 inct_config sm2sm_crossbar_config;
+
+bool bi_directional_ringbus;
 
 void sm2sm_network_options(class OptionParser* opp) {
   sm2sm_crossbar_config.subnets = 2;
@@ -20,6 +23,9 @@ void sm2sm_network_options(class OptionParser* opp) {
       opp, "-sm_2_sm_network_arbiter_algo", OPT_INT32,
       &sm2sm_crossbar_config.arbiter_algo,
       "Arbiter Algorithm of the SM 2 SM network NAIVE_RR=0, iSLIP=1", "0");
+  option_parser_register(opp, "-bi_directional_ringbus", OPT_INT32,
+                         &bi_directional_ringbus,
+                         "Ringbus 0 = unidirectional, 1 = bidirectional", "0");
 }
 
 cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
@@ -177,6 +183,19 @@ void ideal_network::Advance() {
   }
 }
 
+ringbus::ringbus(unsigned n_shader, const class shader_core_config* config,
+                 const class gpgpu_sim* gpu)
+    : sm_2_sm_network(n_shader, config, gpu) {
+  m_bidirectional = bi_directional_ringbus;
+  m_ring[REQ_NET].resize(n_shader);
+  m_ring[REPLY_NET].resize(n_shader);
+
+  m_out[REQ_NET].resize(n_shader);
+  m_out[REPLY_NET].resize(n_shader);
+  m_in[REQ_NET].resize(n_shader);
+  m_in[REPLY_NET].resize(n_shader);
+}
+
 void ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
                    void* data, unsigned int size, Interconnect_type network) {
   output_deviceID = m_config->sid_to_cid(output_deviceID);
@@ -187,7 +206,7 @@ void ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
 void* ringbus::Pop(unsigned ouput_deviceID, Interconnect_type network) {
   ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
 
-  if(!m_out[network][ouput_deviceID].empty()){
+  if (!m_out[network][ouput_deviceID].empty()) {
     auto packet = m_out[network][ouput_deviceID].front();
     m_out[network][ouput_deviceID].pop();
     assert(packet.output_deviceID == ouput_deviceID);
@@ -204,15 +223,36 @@ void ringbus::Advance() {
 
   for (int subnet = 0; subnet < 2; subnet++) {
     for (int i = m_n_shader - 1; i >= 0; i--) {
-      int next_node = (i + 1) % m_n_shader;
       if (!m_ring[subnet][i].empty()) {
-        if (m_ring[subnet][i].front().output_deviceID == i &&
-            m_out[subnet][i].size() < m_in_out_buffer_size) {
+        int targetID = m_ring[subnet][i].front().output_deviceID;
+        if (targetID == i && m_out[subnet][i].size() < m_in_out_buffer_size) {
           m_out[subnet][i].push(m_ring[subnet][i].front());
           m_ring[subnet][i].pop();
-        } else if (m_ring[subnet][next_node].size() < m_ring_buffer_size) {
-          next[subnet][next_node].push(m_ring[subnet][i].front());
-          m_ring[subnet][i].pop();
+        } else {
+          int next_node;
+
+          if (m_bidirectional) {
+            // Distance from current node to target
+            int distance = std::min(abs(i + 1 - targetID),
+                                    (int)m_n_shader - abs(i + 1 - targetID));
+            // Distance if we move one step right
+            int distance_right = std::min(
+                abs(i + 1 - targetID), (int)m_n_shader - abs(i + 1 - targetID));
+            if (distance_right < distance)
+              next_node = (i + 1) % m_n_shader;
+            else
+              next_node = (i + m_n_shader - 1) % m_n_shader;
+          } else {
+            if (subnet == REQ_NET)
+              next_node = (i + 1) % m_n_shader;
+            else
+              next_node = (i + m_n_shader - 1) % m_n_shader;
+          }
+
+          if (m_ring[subnet][next_node].size() < m_ring_buffer_size) {
+            next[subnet][next_node].push(m_ring[subnet][i].front());
+            m_ring[subnet][i].pop();
+          }
         }
       }
     }
