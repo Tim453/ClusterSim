@@ -181,23 +181,15 @@ void ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
                    void* data, unsigned int size, Interconnect_type network) {
   output_deviceID = m_config->sid_to_cid(output_deviceID);
   input_deviceID = m_config->sid_to_cid(input_deviceID);
-  if (network == REQ_NET) {
-    m_in_request[input_deviceID].push(Packet(data, output_deviceID));
-  } else if (network == REPLY_NET) {
-    m_in_response[input_deviceID].push(Packet(data, output_deviceID));
-  }
+  m_in[network][input_deviceID].push(Packet(data, output_deviceID));
 }
 
 void* ringbus::Pop(unsigned ouput_deviceID, Interconnect_type network) {
   ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
-  if (network == REQ_NET && !m_out_request[ouput_deviceID].empty()) {
-    auto packet = m_out_request[ouput_deviceID].front();
-    m_out_request[ouput_deviceID].pop();
-    assert(packet.output_deviceID == ouput_deviceID);
-    return packet.data;
-  } else if (network == REPLY_NET && !m_out_response[ouput_deviceID].empty()) {
-    auto packet = m_out_response[ouput_deviceID].front();
-    m_out_response[ouput_deviceID].pop();
+
+  if(!m_out[network][ouput_deviceID].empty()){
+    auto packet = m_out[network][ouput_deviceID].front();
+    m_out[network][ouput_deviceID].pop();
     assert(packet.output_deviceID == ouput_deviceID);
     return packet.data;
   }
@@ -205,58 +197,41 @@ void* ringbus::Pop(unsigned ouput_deviceID, Interconnect_type network) {
 }
 
 void ringbus::Advance() {
-  std::vector<std::queue<Packet>> request_next, response_next;
-  request_next.resize(m_n_shader);
-  response_next.resize(m_n_shader);
+  std::array<std::vector<std::queue<Packet>>, 2> next;
+  next[REQ_NET].resize(m_n_shader);
+  next[REPLY_NET].resize(m_n_shader);
   // Move messages to the next stage
-  for (int i = m_n_shader - 1; i >= 0; i--) {
-    int next_node = (i + 1) % m_n_shader;
-    if (!m_request_ring[i].empty()) {
-      if (m_request_ring[i].front().output_deviceID == i &&
-          m_out_request[i].size() < m_in_out_buffer_size) {
-        m_out_request[i].push(m_request_ring[i].front());
-        m_request_ring[i].pop();
-      } else if (m_request_ring[next_node].size() < m_ring_buffer_size) {
-        request_next[next_node].push(m_request_ring[i].front());
-        m_request_ring[i].pop();
+
+  for (int subnet = 0; subnet < 2; subnet++) {
+    for (int i = m_n_shader - 1; i >= 0; i--) {
+      int next_node = (i + 1) % m_n_shader;
+      if (!m_ring[subnet][i].empty()) {
+        if (m_ring[subnet][i].front().output_deviceID == i &&
+            m_out[subnet][i].size() < m_in_out_buffer_size) {
+          m_out[subnet][i].push(m_ring[subnet][i].front());
+          m_ring[subnet][i].pop();
+        } else if (m_ring[subnet][next_node].size() < m_ring_buffer_size) {
+          next[subnet][next_node].push(m_ring[subnet][i].front());
+          m_ring[subnet][i].pop();
+        }
       }
     }
-    if (!m_response_ring[i].empty()) {
-      if (m_response_ring[i].front().output_deviceID == i &&
-          m_out_response[i].size() < m_in_out_buffer_size) {
-        m_out_response[i].push(m_response_ring[i].front());
-        m_response_ring[i].pop();
-      } else if (m_response_ring[next_node].size() < m_ring_buffer_size) {
-        response_next[next_node].push(m_response_ring[i].front());
-        m_response_ring[i].pop();
+
+    for (unsigned i = 0; i < m_n_shader; i++) {
+      while (!next[subnet][i].empty()) {
+        m_ring[subnet][i].push(next[subnet][i].front());
+        next[subnet][i].pop();
       }
     }
-  }
 
-  for (unsigned i = 0; i < m_n_shader; i++) {
-    while (!request_next[i].empty()) {
-      m_request_ring[i].push(request_next[i].front());
-      request_next[i].pop();
-    }
-    while (!response_next[i].empty()) {
-      m_response_ring[i].push(response_next[i].front());
-      response_next[i].pop();
-    }
-  }
-
-  // Move messages into the ringbus
-  for (unsigned i = 0; i < m_n_shader; i++) {
-    // Request net
-    if (m_request_ring[i].size() < m_ring_buffer_size &&
-        !m_in_request[i].empty()) {
-      m_request_ring[i].push(m_in_request[i].front());
-      m_in_request[i].pop();
-    }
-    // Response net
-    if (m_response_ring[i].size() < m_ring_buffer_size &&
-        !m_in_response[i].empty()) {
-      m_response_ring[i].push(m_in_response[i].front());
-      m_in_response[i].pop();
+    // Move messages into the ringbus
+    for (unsigned i = 0; i < m_n_shader; i++) {
+      // Request net
+      if (m_ring[subnet][i].size() < m_ring_buffer_size &&
+          !m_in[subnet][i].empty()) {
+        m_ring[subnet][i].push(m_in[subnet][i].front());
+        m_in[subnet][i].pop();
+      }
     }
   }
 }

@@ -149,12 +149,13 @@ class ringbus : public sm_2_sm_network {
   ringbus(unsigned n_shader, const class shader_core_config* config,
           const class gpgpu_sim* gpu)
       : sm_2_sm_network(n_shader, config, gpu) {
-    m_request_ring.resize(n_shader);
-    m_response_ring.resize(n_shader);
-    m_out_request.resize(n_shader);
-    m_out_response.resize(n_shader);
-    m_in_request.resize(n_shader);
-    m_in_response.resize(n_shader);
+    m_ring[REQ_NET].resize(n_shader);
+    m_ring[REPLY_NET].resize(n_shader);
+    
+    m_out[REQ_NET].resize(n_shader);
+    m_out[REPLY_NET].resize(n_shader);
+    m_in[REQ_NET].resize(n_shader);
+    m_in[REPLY_NET].resize(n_shader);
   }
   void Init();
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
@@ -184,12 +185,9 @@ class ringbus : public sm_2_sm_network {
   };
   const unsigned m_ring_buffer_size = 8;
   const unsigned m_in_out_buffer_size = 8;
-  std::vector<std::queue<Packet>> m_request_ring;
-  std::vector<std::queue<Packet>> m_response_ring;
-  std::vector<std::queue<Packet>> m_in_request;
-  std::vector<std::queue<Packet>> m_out_request;
-  std::vector<std::queue<Packet>> m_in_response;
-  std::vector<std::queue<Packet>> m_out_response;
+  std::array<std::vector<std::queue<Packet>>, 2> m_ring;
+  std::array<std::vector<std::queue<Packet>>, 2> m_in;
+  std::array<std::vector<std::queue<Packet>>, 2> m_out;
 };
 
 #endif  // SM_2_SM_NETWORK_H
