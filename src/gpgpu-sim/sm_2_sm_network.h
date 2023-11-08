@@ -156,9 +156,7 @@ class ringbus : public sm_2_sm_network {
   void Advance();
   bool Busy() const { return false; };
   bool HasBuffer(unsigned deviceID, unsigned int size,
-                 Interconnect_type network) const {
-    return true;
-  }
+                 Interconnect_type network) const;
   void DisplayStats() const { ; };
   void DisplayOverallStats() const { ; };
   unsigned GetFlitSize() const { return 1; };
@@ -174,8 +172,8 @@ class ringbus : public sm_2_sm_network {
     void* data;
     unsigned output_deviceID;
   };
-  const unsigned m_ring_buffer_size = 8;
-  const unsigned m_in_out_buffer_size = 8;
+  const unsigned m_ring_buffer_size = 1024;
+  const unsigned m_in_out_buffer_size = 1024;
   bool m_bidirectional;
   std::array<std::vector<std::queue<Packet>>, 2> m_ring;
   std::array<std::vector<std::queue<Packet>>, 2> m_in;

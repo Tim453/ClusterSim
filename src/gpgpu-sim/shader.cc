@@ -1873,6 +1873,7 @@ void shader_core_ctx::writeback() {
 
 void ldst_unit::process_cluster_request() {
   // Handle Reply
+
   if (m_cluster_reply == nullptr)
     m_cluster_reply =
         (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_cid, REPLY_NET);
@@ -1902,7 +1903,7 @@ void ldst_unit::process_cluster_request() {
     m_cluster_request_latency = m_cluster_request->latency;
   }
 
-  if (m_cluster_request_latency >= 0) m_cluster_request_latency--;
+  if (m_cluster_request_latency > 0) m_cluster_request_latency--;
 
   assert(!m_cluster_request->is_response);
   if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET) &&

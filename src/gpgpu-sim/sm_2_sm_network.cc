@@ -196,6 +196,12 @@ ringbus::ringbus(unsigned n_shader, const class shader_core_config* config,
   m_in[REPLY_NET].resize(n_shader);
 }
 
+bool ringbus::HasBuffer(unsigned deviceID, unsigned int size,
+                        Interconnect_type network) const {
+  deviceID = m_config->sid_to_cid(deviceID);
+  return m_in[network][deviceID].size() < m_in_out_buffer_size;
+}
+
 void ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
                    void* data, unsigned int size, Interconnect_type network) {
   output_deviceID = m_config->sid_to_cid(output_deviceID);
@@ -228,7 +234,7 @@ void ringbus::Advance() {
         if (targetID == i && m_out[subnet][i].size() < m_in_out_buffer_size) {
           m_out[subnet][i].push(m_ring[subnet][i].front());
           m_ring[subnet][i].pop();
-        } else {
+        } else if (targetID != i) {
           int next_node;
 
           if (m_bidirectional) {
