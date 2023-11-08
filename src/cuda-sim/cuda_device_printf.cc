@@ -61,8 +61,8 @@ void my_cuda_printf(const char *fmtstr, const char *arg_list) {
       // ToDo fix floating point
       // unsigned long long value = ((unsigned long long*)arg_list)[arg_offset];
       if (c == 'u' || c == 'd') {
-        //fprintf(fp, buf, *((unsigned long long *)ptr));
-        unsigned int value = ((unsigned int*)arg_list)[arg_offset];
+        // fprintf(fp, buf, *((unsigned long long *)ptr));
+        unsigned int value = ((unsigned int *)arg_list)[arg_offset];
         fprintf(fp, buf, value);
       } else if (c == 'f') {
         double tmp = *((double *)ptr);
