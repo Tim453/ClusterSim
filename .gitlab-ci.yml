@@ -11,3 +11,11 @@ build:
   script:
     - source setup_environment && make -j
 
+cpp:
+  stage: test
+  script:
+    - make -C test && source setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
