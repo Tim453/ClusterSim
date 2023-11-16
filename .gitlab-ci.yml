@@ -1,0 +1,9 @@
+image: collaborating.tuhh.de:5005/cdt5076/gpgpu-sim_distribution:latest
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+build:
+  script:
+    - source setup_environment && make -j
+
