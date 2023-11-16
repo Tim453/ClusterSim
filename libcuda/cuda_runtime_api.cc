@@ -1874,90 +1874,21 @@ __host__ cudaError_t CUDARTAPI cudaBindTextureInternal(
     size_t *offset, const struct textureReference *texref, const void *devPtr,
     const struct cudaChannelFormatDesc *desc, size_t size __dv(UINT_MAX),
     gpgpu_context *gpgpu_ctx = NULL) {
-  gpgpu_context *ctx;
-  if (gpgpu_ctx) {
-    ctx = gpgpu_ctx;
-  } else {
-    ctx = GPGPU_Context();
-  }
-  if (g_debug_execution >= 3) {
-    announce_call(__my_func__);
-  }
-  CUctx_st *context = GPGPUSim_Context(ctx);
-  gpgpu_t *gpu = context->get_device()->get_gpgpu();
-  printf(
-      "GPGPU-Sim PTX: in cudaBindTexture: sizeof(struct textureReference) = "
-      "%zu\n",
-      sizeof(struct textureReference));
-  struct cudaArray *array;
-  array = (struct cudaArray *)malloc(sizeof(struct cudaArray));
-  array->desc = *desc;
-  array->size = size;
-  array->width = size;
-  array->height = 1;
-  array->dimensions = 1;
-  array->devPtr = (void *)devPtr;
-  array->devPtr32 = (int)(long long)devPtr;
-  offset = 0;
-  printf("GPGPU-Sim PTX:   size = %zu\n", size);
-  printf("GPGPU-Sim PTX:   texref = %p, array = %p\n", texref, array);
-  printf("GPGPU-Sim PTX:   devPtr32 = %x\n", array->devPtr32);
-  printf("GPGPU-Sim PTX:   Name corresponding to textureReference: %s\n",
-         gpu->gpgpu_ptx_sim_findNamefromTexture(texref));
-  printf("GPGPU-Sim PTX:   ChannelFormatDesc: x=%d, y=%d, z=%d, w=%d\n",
-         desc->x, desc->y, desc->z, desc->w);
-  printf("GPGPU-Sim PTX:   Texture Normalized? = %d\n", texref->normalized);
-  gpu->gpgpu_ptx_sim_bindTextureToArray(texref, array);
-  devPtr = (void *)(long long)array->devPtr32;
-  printf("GPGPU-Sim PTX: devPtr = %p\n", devPtr);
-  return g_last_cudaError = cudaSuccess;
+  printf("Not implemented\n");
+  abort();
 }
 
 __host__ cudaError_t CUDARTAPI cudaBindTextureToArrayInternal(
     const struct textureReference *texref, const struct cudaArray *array,
     const struct cudaChannelFormatDesc *desc, gpgpu_context *gpgpu_ctx = NULL) {
-  gpgpu_context *ctx;
-  if (gpgpu_ctx) {
-    ctx = gpgpu_ctx;
-  } else {
-    ctx = GPGPU_Context();
-  }
-  if (g_debug_execution >= 3) {
-    announce_call(__my_func__);
-  }
-  CUctx_st *context = GPGPUSim_Context(ctx);
-  gpgpu_t *gpu = context->get_device()->get_gpgpu();
-  printf("GPGPU-Sim PTX: in cudaBindTextureToArray: %p %p\n", texref, array);
-  printf("GPGPU-Sim PTX:   devPtr32 = %x\n", array->devPtr32);
-  printf("GPGPU-Sim PTX:   Name corresponding to textureReference: %s\n",
-         gpu->gpgpu_ptx_sim_findNamefromTexture(texref));
-  printf("GPGPU-Sim PTX:   Texture Normalized? = %d\n", texref->normalized);
-  gpu->gpgpu_ptx_sim_bindTextureToArray(texref, array);
-  return g_last_cudaError = cudaSuccess;
+  printf("Not implemented\n");
+  abort();
 }
 
 __host__ cudaError_t CUDARTAPI cudaUnbindTextureInternal(
     const struct textureReference *texref, gpgpu_context *gpgpu_ctx = NULL) {
-  gpgpu_context *ctx;
-  if (gpgpu_ctx) {
-    ctx = gpgpu_ctx;
-  } else {
-    ctx = GPGPU_Context();
-  }
-  if (g_debug_execution >= 3) {
-    announce_call(__my_func__);
-  }
-  CUctx_st *context = GPGPUSim_Context(ctx);
-  gpgpu_t *gpu = context->get_device()->get_gpgpu();
-  printf(
-      "GPGPU-Sim PTX: in cudaUnbindTexture: sizeof(struct textureReference) = "
-      "%zu\n",
-      sizeof(struct textureReference));
-  printf("GPGPU-Sim PTX:   Name corresponding to textureReference: %s\n",
-         gpu->gpgpu_ptx_sim_findNamefromTexture(texref));
-
-  gpu->gpgpu_ptx_sim_unbindTexture(texref);
-  return g_last_cudaError = cudaSuccess;
+  printf("Not implemented\n");
+  abort();
 }
 
 __host__ cudaError_t CUDARTAPI cudaLaunchKernelInternal(
@@ -2590,6 +2521,11 @@ __host__ cudaError_t CUDARTAPI cudaGetDeviceCount(int *count) {
 
 __host__ cudaError_t CUDARTAPI
 cudaGetDeviceProperties(struct cudaDeviceProp *prop, int device) {
+  return cudaGetDevicePropertiesInternal(prop, device);
+}
+
+__host__ cudaError_t CUDARTAPI
+cudaGetDeviceProperties_v2(struct cudaDeviceProp *prop, int device) {
   return cudaGetDevicePropertiesInternal(prop, device);
 }
 

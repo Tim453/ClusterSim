@@ -124,29 +124,8 @@ cudaLaunchDeviceV2_init_perWarp, cudaLaunchDevicV2_perKernel>"
 void gpgpu_t::gpgpu_ptx_sim_bindNameToTexture(
     const char *name, const struct textureReference *texref, int dim,
     int readmode, int ext) {
-  std::string texname(name);
-  if (m_NameToTextureRef.find(texname) == m_NameToTextureRef.end()) {
-    m_NameToTextureRef[texname] = std::set<const struct textureReference *>();
-  } else {
-    const struct textureReference *tr = *m_NameToTextureRef[texname].begin();
-    assert(tr != NULL);
-    // asserts that all texrefs in set have same fields
-    assert(tr->normalized == texref->normalized &&
-           tr->filterMode == texref->filterMode &&
-           tr->addressMode[0] == texref->addressMode[0] &&
-           tr->addressMode[1] == texref->addressMode[1] &&
-           tr->addressMode[2] == texref->addressMode[2] &&
-           tr->channelDesc.x == texref->channelDesc.x &&
-           tr->channelDesc.y == texref->channelDesc.y &&
-           tr->channelDesc.z == texref->channelDesc.z &&
-           tr->channelDesc.w == texref->channelDesc.w &&
-           tr->channelDesc.f == texref->channelDesc.f);
-  }
-  m_NameToTextureRef[texname].insert(texref);
-  m_TextureRefToName[texref] = texname;
-  const textureReferenceAttr *texAttr = new textureReferenceAttr(
-      texref, dim, (enum cudaTextureReadMode)readmode, ext);
-  m_NameToAttribute[texname] = texAttr;
+  printf("Not implemented!\n");
+  abort();
 }
 
 const char *gpgpu_t::gpgpu_ptx_sim_findNamefromTexture(
