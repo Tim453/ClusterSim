@@ -10,13 +10,14 @@ stages:
 cache:
   paths:
     - build
+    - lib
 
 build:
   stage: build
   script:
     - source setup_environment && make -j
 
-cpp:
+test:
   stage: test
   script:
     - make -C test && source setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
