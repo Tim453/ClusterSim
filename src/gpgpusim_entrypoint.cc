@@ -41,7 +41,6 @@
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 static int sg_argc = 3;
-static const char *sg_argv[] = {"", "-config", "gpgpusim.config"};
 
 void *gpgpu_sim_thread_sequential(void *ctx_ptr) {
   gpgpu_context *ctx = (gpgpu_context *)ctx_ptr;

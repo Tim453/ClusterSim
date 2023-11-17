@@ -257,6 +257,7 @@ void fix_duplicate_errors(char fname2[1024]) {
     // then find the start of the next section that will be copied
     if (strcmp("function", iter->second) == 0) {
       // get location of most recent .func
+      funcptr = tempptr;
       while (tempptr < lineptr && tempptr != NULL) {
         funcptr = tempptr;
         tempptr = strstr(funcptr + 1, ".func");
@@ -333,6 +334,7 @@ char *get_app_binary_name() {
   exe_path[path_length] = '\0';
 
   char *token = strtok(exe_path, "/");
+  self_exe_path = token;
   while (token != NULL) {
     self_exe_path = token;
     token = strtok(NULL, "/");

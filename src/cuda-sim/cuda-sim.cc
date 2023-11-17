@@ -1523,9 +1523,9 @@ void function_info::ptx_jit_config(
   std::string filename_c(filename + "_c");
   snprintf(buff, 1024, "c++filt %s > %s", get_name().c_str(),
            filename_c.c_str());
-  assert(system(buff) != NULL);
+  assert(system(buff) == 0);
   FILE *fp = fopen(filename_c.c_str(), "r");
-  fgets(buff, 1024, fp);
+  assert(fgets(buff, 1024, fp));
   fclose(fp);
   std::string fn(buff);
   size_t pos1, pos2;
@@ -1881,7 +1881,7 @@ void ptx_thread_info::ptx_exec_inst(warp_inst_t &inst, unsigned lane_id) {
     memory_space_t insn_space = undefined_space;
     _memory_op_t insn_memory_op = no_memory_op;
     unsigned insn_data_size = 0;
-    unsigned target_shader_id;
+    unsigned target_shader_id = UINT_MAX;
     if ((pI->has_memory_read() || pI->has_memory_write())) {
       if (!((inst_opcode == MMA_LD_OP || inst_opcode == MMA_ST_OP))) {
         insn_memaddr = last_eaddr();

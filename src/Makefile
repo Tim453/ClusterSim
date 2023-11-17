@@ -48,7 +48,7 @@ endif
 ifneq ($(DEBUG),1)
 	OPTFLAGS += -O3
 else
-	CXXFLAGS += 
+	CXXFLAGS += -Wno-sign-compare
 endif
 
 CXXFLAGS += -I$(CUDA_INSTALL_PATH)/include

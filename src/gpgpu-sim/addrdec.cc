@@ -579,17 +579,19 @@ static unsigned int LOGB2_32(unsigned int v) {
 // compute power of two greater than or equal to n
 // https://www.techiedelight.com/round-next-highest-power-2/
 unsigned next_powerOf2(unsigned n) {
-  // decrement n (to handle the case when n itself
+  // decrement `n` (to handle the case when `n` itself
   // is a power of 2)
   n = n - 1;
+ 
+  // initialize result by 2
+  int k = 2;
+ 
+    // double `k` and divide `n` in half till it becomes 0
+  while (n >>= 1) {
+    k = k << 1;    // double `k`
+  }
 
-  // do till only one bit is left
-  while (n & n - 1) n = n & (n - 1);  // unset rightmost bit
-
-  // n is now a power of two (less than n)
-
-  // return next power of 2
-  return n << 1;
+  return k;
 }
 
 static new_addr_type addrdec_packbits(new_addr_type mask, new_addr_type val,

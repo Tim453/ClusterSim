@@ -1415,7 +1415,7 @@ cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlagsInternal(
   function_info *entry = context->get_kernel(hostFunc);
   printf(
       "Calculate Maxium Active Block with function ptr=%p, blockSize=%d, "
-      "SMemSize=%d\n",
+      "SMemSize=%ld\n",
       hostFunc, blockSize, dynamicSMemSize);
   if (flags == cudaOccupancyDefault) {
     // create kernel_info based on entry
@@ -2985,7 +2985,7 @@ __host__ cudaError_t CUDARTAPI cudaGetExportTable(
 // extracts all ptx files from binary and dumps into
 // prog_name.unique_no.sm_<>.ptx files
 void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
-  char command[1000];
+  char command[1200];
   char *pytorch_bin = getenv("PYTORCH_BIN");
   std::string app_binary = get_app_binary();
 
@@ -2999,7 +2999,7 @@ void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
   }
 
   // only want file names
-  snprintf(command, 1000,
+  snprintf(command, 1200,
            "$CUDA_INSTALL_PATH/bin/cuobjdump -lptx %s  | cut -d \":\" -f 2 | "
            "awk '{$1=$1}1' > %s",
            app_binary.c_str(), ptx_list_file_name);
@@ -3017,7 +3017,7 @@ void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
       // int pos = line.find(std::string(get_app_binary_name(app_binary)));
       const char *ptx_file = line.c_str();
       printf("Extracting specific PTX file named %s \n", ptx_file);
-      snprintf(command, 1000, "$CUDA_INSTALL_PATH/bin/cuobjdump -xptx %s %s",
+      snprintf(command, 1200, "$CUDA_INSTALL_PATH/bin/cuobjdump -xptx %s %s",
                ptx_file, app_binary.c_str());
       if (system(command) != 0) {
         printf("ERROR: command: %s failed \n", command);
@@ -3594,6 +3594,8 @@ unsigned CUDARTAPI __cudaPushCallConfiguration(dim3 gridDim, dim3 blockDim,
     announce_call(__my_func__);
   }
   cudaConfigureCallInternal(gridDim, blockDim, sharedMem, stream);
+  // ToDo: What is the right return value?
+  return 0;
 }
 
 cudaError_t CUDARTAPI __cudaPopCallConfiguration(dim3 *gridDim, dim3 *blockDim,

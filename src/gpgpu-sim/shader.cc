@@ -478,7 +478,6 @@ shader_core_ctx::shader_core_ctx(class gpgpu_sim *gpu,
   m_config = config;
   m_memory_config = mem_config;
   m_stats = stats;
-  unsigned warp_size = config->warp_size;
   Issue_Prio = 0;
 
   m_sid = shader_id;
@@ -4176,7 +4175,7 @@ void opndcoll_rfu_t::init(unsigned num_banks, shader_core_ctx *shader) {
 
   sub_core_model = shader->get_config()->sub_core_model;
   m_num_warp_scheds = shader->get_config()->gpgpu_num_sched_per_core;
-  unsigned reg_id;
+  unsigned reg_id = UINT_MAX;
   if (sub_core_model) {
     assert(num_banks % shader->get_config()->gpgpu_num_sched_per_core == 0);
     assert(m_num_warp_scheds <= m_cu.size() &&
@@ -4593,7 +4592,7 @@ unsigned simt_core_cluster::issue_cta_cluster(kernel_info_t *kernel,
   }
   assert(free_cluster_slot != (unsigned)-1);
 
-  unsigned core;
+  unsigned core = UINT_MAX;
   for (unsigned i = position; i < position + ctas_per_cluster; i++) {
     core = (i + m_cta_issue_next_core + 1) % m_config->n_simt_cores_per_cluster;
     if (!m_config->gpgpu_concurrent_kernel_sm && i != position)

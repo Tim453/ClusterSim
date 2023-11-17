@@ -32,9 +32,9 @@ cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
                                              bool is_write, bool is_atomic,
                                              unsigned origin_shader_id,
                                              unsigned target_shader_id,
-                                             unsigned tid, unsigned latency) {
-  m_warp = warp;
-  m_address = address;
+                                             unsigned tid, unsigned latency) : 
+  m_warp(warp),
+  m_address(address) {
   m_is_write = is_write;
   m_is_atomic = is_atomic;
   m_target_shader_id = target_shader_id;

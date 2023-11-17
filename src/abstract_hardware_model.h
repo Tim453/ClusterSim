@@ -996,7 +996,7 @@ class inst_t {
   }
   bool valid() const { return m_decoded; }
   virtual void print_insn(FILE *fp) const {
-    fprintf(fp, " [inst @ pc=0x%04x] ", pc);
+    fprintf(fp, " [inst @ pc=0x%04llx] ", pc);
   }
   bool is_load() const {
     return (op == LOAD_OP || op == TENSOR_CORE_LOAD_OP ||
@@ -1199,7 +1199,7 @@ class warp_inst_t : public inst_t {
 
   // accessors
   virtual void print_insn(FILE *fp) const {
-    fprintf(fp, " [inst @ pc=0x%04x] ", pc);
+    fprintf(fp, " [inst @ pc=0x%04llx] ", pc);
     for (int i = (int)m_config->warp_size - 1; i >= 0; i--)
       fprintf(fp, "%c", ((m_warp_active_mask[i]) ? '1' : '0'));
   }
@@ -1244,11 +1244,7 @@ class warp_inst_t : public inst_t {
     if (cycles > 0) cycles--;
     return cycles > 0;
   }
-  void response_arrived(class cluster_shmem_request *request) {
-    delete request;
-    m_outstanding_cluster_requests--;
-    assert(m_outstanding_cluster_requests >= 0);
-  }
+  void response_arrived(class cluster_shmem_request *request);
   bool cluster_request_complete() {
     return m_outstanding_cluster_requests == 0;
   }
@@ -1444,7 +1440,7 @@ class register_set {
     assert(has_ready());
     warp_inst_t **ready;
     ready = NULL;
-    unsigned reg_id;
+    unsigned reg_id = UINT_MAX;
     for (unsigned i = 0; i < regs.size(); i++) {
       if (not regs[i]->empty()) {
         if (ready and (*ready)->get_uid() < regs[i]->get_uid()) {

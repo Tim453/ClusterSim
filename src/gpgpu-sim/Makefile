@@ -34,7 +34,7 @@ TRACE?=0
 ifeq ($(DEBUG),1)
 	CXXFLAGS = -Wall -DDEBUG
 else
-	CXXFLAGS = -Wall
+	CXXFLAGS = -Wall -Wno-sign-compare -Wno-format
 endif
 
 ifeq ($(TRACE),1)

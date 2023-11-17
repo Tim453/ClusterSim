@@ -74,7 +74,7 @@ void checkpoint::load_global_mem(class memory_space *temp_mem, char *f1name) {
   FILE *fp2 = fopen(f1name, "r");
   assert(fp2 != NULL);
   char line[128]; /* or other suitable maximum line size */
-  unsigned int offset;
+  unsigned int offset = 0;
   while (fgets(line, sizeof line, fp2) != NULL) /* read a line */
   {
     unsigned int index;
@@ -285,6 +285,12 @@ class cluster_shmem_request *warp_inst_t::get_next_open_cluster_request() {
       m_pending_cluster_memory_requests.front();
   m_pending_cluster_memory_requests.pop();
   return request;
+}
+
+void warp_inst_t::response_arrived(class cluster_shmem_request *request) {
+  delete request;
+  m_outstanding_cluster_requests--;
+  assert(m_outstanding_cluster_requests >= 0);
 }
 
 void warp_inst_t::generate_mem_accesses() {
@@ -1099,13 +1105,13 @@ void simt_stack::print(FILE *fout) const {
     }
     for (unsigned j = 0; j < m_warp_size; j++)
       fprintf(fout, "%c", (stack_entry.m_active_mask.test(j) ? '1' : '0'));
-    fprintf(fout, " pc: 0x%03x", stack_entry.m_pc);
+    fprintf(fout, " pc: 0x%03llx", stack_entry.m_pc);
     if (stack_entry.m_recvg_pc == (unsigned)-1) {
       fprintf(fout, " rp: ---- tp: %s cd: %2u ",
               (stack_entry.m_type == STACK_ENTRY_TYPE_CALL ? "C" : "N"),
               stack_entry.m_calldepth);
     } else {
-      fprintf(fout, " rp: %4u tp: %s cd: %2u ", stack_entry.m_recvg_pc,
+      fprintf(fout, " rp: %4llu tp: %s cd: %2u ", stack_entry.m_recvg_pc,
               (stack_entry.m_type == STACK_ENTRY_TYPE_CALL ? "C" : "N"),
               stack_entry.m_calldepth);
     }
@@ -1125,7 +1131,7 @@ void simt_stack::print_checkpoint(FILE *fout) const {
 
     for (unsigned j = 0; j < m_warp_size; j++)
       fprintf(fout, "%c ", (stack_entry.m_active_mask.test(j) ? '1' : '0'));
-    fprintf(fout, "%d %d %d %lld %d ", stack_entry.m_pc,
+    fprintf(fout, "%lld %d %lld %lld %d ", stack_entry.m_pc,
             stack_entry.m_calldepth, stack_entry.m_recvg_pc,
             stack_entry.m_branch_div_cycle, stack_entry.m_type);
     fprintf(fout, "%d %d\n", m_warp_id, m_warp_size);
