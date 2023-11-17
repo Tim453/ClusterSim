@@ -15,7 +15,7 @@ cache:
 build:
   stage: build
   script:
-    - source setup_environment && make -j
+    - source setup_environment && make -j4
 
 test:
   stage: test
