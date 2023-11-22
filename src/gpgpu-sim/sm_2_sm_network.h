@@ -2,6 +2,7 @@
 #define SM_2_SM_NETWORK_H
 
 #include "../abstract_hardware_model.h"
+#include "../intersim2/interconnect_interface.hpp"
 #include "local_interconnect.h"
 #include "shader.h"
 
@@ -53,7 +54,6 @@ class cluster_shmem_request {
 
 class sm_2_sm_network {
  public:
-  enum Network_type { CROSSBAR, BOOKSIM };
   // Functions for local interconnect
 
   sm_2_sm_network(unsigned n_shader, const class shader_core_config* config,
@@ -75,7 +75,6 @@ class sm_2_sm_network {
   // virtual void DisplayState(FILE* fp) const;
 
  protected:
-  Network_type m_type;
   unsigned m_n_shader, m_n_mem;
   const class shader_core_config* m_config;
   const class gpgpu_sim* m_gpu;
@@ -107,6 +106,31 @@ class local_crossbar : public sm_2_sm_network {
   std::ofstream m_request_net_out_log;
   std::ofstream m_reply_net_in_log;
   std::ofstream m_reply_net_out_log;
+};
+
+class booksim : public sm_2_sm_network {
+ public:
+  booksim(unsigned n_shader, const class shader_core_config* config,
+          const class gpgpu_sim* gpu);
+
+  ~booksim();
+  void Init();
+  void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
+            unsigned int size, Interconnect_type network);
+  void* Pop(unsigned ouput_deviceID, Interconnect_type network);
+
+  void Advance();
+  bool Busy() const { return false; };
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const;
+  void DisplayStats() const { ; };
+  void DisplayOverallStats() const { ; };
+  unsigned GetFlitSize() const { return 1; };
+
+  void DisplayState(FILE* fp) const { ; };
+
+ private:
+  InterconnectInterface* interface;
 };
 
 class ideal_network : public sm_2_sm_network {

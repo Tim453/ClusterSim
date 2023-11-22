@@ -32,7 +32,9 @@
 #include <queue>
 #include <iostream>
 #include <map>
-using namespace std;
+#include "../gpgpu-sim/local_interconnect.h"
+#include "../gpgpu-sim/mem_fetch.h"
+//using namespace std;
 
 
 // Do not use #include since it will not compile in icnt_wrapper or change the makefile to make it
@@ -54,7 +56,9 @@ public:
   //node side functions
   virtual void Init();
   virtual void Push(unsigned input_deviceID, unsigned output_deviceID, void* data, unsigned int size);
+  virtual void Push(unsigned input_deviceID, unsigned output_deviceID, void *data, unsigned int size, Interconnect_type subnet, mf_type type);
   virtual void* Pop(unsigned ouput_deviceID);
+  virtual void* Pop(unsigned deviceID, Interconnect_type network);
   virtual void Advance();
   virtual bool Busy() const;
   virtual bool HasBuffer(unsigned deviceID, unsigned int size) const;
@@ -70,7 +74,7 @@ public:
   
   int GetIcntTime() const;
   
-  Stats* GetIcntStats(const string & name) const;
+  Stats* GetIcntStats(const std::string & name) const;
   
   Flit* GetEjectedFlit(int subnet, int node);
   
@@ -86,44 +90,44 @@ protected:
     void PushFlitData(void* data,bool is_tail);
     
   private:
-    queue<void *> _buffer;
-    queue<bool> _tail_flag;
+    std::queue<void *> _buffer;
+    std::queue<bool> _tail_flag;
     int _packet_n;
   };
-  typedef queue<Flit*> _EjectionBufferItem;
+  typedef std::queue<Flit*> _EjectionBufferItem;
   
   void _CreateBuffer( );
   void _CreateNodeMap(unsigned n_shader, unsigned n_mem, unsigned n_node, int use_map);
   void _DisplayMap(int dim,int count);
   
   // size: [subnets][nodes][vcs]
-  vector<vector<vector<_BoundaryBufferItem> > > _boundary_buffer;
+  std::vector<std::vector<std::vector<_BoundaryBufferItem> > > _boundary_buffer;
   unsigned int _boundary_buffer_capacity;
   // size: [subnets][nodes][vcs]
-  vector<vector<vector<_EjectionBufferItem> > > _ejection_buffer;
+  std::vector<std::vector<std::vector<_EjectionBufferItem> > > _ejection_buffer;
   // size:[subnets][nodes]
-  vector<vector<queue<Flit* > > > _ejected_flit_queue;
+  std::vector<std::vector<std::queue<Flit* > > > _ejected_flit_queue;
   
   unsigned int _ejection_buffer_capacity;
   unsigned int _input_buffer_capacity;
   
-  vector<vector<int> > _round_robin_turn; //keep track of _boundary_buffer last used in icnt_pop
+  std::vector<std::vector<int> > _round_robin_turn; //keep track of _boundary_buffer last used in icnt_pop
   
   GPUTrafficManager* _traffic_manager;
   unsigned _flit_size;
   IntersimConfig* _icnt_config;
   unsigned _n_shader, _n_mem;
-  vector<Network *> _net;
+  std::vector<Network *> _net;
   int _vcs;
   int _subnets;
   
   //deviceID to icntID map
   //deviceID : Starts from 0 for shaders and then continues until mem nodes
   //which starts at location n_shader and then continues to n_shader+n_mem (last device)
-  map<unsigned, unsigned> _node_map;
+  std::map<unsigned, unsigned> _node_map;
   
   //icntID to deviceID map
-  map<unsigned, unsigned> _reverse_node_map;
+  std::map<unsigned, unsigned> _reverse_node_map;
 
 };
 

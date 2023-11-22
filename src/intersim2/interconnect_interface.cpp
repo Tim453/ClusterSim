@@ -144,8 +144,7 @@ void InterconnectInterface::Init()
   //       _boundary_buffer, _ejection_buffer and _ejected_flit_queue should be cleared
 }
 
-void InterconnectInterface::Push(unsigned input_deviceID, unsigned output_deviceID, void *data, unsigned int size)
-{
+void InterconnectInterface::Push(unsigned input_deviceID, unsigned output_deviceID, void *data, unsigned int size, Interconnect_type subnet, mf_type type){
   // it should have free buffer
   assert(HasBuffer(input_deviceID, size));
 
@@ -161,29 +160,15 @@ void InterconnectInterface::Push(unsigned input_deviceID, unsigned output_device
   //TODO: move to _IssuePacket
   //TODO: create a Inject and wrap _IssuePacket and _GeneratePacket
   unsigned int n_flits = size / _flit_size + ((size % _flit_size)? 1:0);
-  int subnet;
-  if (_subnets == 1) {
-    subnet = 0;
-  } else {
-    if (input_deviceID < _n_shader ) {
-      subnet = 0;
-    } else {
-      subnet = 1;
-    }
-  }
-
-  //TODO: Remove mem_fetch to reduce dependency
   Flit::FlitType packet_type;
-  mem_fetch* mf = static_cast<mem_fetch*>(data);
-
-  switch (mf->get_type()) {
+  switch (type) {
     case READ_REQUEST:  packet_type = Flit::READ_REQUEST   ;break;
     case WRITE_REQUEST: packet_type = Flit::WRITE_REQUEST  ;break;
     case READ_REPLY:    packet_type = Flit::READ_REPLY     ;break;
     case WRITE_ACK:     packet_type = Flit::WRITE_REPLY    ;break;
     default:
     	{
-    		cout<<"Type "<<mf->get_type()<<" is undefined!"<<endl;
+    		cout<<"Type "<<type<<" is undefined!"<<endl;
     		assert (0 && "Type is undefined");
     	}
   }
@@ -197,7 +182,28 @@ void InterconnectInterface::Push(unsigned input_deviceID, unsigned output_device
 //  }
 }
 
-void* InterconnectInterface::Pop(unsigned deviceID)
+void InterconnectInterface::Push(unsigned input_deviceID, unsigned output_deviceID, void *data, unsigned int size)
+{
+  Interconnect_type subnet;
+  if (_subnets == 1) {
+    subnet = REQ_NET;
+  } else {
+    if (input_deviceID < _n_shader) {
+      subnet = REQ_NET;
+    } else {
+      subnet = REPLY_NET;
+    }
+  }
+
+  //TODO: Remove mem_fetch to reduce dependency
+  
+  mem_fetch* mf = static_cast<mem_fetch*>(data);
+  mf_type type = mf->get_type();
+  
+  Push(input_deviceID, output_deviceID, data, size, subnet, type);
+}
+
+void* InterconnectInterface::Pop(unsigned deviceID, Interconnect_type network)
 {
   int icntID = _node_map[deviceID];
 #if DEBUG
@@ -207,9 +213,7 @@ void* InterconnectInterface::Pop(unsigned deviceID)
   void* data = NULL;
 
   // 0-_n_shader-1 indicates reply(network 1), otherwise request(network 0)
-  int subnet = 0;
-  if (deviceID < _n_shader)
-    subnet = 1;
+  int subnet = network;
 
   int turn = _round_robin_turn[subnet][icntID];
   for (int vc=0;(vc<_vcs) && (data==NULL);vc++) {
@@ -222,13 +226,25 @@ void* InterconnectInterface::Pop(unsigned deviceID)
   if (data) {
     _round_robin_turn[subnet][icntID] = turn;
   }
-
   return data;
+}
 
+void* InterconnectInterface::Pop(unsigned deviceID)
+{
+  void* data = NULL;
+  // 0-_n_shader-1 indicates reply(network 1), otherwise request(network 0)
+  auto subnet = REQ_NET;
+  if (deviceID < _n_shader)
+    subnet = REPLY_NET;
+
+  return Pop(deviceID, subnet);
 }
 
 void InterconnectInterface::Advance()
 {
+  // Changed global varialbe for the SM_2_SM network
+  // Might break the network when used as interconnect
+  g_icnt_interface = this;
   _traffic_manager->_Step();
 }
 

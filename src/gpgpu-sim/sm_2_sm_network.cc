@@ -5,6 +5,7 @@
 inct_config sm2sm_crossbar_config;
 
 bool bi_directional_ringbus;
+char* sm2sm_intersim_config;
 
 void sm2sm_network_options(class OptionParser* opp) {
   sm2sm_crossbar_config.subnets = 2;
@@ -26,6 +27,9 @@ void sm2sm_network_options(class OptionParser* opp) {
   option_parser_register(opp, "-bi_directional_ringbus", OPT_INT32,
                          &bi_directional_ringbus,
                          "Ringbus 0 = unidirectional, 1 = bidirectional", "0");
+  option_parser_register(opp, "-sm2sm_intersim_config_file", OPT_CSTR,
+                         &sm2sm_intersim_config, "Config file for intersim",
+                         "0");
 }
 
 cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
@@ -51,7 +55,6 @@ sm_2_sm_network::sm_2_sm_network(unsigned n_shader,
   m_n_shader = n_shader;
   m_config = config;
   m_gpu = gpu;
-  m_type = CROSSBAR;
 }
 
 local_crossbar::local_crossbar(unsigned n_shader,
@@ -154,6 +157,45 @@ void ideal_network::Push(unsigned input_deviceID, unsigned output_deviceID,
   } else if (network == REPLY_NET) {
     in_response[output_deviceID].push(data);
   }
+}
+
+booksim::booksim(unsigned n_shader, const class shader_core_config* config,
+                 const class gpgpu_sim* gpu)
+    : sm_2_sm_network(n_shader, config, gpu) {
+  interface = InterconnectInterface::New(sm2sm_intersim_config);
+  interface->CreateInterconnect(n_shader, 0);
+}
+
+void booksim::Push(unsigned input_deviceID, unsigned output_deviceID,
+                   void* data, unsigned int size, Interconnect_type network) {
+  output_deviceID = m_config->sid_to_cid(output_deviceID);
+  input_deviceID = m_config->sid_to_cid(input_deviceID);
+  mf_type type;
+  cluster_shmem_request* request = (cluster_shmem_request*)(data);
+  assert(request);
+  if (network == REQ_NET) {
+    if (request->is_write)
+      type = WRITE_REQUEST;
+    else
+      type = READ_REQUEST;
+  } else {
+    if (request->is_write)
+      type = WRITE_ACK;
+    else
+      type = READ_REPLY;
+  }
+
+  interface->Push(input_deviceID, output_deviceID, data, size, network, type);
+}
+
+void* booksim::Pop(unsigned ouput_deviceID, Interconnect_type network) {
+  return interface->Pop(ouput_deviceID, network);
+}
+
+void booksim::Advance() { interface->Advance(); }
+bool booksim::HasBuffer(unsigned deviceID, unsigned int size,
+                        Interconnect_type network) const {
+  return interface->HasBuffer(deviceID, size);
 }
 
 void* ideal_network::Pop(unsigned ouput_deviceID, Interconnect_type network) {
