@@ -1905,12 +1905,12 @@ void ldst_unit::process_cluster_request() {
   if (m_cluster_request_latency > 0) m_cluster_request_latency--;
 
   assert(!m_cluster_request->is_response);
-  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REPLY_NET) &&
+  if (m_sm_2_sm_network->HasBuffer(m_cid, 256, REPLY_NET) &&
       m_cluster_request_latency == 0) {
     m_cluster_request->send_response();
     // ToDo use correct message size
     m_sm_2_sm_network->Push(m_cid, m_cluster_request->origin_shader_id,
-                            m_cluster_request, 1, REPLY_NET);
+                            m_cluster_request, 256, REPLY_NET);
     m_cluster_request = nullptr;
   }
 }
@@ -2794,10 +2794,10 @@ void ldst_unit::cycle() {
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
-  if (m_sm_2_sm_network->HasBuffer(m_cid, 1, REQ_NET) &&
+  if (m_sm_2_sm_network->HasBuffer(m_cid, 256, REQ_NET) &&
       pipe_reg.has_pending_cluster_request()) {
     cluster_shmem_request *request = pipe_reg.get_next_open_cluster_request();
-    m_sm_2_sm_network->Push(m_cid, request->target_shader_id, request, 1,
+    m_sm_2_sm_network->Push(m_cid, request->target_shader_id, request, 256,
                             REQ_NET);
     request->send_request();
   }
