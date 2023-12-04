@@ -23,7 +23,7 @@ void sm2sm_network_options(class OptionParser* opp) {
   option_parser_register(
       opp, "-sm_2_sm_network_arbiter_algo", OPT_INT32,
       &sm2sm_crossbar_config.arbiter_algo,
-      "Arbiter Algorithm of the SM 2 SM network NAIVE_RR=0, iSLIP=1", "0");
+      "Arbiter Algorithm of the SM 2 SM network NAIVE_RR=0, iSLIP=1", "1");
   option_parser_register(opp, "-bi_directional_ringbus", OPT_INT32,
                          &bi_directional_ringbus,
                          "Ringbus 0 = unidirectional, 1 = bidirectional", "0");
