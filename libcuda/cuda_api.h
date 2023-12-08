@@ -11202,6 +11202,9 @@ CUresult CUDAAPI cuFuncSetCacheConfig(CUfunction hfunc, CUfunc_cache config);
  */
 CUresult CUDAAPI cuFuncSetSharedMemConfig(CUfunction hfunc,
                                           CUsharedconfig config);
+
+__host__ CUDAAPI cudaError_t
+cudaFuncSetSharedMemConfig(const void *func, cudaSharedMemConfig config);
 #endif
 
 #if __CUDA_API_VERSION >= 4000
