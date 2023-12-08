@@ -281,10 +281,8 @@ void warp_inst_t::broadcast_barrier_reduction(
 }
 
 cluster_shmem_request *warp_inst_t::get_next_open_cluster_request() {
-  if(m_pending_cluster_memory_requests.empty())
-    return nullptr;
-  cluster_shmem_request *request =
-      m_pending_cluster_memory_requests.front();
+  if (m_pending_cluster_memory_requests.empty()) return nullptr;
+  cluster_shmem_request *request = m_pending_cluster_memory_requests.front();
   m_pending_cluster_memory_requests.pop();
   return request;
 }

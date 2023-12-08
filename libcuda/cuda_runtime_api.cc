@@ -5452,6 +5452,15 @@ CUresult CUDAAPI cuFuncSetCacheConfig(CUfunction hfunc, CUfunc_cache config) {
   return CUDA_SUCCESS;
 }
 
+cudaError_t CUDAAPI cudaFuncSetSharedMemConfig(const void *func,
+                                               cudaSharedMemConfig config) {
+  if (g_debug_execution >= 3) {
+    announce_call(__my_func__);
+  }
+  printf("WARNING: this function has not been implemented yet.");
+  return g_last_cudaError = cudaSuccess;
+}
+
 #if CUDART_VERSION >= 4020
 CUresult CUDAAPI cuFuncSetSharedMemConfig(CUfunction hfunc,
                                           CUsharedconfig config) {
