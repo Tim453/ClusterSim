@@ -1177,9 +1177,11 @@ void gpgpu_sim::update_stats() {
   gpu_occupancy = occupancy_stats();
 }
 
+#ifdef GPGPUSIM_POWER_MODEL
 PowerscalingCoefficients *gpgpu_sim::get_scaling_coeffs() {
   return m_gpgpusim_wrapper->get_scaling_coeffs();
 }
+#endif
 
 void gpgpu_sim::print_stats() {
   gpgpu_ctx->stats->ptx_file_line_stats_write_file();
