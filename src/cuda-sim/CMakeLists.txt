@@ -42,15 +42,15 @@ add_custom_command(
 )
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc ${CMAKE_CURRENT_SOURCE_DIR}/decuda_pred_table*.cc)
-
-add_library(gpgpu_ptx_sim OBJECT 
+add_compile_definitions(YYDEBUG)
+add_library(gpgpu_ptx_sim STATIC 
     ${SOURCES}
     ${BISON_PTXParser_OUTPUTS} 
     ${FLEX_PTXLexer_OUTPUTS}
     ${BISON_PTXINFOParser_OUTPUTS} 
     ${FLEX_PTXINFOLexer_OUTPUTS}
-#    ${CMAKE_CURRENT_BINARY_DIR}/instructions.h
-#    ${CMAKE_CURRENT_BINARY_DIR}/detailed_version
-#    ${CMAKE_CURRENT_BINARY_DIR}/ptx_parser_decode.def
+    ${CMAKE_CURRENT_BINARY_DIR}/instructions.h
+    ${CMAKE_CURRENT_BINARY_DIR}/detailed_version
+    ${CMAKE_CURRENT_BINARY_DIR}/ptx_parser_decode.def
 )
 target_include_directories(gpgpu_ptx_sim PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})

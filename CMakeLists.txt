@@ -2,18 +2,32 @@ cmake_minimum_required(VERSION 3.18)
 
 project(GPGPUSim VERSION 11.0 LANGUAGES CXX C)
 
-find_package(BISON)
-find_package(FLEX)
-
+find_package(BISON REQUIRED)
+find_package(FLEX REQUIRED)
+find_package(Threads REQUIRED)
+find_package(OpenMP)
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 option(GPGPUSIM_POWER_MODEL    			"Enable GPU Sim Power model" OFF)
 option(TRACING_ON    			"Enable Tracing" OFF)
 
-# Specify the path to the source files directory
-set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+#add_compile_options(-O3 -g)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 if(GPGPUSIM_POWER_MODEL)
 add_compile_definitions(GPGPUSIM_POWER_MODEL)
 endif()
@@ -29,10 +43,10 @@ add_subdirectory(libcuda)
 add_subdirectory(src)
 
 # Create a library from the source files
-add_library(cudart SHARED  
+add_library(cudart SHARED
     $<TARGET_OBJECTS:gpgpusim>
     $<TARGET_OBJECTS:gpu_uarch_sim> 
-#    $<TARGET_OBJECTS:cuda>
+    $<TARGET_OBJECTS:cuda>
     $<TARGET_OBJECTS:gpgpu_ptx_sim> 
     $<TARGET_OBJECTS:booksim>
 )
@@ -41,5 +55,7 @@ set_target_properties(cudart PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
 )
+
+target_link_libraries(cudart PRIVATE Threads::Threads OpenMP::OpenMP_CXX z)
 
 set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--version-script=${CMAKE_SOURCE_DIR}/linux-so-version.txt")
