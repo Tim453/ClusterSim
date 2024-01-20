@@ -1,11 +1,15 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.19)
 
-project(GPGPUSim VERSION 11.0 LANGUAGES CXX C)
+project(GPGPUSim VERSION 11.0 LANGUAGES CXX C CUDA)
 
+find_package(CUDAToolkit REQUIRED)
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 find_package(Threads REQUIRED)
+
+find_package(OpenCL)
 find_package(OpenMP)
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -17,7 +21,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
@@ -29,18 +33,33 @@ if (OPENMP_FOUND)
 endif()
 
 if(GPGPUSIM_POWER_MODEL)
-add_compile_definitions(GPGPUSIM_POWER_MODEL)
+    add_compile_definitions(GPGPUSIM_POWER_MODEL)
+    set(POWER_MODEL_OBJ  "$<TARGET_OBJECTS:mcpat>")
 endif()
 if(TRACING_ON)
 add_compile_definitions(TRACING_ON)
 endif()
 
-add_compile_definitions(CUDART_VERSION=11800)
+add_compile_definitions(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}${CUDAToolkit_VERSION_PATCH})
 
-include_directories(/usr/local/cuda/include)
+include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
+add_subdirectory(cuobjdump_to_ptxplus)
 add_subdirectory(libcuda)
 add_subdirectory(src)
+add_subdirectory(test)
+
+if(OpenCL_FOUND)
+    add_subdirectory(libopencl)
+    add_library(OpenCL SHARED
+        $<TARGET_OBJECTS:opencl>
+        $<TARGET_OBJECTS:gpgpusim>
+        $<TARGET_OBJECTS:gpu_uarch_sim> 
+        $<TARGET_OBJECTS:gpgpu_ptx_sim> 
+        $<TARGET_OBJECTS:booksim>
+        ${POWER_MODEL_OBJ}
+    )
+endif()
 
 # Create a library from the source files
 add_library(cudart SHARED
@@ -49,13 +68,12 @@ add_library(cudart SHARED
     $<TARGET_OBJECTS:cuda>
     $<TARGET_OBJECTS:gpgpu_ptx_sim> 
     $<TARGET_OBJECTS:booksim>
+    ${POWER_MODEL_OBJ}
 )
 
 set_target_properties(cudart PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
 )
-
-target_link_libraries(cudart PRIVATE Threads::Threads OpenMP::OpenMP_CXX z)
 
 set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--version-script=${CMAKE_SOURCE_DIR}/linux-so-version.txt")

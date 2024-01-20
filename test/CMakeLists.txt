@@ -1,0 +1,5 @@
+find_package(GTest)
+set(CMAKE_CUDA_RUNTIME_LIBRARY SHARED)
+add_executable(test.exe test.cu)
+set_target_properties(test.exe PROPERTIES CUDA_ARCHITECTURES "90")
+target_link_libraries(test.exe GTest::gtest_main)

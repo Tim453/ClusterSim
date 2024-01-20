@@ -7,4 +7,7 @@ endif()
 add_library(gpu_uarch_sim OBJECT 
     ${SOURCES}
 )
-#target_include_directories(gpgpu_ptx_sim PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(GPGPUSIM_POWER_MODEL)
+    target_include_directories(gpu_uarch_sim PRIVATE ${CMAKE_SOURCE_DIR}/src/accelwattch)
+endif()
