@@ -5,6 +5,7 @@
 #include "../intersim2/interconnect_interface.hpp"
 #include "local_interconnect.h"
 #include "shader.h"
+#include "array"
 
 void sm2sm_network_options(class OptionParser* opp);
 
