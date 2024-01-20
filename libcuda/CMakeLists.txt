@@ -4,4 +4,7 @@ add_flex_bison_dependency(MyLexer MyParser)
 
 add_library(cuda OBJECT ${BISON_MyParser_OUTPUTS} ${FLEX_MyLexer_OUTPUTS} cuda_runtime_api.cc)
 
-target_include_directories(cuda PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(cuda PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR} 
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${OPENGL_INCLUDE_DIR})

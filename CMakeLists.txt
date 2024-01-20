@@ -9,12 +9,14 @@ find_package(Threads REQUIRED)
 
 find_package(OpenCL)
 find_package(OpenMP)
+find_package(OpenGL)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(GPGPUSIM_POWER_MODEL    			"Enable GPU Sim Power model" OFF)
 option(TRACING_ON    			"Enable Tracing" OFF)
+option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)     
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -39,6 +41,11 @@ endif()
 if(TRACING_ON)
 add_compile_definitions(TRACING_ON)
 endif()
+
+if(OPENGL_FOUND AND OPENGL_SUPPORT)
+    add_compile_definitions(OPENGL_SUPPORT)
+endif()
+
 
 add_compile_definitions(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}${CUDAToolkit_VERSION_PATCH})
 
