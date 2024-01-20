@@ -1491,7 +1491,7 @@ cudaError_t cudaGLMapBufferObjectInternal(void **devPtr, GLuint bufferObj,
   }
   GLint buffer_size = 0;
   CUctx_st *context = GPGPUSim_Context(ctx);
-
+  gpgpu_t *gpu = context->get_device()->get_gpgpu();
   glbmap_entry_t *p = ctx->api->g_glbmap;
   while (p && p->m_bufferObj != bufferObj) p = p->m_next;
   if (p == NULL) {
@@ -1519,7 +1519,7 @@ cudaError_t cudaGLMapBufferObjectInternal(void **devPtr, GLuint bufferObj,
   if (*devPtr) {
     char *data = (char *)calloc(p->m_size, 1);
     glGetBufferSubData(GL_ARRAY_BUFFER, 0, buffer_size, data);
-    memcpy_to_gpu((size_t)*devPtr, data, buffer_size);
+    gpu->memcpy_to_gpu((size_t)*devPtr, data, buffer_size);
     free(data);
     printf(
         "GPGPU-Sim PTX: cudaGLMapBufferObject %zu bytes starting at 0x%llx..\n",
@@ -2034,13 +2034,16 @@ cudaError_t cudaGLUnmapBufferObjectInternal(GLuint bufferObj,
   } else {
     ctx = GPGPU_Context();
   }
-  CUctx_st *ctx = GPGPUSim_Context(ctx);
+  
+  // CUctx_st *ctx = GPGPUSim_Context(ctx);
+  CUctx_st *context = GPGPUSim_Context(ctx);
+  gpgpu_t *gpu = context->get_device()->get_gpgpu();
   glbmap_entry_t *p = ctx->api->g_glbmap;
   while (p && p->m_bufferObj != bufferObj) p = p->m_next;
   if (p == NULL) return g_last_cudaError = cudaErrorUnknown;
 
   char *data = (char *)calloc(p->m_size, 1);
-  memcpy_from_gpu(data, (size_t)p->m_devPtr, p->m_size);
+  gpu->memcpy_from_gpu(data, (size_t)p->m_devPtr, p->m_size);
   glBufferSubData(GL_ARRAY_BUFFER, 0, p->m_size, data);
   free(data);
 
