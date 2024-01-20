@@ -2034,7 +2034,7 @@ cudaError_t cudaGLUnmapBufferObjectInternal(GLuint bufferObj,
   } else {
     ctx = GPGPU_Context();
   }
-  
+
   // CUctx_st *ctx = GPGPUSim_Context(ctx);
   CUctx_st *context = GPGPUSim_Context(ctx);
   gpgpu_t *gpu = context->get_device()->get_gpgpu();
