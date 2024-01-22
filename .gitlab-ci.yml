@@ -12,14 +12,13 @@ cache:
 build:
   stage: build
   script:
-    - source setup_environment && make -j4
+    - mkdir -p build
+    - cmake -S . -B build
+    - make -C build
 
 test:
   stage: test
   script:
-    - mkdir -p build
-    - cmake -S . -B build
-    - make -C build
     - source new_setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
   artifacts:
     when: always
