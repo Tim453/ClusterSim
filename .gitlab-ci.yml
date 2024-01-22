@@ -17,7 +17,10 @@ build:
 test:
   stage: test
   script:
-    - make -C test && source setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
+    - mkdir -p build
+    - cmake -S . -B build
+    - make -C build
+    - source new_setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
   artifacts:
     when: always
     reports:
