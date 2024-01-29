@@ -263,7 +263,6 @@ function_decl_header: ENTRY_DIRECTIVE { $$ = 1; g_func_decl=1; func_header(".ent
 	| VISIBLE_DIRECTIVE FUNC_DIRECTIVE { $$ = 0; g_func_decl=1; func_header(".func"); }
 	| WEAK_DIRECTIVE FUNC_DIRECTIVE { $$ = 0; g_func_decl=1; func_header(".func"); }
 	| EXTERN_DIRECTIVE FUNC_DIRECTIVE { $$ = 2; g_func_decl=1; func_header(".func"); }
-	| WEAK_DIRECTIVE FUNC_DIRECTIVE { $$ = 0; g_func_decl=1; func_header(".func"); }
 	;
 
 param_list: /*empty*/

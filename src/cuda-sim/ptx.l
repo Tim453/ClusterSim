@@ -238,7 +238,6 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.reqnctapercluster TC; return REQNCTAPERCLUSTER_DIRECTIVE;
 \.weak TC; return WEAK_DIRECTIVE;
 \.address_size TC; return ADDRESS_SIZE_DIRECTIVE;
-\.weak	TC; return WEAK_DIRECTIVE;
 
 \.constptr TC; return CONSTPTR_DIRECTIVE; /* Ptx plus directive for pointer to constant memory */
 \.ptr TC; return PTR_DIRECTIVE; /* Added for new OpenCL genrated code */
