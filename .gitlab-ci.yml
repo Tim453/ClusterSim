@@ -1,4 +1,4 @@
-image: collaborating.tuhh.de:5005/cdt5076/tbc_bench
+image: collaborating.tuhh.de:5005/cdt5076/gpgpu-sim_distribution/cuda11.8
 
 stages:
   - build
