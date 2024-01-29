@@ -1,6 +1,6 @@
 BISON_TARGET(PTXParser "config.y" "y.tab.c" 
     DEFINES_FILE ${CMAKE_CURRENT_BINARY_DIR}/y.tab.h)
-FLEX_TARGET(PTXLexer "config.l" "lex.yy.cc")
+FLEX_TARGET(PTXLexer "config.l" "lex.yy.c")
 add_flex_bison_dependency(PTXLexer PTXParser)
 
 file(GLOB SOURCES *.cpp allocators/*.cpp arbiters/*cpp networks/*cpp power/*cpp routers/*cpp)

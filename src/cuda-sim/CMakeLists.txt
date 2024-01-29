@@ -41,7 +41,7 @@ add_custom_command(
   VERBATIM
 )
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc ${CMAKE_CURRENT_SOURCE_DIR}/decuda_pred_table*.cc)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cc ${CMAKE_CURRENT_SOURCE_DIR}/decuda_pred_table/*.cc)
 add_compile_definitions(YYDEBUG)
 add_library(gpgpu_ptx_sim STATIC 
     ${SOURCES}
