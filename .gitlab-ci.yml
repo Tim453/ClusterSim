@@ -13,8 +13,8 @@ build:
   stage: build
   script:
     - mkdir -p build
-    - cmake -S . -B build
-    - make -C build
+    - cmake -G Ninja -S . -B build
+    - ninja -C build
 
 test:
   stage: test
