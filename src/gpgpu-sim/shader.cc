@@ -483,9 +483,11 @@ shader_core_ctx::shader_core_ctx(class gpgpu_sim *gpu,
   m_sid = shader_id;
   m_tpc = tpc_id;
 
+  #ifdef GPGPUSIM_POWER_MODEL
   if (get_gpu()->get_config().g_power_simulation_enabled) {
     scaling_coeffs = get_gpu()->get_scaling_coeffs();
   }
+  #endif
 
   m_last_inst_gpu_sim_cycle = 0;
   m_last_inst_gpu_tot_sim_cycle = 0;
