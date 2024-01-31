@@ -6,10 +6,18 @@ find_package(CUDAToolkit REQUIRED)
 find_package(BISON REQUIRED)
 find_package(FLEX REQUIRED)
 find_package(Threads REQUIRED)
+find_package(ZLIB REQUIRED)
 
 find_package(OpenCL)
 find_package(OpenMP)
 find_package(OpenGL)
+
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    set(CMAKE_CUDA_COMPILER_LAUNCHER "${CCACHE_PROGRAM}") # CMake 3.9+
+endif()
+
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -21,12 +29,13 @@ option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-set(CMAKE_CXX_FLAGS "-O3")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+#set(CMAKE_CXX_FLAGS "-O3")
 
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 #add_compile_options(-O3 -g)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -77,6 +86,17 @@ add_library(cudart SHARED
     $<TARGET_OBJECTS:booksim>
     ${POWER_MODEL_OBJ}
 )
+
+add_library(cudart_static STATIC
+    $<TARGET_OBJECTS:gpgpusim>
+    $<TARGET_OBJECTS:gpu_uarch_sim> 
+    $<TARGET_OBJECTS:cuda>
+    $<TARGET_OBJECTS:gpgpu_ptx_sim> 
+    $<TARGET_OBJECTS:booksim>
+    ${POWER_MODEL_OBJ}
+)
+
+target_link_libraries(cudart_static ZLIB::ZLIB)
 
 set_target_properties(cudart PROPERTIES
     VERSION ${PROJECT_VERSION}

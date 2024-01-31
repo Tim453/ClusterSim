@@ -14,37 +14,17 @@ GPGPUSIM_BUILD_STRING="gpgpu-sim_git-commit-$GIT_COMMIT-modified_$GIT_FILES_CHAN
 
 echo -n "GPGPU-Sim version $GPGPUSIM_VERSION_STRING (build $GPGPUSIM_BUILD_STRING) ";
 
-if [ ! -n "$CUDA_INSTALL_PATH" ]; then
-	echo "ERROR ** Install CUDA Toolkit and set CUDA_INSTALL_PATH.";
-	return;
-fi
-
-if [ ! -d "$CUDA_INSTALL_PATH" ]; then
-	echo "ERROR ** CUDA_INSTALL_PATH=$CUDA_INSTALL_PATH invalid (directory does not exist)";
-	return;
-fi
-
 if [ ! `uname` = "Linux" -a  ! `uname` = "Darwin" ]; then
 	echo "ERROR ** Unsupported platform: GPGPU-Sim $GPGPUSIM_VERSION_STRING developed and tested on Linux."
 	return;
 fi
 
 export PATH=`echo $PATH | sed "s#$GPGPUSIM_ROOT/bin:$CUDA_INSTALL_PATH/bin:##"`
-export PATH=$GPGPUSIM_ROOT/bin:$CUDA_INSTALL_PATH/bin:$PATH
+export PATH=$GPGPUSIM_ROOT/bin:$PATH
 
 # to run the debug build of GPGPU-Sim run:
 # source setup_environment debug
-NVCC_PATH=`which nvcc`;
-if [ $? = 1 ]; then
-	echo "";
-	echo "ERROR ** nvcc (from CUDA Toolkit) was not found in PATH but required to build GPGPU-Sim.";
-	echo "         Try adding $CUDA_INSTALL_PATH/bin/ to your PATH environment variable.";
-	echo "         Please also be sure to read the README file if you have not done so.";
-	echo "";
-	return;
-fi
 
-CC_VERSION=`gcc --version | head -1 | awk '{for(i=1;i<=NF;i++){ if(match($i,/[0-9]\.[0-9]\.[0-9]$/))  {print $i; exit 0}}}'`
 
 CUDA_VERSION_STRING=`$CUDA_INSTALL_PATH/bin/nvcc --version | awk '/release/ {print $5;}' | sed 's/,//'`;
 export CUDA_VERSION_NUMBER=`echo $CUDA_VERSION_STRING | sed 's/\./ /' | awk '{printf("%02u%02u", 10*int($1), 10*$2);}'`
@@ -68,20 +48,11 @@ else
     export GPGPUSIM_CONFIG=gcc-$CC_VERSION/cuda-$CUDA_VERSION_NUMBER/release
 fi
 
-export QTINC=/usr/include
-
 # change NVOPENCL_LIBDIR to point to your opencl library directory, usually
 # /usr/lib or /usr/lib64. Not setting this variable will cause gpgpu-sim to
 # build without opencl support.
-if [ -f /usr/lib64/libOpenCL.so ]; then
-	export NVOPENCL_LIBDIR=/usr/lib64;
-
-	# change NVOPENCL_INCDIR to point to your opencl include directory.
-	if [ -f /usr/include/CL/cl.h ]; then
-		export NVOPENCL_INCDIR=/usr/include/;
-	elif [ -f $CUDA_INSTALL_PATH/include/CL/cl.h ]; then
-		export NVOPENCL_INCDIR=$CUDA_INSTALL_PATH/include/;
-	fi
+if [ -f /usr/lib/x86_64-linux-gnu/libOpenCL.so  ]; then
+	export NVOPENCL_LIBDIR=/usr/lib/x86_64-linux-gnu/;
 fi
 
 # setting LD_LIBRARY_PATH as follows enables GPGPU-Sim to be invoked by 
@@ -90,10 +61,10 @@ fi
 # static link setup in prior GPGPU-Sim releases.
 if [ `uname` = "Darwin" ]; then
 	export DYLD_LIBRARY_PATH=`echo $DYLD_LIBRARY_PATH | sed -Ee 's#'$GPGPUSIM_ROOT'\/lib\/[0-9]+\/(debug|release):##'`
-	export DYLD_LIBRARY_PATH=$GPGPUSIM_ROOT/lib/$GPGPUSIM_CONFIG:$DYLD_LIBRARY_PATH
+	export DYLD_LIBRARY_PATH=$GPGPUSIM_ROOT/lib/:$DYLD_LIBRARY_PATH
 else
 	export LD_LIBRARY_PATH=`echo $LD_LIBRARY_PATH | sed -re 's#'$GPGPUSIM_ROOT'\/lib\/[0-9]+\/(debug|release):##'`
-	export LD_LIBRARY_PATH=$GPGPUSIM_ROOT/lib/$GPGPUSIM_CONFIG:$LD_LIBRARY_PATH
+	export LD_LIBRARY_PATH=$GPGPUSIM_ROOT/lib/:$LD_LIBRARY_PATH
 fi
 
 
@@ -107,9 +78,7 @@ if [ `uname` = "Darwin" ]; then
 else
 	HOSTNAME_DOMAIN=`hostname -d`
 fi
-if [ "x$HOSTNAME_DOMAIN" = "xece.ubc.ca" -a "$OPENCL_REMOTE_GPU_HOST" = "" ]; then
-	export OPENCL_REMOTE_GPU_HOST=aamodt-pc05.ece.ubc.ca
-fi
+
 HOSTNAME_F=`hostname -f`
 if [ "x$HOSTNAME_F" = "x$OPENCL_REMOTE_GPU_HOST" ]; then
 	unset OPENCL_REMOTE_GPU_HOST
