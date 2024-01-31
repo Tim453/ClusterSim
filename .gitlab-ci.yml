@@ -4,15 +4,20 @@ stages:
   - build
   - test
 
-cache:
-  paths:
-    - build
-    - lib
-
 build:
   tags:
     - cuda
   stage: build
+  cache:
+    paths:
+      - build
+  artifacts:
+    untracked: false
+    when: on_success
+    expire_in: "30 days"
+    paths:
+      - build/lib/
+      - build/bin/
   script:
     - mkdir -p build
     - cmake -G Ninja -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
@@ -23,7 +28,7 @@ test:
     - cuda
   stage: test
   script:
-    - source setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
+    - source setup_environment && GPUSIM_CONFIG=test/test.config ./build/bin/test.exe --gtest_output="xml:report.xml"
   artifacts:
     when: always
     reports:

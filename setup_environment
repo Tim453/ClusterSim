@@ -61,10 +61,10 @@ fi
 # static link setup in prior GPGPU-Sim releases.
 if [ `uname` = "Darwin" ]; then
 	export DYLD_LIBRARY_PATH=`echo $DYLD_LIBRARY_PATH | sed -Ee 's#'$GPGPUSIM_ROOT'\/lib\/[0-9]+\/(debug|release):##'`
-	export DYLD_LIBRARY_PATH=$GPGPUSIM_ROOT/lib/:$DYLD_LIBRARY_PATH
+	export DYLD_LIBRARY_PATH=$GPGPUSIM_ROOT/build/lib/:$DYLD_LIBRARY_PATH
 else
 	export LD_LIBRARY_PATH=`echo $LD_LIBRARY_PATH | sed -re 's#'$GPGPUSIM_ROOT'\/lib\/[0-9]+\/(debug|release):##'`
-	export LD_LIBRARY_PATH=$GPGPUSIM_ROOT/lib/:$LD_LIBRARY_PATH
+	export LD_LIBRARY_PATH=$GPGPUSIM_ROOT/build/lib/:$LD_LIBRARY_PATH
 fi
 
 
