@@ -24,7 +24,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(GPGPUSIM_POWER_MODEL    			"Enable GPU Sim Power model" OFF)
 option(TRACING_ON    			"Enable Tracing" OFF)
-option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)     
+option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)  
+option(BUILD_TEST "Build Tests" ON)   
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -66,7 +67,11 @@ include_directories(${CUDAToolkit_INCLUDE_DIRS})
 add_subdirectory(cuobjdump_to_ptxplus)
 add_subdirectory(libcuda)
 add_subdirectory(src)
-add_subdirectory(test)
+
+if(BUILD_TEST)
+    enable_testing()
+    add_subdirectory(test)  
+endif()
 
 if(OpenCL_FOUND)
     add_subdirectory(libopencl)
