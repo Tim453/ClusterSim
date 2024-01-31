@@ -148,8 +148,9 @@ void InterconnectInterface::Push(unsigned input_deviceID, unsigned output_device
   // it should have free buffer
   assert(HasBuffer(input_deviceID, size));
 
+  #ifndef TRACING_ON
   DPRINTF(INTERCONNECT, "Sent %d bytes from %d to %d", size, input_deviceID, output_deviceID);
-  
+  #endif
   int output_icntID = _node_map[output_deviceID];
   int input_icntID = _node_map[input_deviceID];
 
