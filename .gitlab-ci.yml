@@ -1,4 +1,4 @@
-image: collaborating.tuhh.de:5005/cdt5076/gpgpu-sim_distribution/cuda11.8
+image: collaborating.tuhh.de:5005/e-exk5/research/thread-block-cluster/tbc_bench
 
 stages:
   - build
@@ -10,16 +10,20 @@ cache:
     - lib
 
 build:
+  tags:
+    - cuda
   stage: build
   script:
     - mkdir -p build
-    - cmake -G Ninja -S . -B build
+    - cmake -G Ninja -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
     - ninja -C build
 
 test:
+  tags:
+    - cuda
   stage: test
   script:
-    - source new_setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
+    - source setup_environment && GPUSIM_CONFIG=test/test.config ./build/test.exe --gtest_output="xml:report.xml"
   artifacts:
     when: always
     reports:
