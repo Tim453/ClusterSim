@@ -28,8 +28,9 @@ test:
     - cuda
   stage: test
   script:
-    - source setup_environment && GPUSIM_CONFIG=test/test.config ./build/bin/test.exe --gtest_output="xml:report.xml"
+    - source setup_environment && GPUSIM_CONFIG=test/test.config ./build/bin/test_kernel --gtest_output="xml:report.xml"
   artifacts:
+    expire_in: "30 days"
     when: always
     reports:
       junit: report.xml

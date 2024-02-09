@@ -102,15 +102,15 @@ local_crossbar::~local_crossbar() {
 }
 
 void* local_crossbar::Pop(unsigned ouput_deviceID, Interconnect_type network) {
-  ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
+  ouput_deviceID = sid_to_gid(ouput_deviceID);
   return m_localicnt_interface->Pop(ouput_deviceID, network);
 }
 
 void local_crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
                           void* data, unsigned int size,
                           Interconnect_type network) {
-  output_deviceID = m_config->sid_to_cid(output_deviceID);
-  input_deviceID = m_config->sid_to_cid(input_deviceID);
+  output_deviceID = sid_to_gid(output_deviceID);
+  input_deviceID = sid_to_gid(input_deviceID);
   return m_localicnt_interface->Push(input_deviceID, output_deviceID, data,
                                      size, network);
 }
@@ -145,13 +145,14 @@ bool local_crossbar::Busy() const { return m_localicnt_interface->Busy(); }
 
 bool local_crossbar::HasBuffer(unsigned deviceID, unsigned int size,
                                Interconnect_type network) const {
+  deviceID = sid_to_gid(deviceID);
   return m_localicnt_interface->HasBuffer(deviceID, size, network);
 }
 
 void ideal_network::Push(unsigned input_deviceID, unsigned output_deviceID,
                          void* data, unsigned int size,
                          Interconnect_type network) {
-  output_deviceID = m_config->sid_to_cid(output_deviceID);
+  output_deviceID = sid_to_gid(output_deviceID);
   if (network == REQ_NET) {
     in_request[output_deviceID].push(data);
   } else if (network == REPLY_NET) {
@@ -168,8 +169,8 @@ booksim::booksim(unsigned n_shader, const class shader_core_config* config,
 
 void booksim::Push(unsigned input_deviceID, unsigned output_deviceID,
                    void* data, unsigned int size, Interconnect_type network) {
-  output_deviceID = m_config->sid_to_cid(output_deviceID);
-  input_deviceID = m_config->sid_to_cid(input_deviceID);
+  output_deviceID = sid_to_gid(output_deviceID);
+  input_deviceID = sid_to_gid(input_deviceID);
   mf_type type;
   cluster_shmem_request* request = (cluster_shmem_request*)(data);
   assert(request);
@@ -200,7 +201,7 @@ bool booksim::HasBuffer(unsigned deviceID, unsigned int size,
 
 void* ideal_network::Pop(unsigned ouput_deviceID, Interconnect_type network) {
   void* result = nullptr;
-  ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
+  ouput_deviceID = sid_to_gid(ouput_deviceID);
   if (network == REQ_NET && !out_request[ouput_deviceID].empty()) {
     result = out_request[ouput_deviceID].front();
     out_request[ouput_deviceID].pop();
@@ -239,19 +240,19 @@ ringbus::ringbus(unsigned n_shader, const class shader_core_config* config,
 
 bool ringbus::HasBuffer(unsigned deviceID, unsigned int size,
                         Interconnect_type network) const {
-  deviceID = m_config->sid_to_cid(deviceID);
+  deviceID = sid_to_gid(deviceID);
   return m_in[network][deviceID].size() < m_in_out_buffer_size;
 }
 
 void ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
                    void* data, unsigned int size, Interconnect_type network) {
-  output_deviceID = m_config->sid_to_cid(output_deviceID);
-  input_deviceID = m_config->sid_to_cid(input_deviceID);
+  output_deviceID = sid_to_gid(output_deviceID);
+  input_deviceID = sid_to_gid(input_deviceID);
   m_in[network][input_deviceID].push(Packet(data, output_deviceID));
 }
 
 void* ringbus::Pop(unsigned ouput_deviceID, Interconnect_type network) {
-  ouput_deviceID = m_config->sid_to_cid(ouput_deviceID);
+  ouput_deviceID = sid_to_gid(ouput_deviceID);
 
   if (!m_out[network][ouput_deviceID].empty()) {
     auto packet = m_out[network][ouput_deviceID].front();

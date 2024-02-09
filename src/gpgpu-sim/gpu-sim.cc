@@ -418,6 +418,9 @@ void shader_core_config::reg_options(class OptionParser *opp) {
   option_parser_register(opp, "-gpgpu_n_cores_per_cluster", OPT_UINT32,
                          &n_simt_cores_per_cluster,
                          "number of simd cores per cluster", "3");
+  option_parser_register(opp, "-gpgpu_n_cores_per_gpc", OPT_UINT32,
+                         &n_simt_cores_per_gpc,
+                         "number of simd cores per gpc", "0");
   option_parser_register(opp, "-gpgpu_n_cluster_ejection_buffer_size",
                          OPT_UINT32, &n_simt_ejection_buffer_size,
                          "number of packets in ejection buffer", "8");
@@ -928,10 +931,17 @@ void gpgpu_sim::stop_all_running_kernels() {
 
 void exec_gpgpu_sim::createSIMTCluster() {
   m_cluster = new simt_core_cluster *[m_shader_config->n_simt_clusters];
-  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++)
-    m_cluster[i] =
-        new exec_simt_core_cluster(this, i, m_shader_config, m_memory_config,
-                                   m_shader_stats, m_memory_stats);
+
+  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
+    const int gpc_id =
+        i * m_shader_config->n_simt_cores_per_cluster / m_config.num_shader_per_gpc();
+
+    m_cluster[i] = new exec_simt_core_cluster(
+        this, i, m_shader_config, m_memory_config, m_shader_stats,
+        m_memory_stats, &m_gpcs.at(gpc_id));
+
+    m_gpcs.at(gpc_id).add_cluster(m_cluster[i]);
+  }
 }
 
 gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
@@ -1011,6 +1021,20 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
   // Jin: functional simulation for CDP
   m_functional_sim = false;
   m_functional_sim_kernel = NULL;
+
+  if (m_config.num_shader() % m_config.num_shader_per_gpc() != 0) {
+    std::cout << "Number of shaders need to be a multiple of number of "
+                 "shader per gpc "
+              << m_config.num_shader_per_gpc() << "\n";
+    exit(1);
+  }
+
+  const unsigned num_gpc =
+      m_config.num_shader() / m_config.num_shader_per_gpc();
+  m_gpcs.clear();
+  for (unsigned i = 0; i < num_gpc; i++) {
+    m_gpcs.push_back(gpu_processing_cluster(this, m_shader_config ,i, m_config.num_shader_per_gpc()));
+  }
 }
 
 int gpgpu_sim::shared_mem_size() const {
@@ -1721,8 +1745,9 @@ unsigned exec_shader_core_ctx::sim_init_thread(
     unsigned hw_cta_id, unsigned hw_warp_id, gpgpu_t *gpu,
     unsigned cluster_slot) {
   unsigned cid = this->m_cluster->get_cluster_id();
+  unsigned gpc_id = this->m_cluster->m_gpc->get_gpc_id();
   unsigned cta_cluster_id =
-      this->m_cluster->get_maximum_thread_block_cluster() * cid + cluster_slot;
+      this->m_cluster->get_maximum_thread_block_cluster() * gpc_id + cluster_slot;
   return ptx_sim_init_thread(kernel, thread_info, sid, cta_cluster_id, tid,
                              threads_left, num_threads, core, hw_cta_id,
                              hw_warp_id, gpu);
@@ -1881,9 +1906,9 @@ int gpgpu_sim::next_clock_domain(void) {
 
 void gpgpu_sim::issue_block2core() {
   unsigned last_issued = m_last_cluster_issue;
-  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-    unsigned idx = (i + last_issued + 1) % m_shader_config->n_simt_clusters;
-    unsigned num = m_cluster[idx]->issue_block2core();
+  for (unsigned i = 0; i < m_gpcs.size(); i++) {
+    unsigned idx = (i + last_issued + 1) % m_gpcs.size();
+    unsigned num = m_gpcs.at(idx).issue_cta_cluster_to_gpc();
     if (num) {
       m_last_cluster_issue = idx;
       m_total_cta_launched += num;
