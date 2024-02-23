@@ -4622,19 +4622,20 @@ unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {
     for (unsigned j = 0; j < cluster->m_core.size(); j++) {
       unsigned core_index = (j + cluster->m_cta_issue_next_core + 1) % cluster->m_core.size();
       auto core = cluster->m_core.at(core_index);
-      
-      
+
       if (core->get_kernel() != m_kernel) {
         assert(!core->get_not_completed());
         core->set_kernel(m_kernel);
       }
-      core->issue_block2core(*m_kernel, free_cluster_slot);
-      ctas_to_issue--;
-      if(ctas_to_issue == 0){
-        cluster->m_cta_issue_next_core = core_index;
-        m_cta_issue_next_cluster = cluster_index;
-        m_gpc_status.at(free_cluster_slot) = m_kernel->ctas_per_cluster();
-        return m_kernel->ctas_per_cluster();
+      if (core->can_issue_1block(*m_kernel)) {
+        core->issue_block2core(*m_kernel, free_cluster_slot);
+        ctas_to_issue--;
+        if (ctas_to_issue == 0) {
+          cluster->m_cta_issue_next_core = core_index;
+          m_cta_issue_next_cluster = cluster_index;
+          m_gpc_status.at(free_cluster_slot) = m_kernel->ctas_per_cluster();
+          return m_kernel->ctas_per_cluster();
+        }
       }
     }
   }
