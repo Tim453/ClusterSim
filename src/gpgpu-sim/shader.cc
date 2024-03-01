@@ -483,11 +483,11 @@ shader_core_ctx::shader_core_ctx(class gpgpu_sim *gpu,
   m_sid = shader_id;
   m_tpc = tpc_id;
 
-  #ifdef GPGPUSIM_POWER_MODEL
+#ifdef GPGPUSIM_POWER_MODEL
   if (get_gpu()->get_config().g_power_simulation_enabled) {
     scaling_coeffs = get_gpu()->get_scaling_coeffs();
   }
-  #endif
+#endif
 
   m_last_inst_gpu_sim_cycle = 0;
   m_last_inst_gpu_tot_sim_cycle = 0;
@@ -570,7 +570,8 @@ void shader_core_ctx::init_warps(unsigned cluster_id, unsigned cta_id,
         start_pc = pc;
       }
 
-      m_warp[i]->init(start_pc, cta_id, cluster_id, m_cluster->m_gpc->get_gpc_id(), i, active_threads,
+      m_warp[i]->init(start_pc, cta_id, cluster_id,
+                      m_cluster->m_gpc->get_gpc_id(), i, active_threads,
                       m_dynamic_warp_id);
       ++m_dynamic_warp_id;
       m_not_completed += n_active;
@@ -3421,8 +3422,7 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
 
   // Limit by shmem/shader
   unsigned int result_shmem = (unsigned)-1;
-  if (kernel_info->smem > 0)
-    result_shmem = gpgpu_shmem_size / k.smem;
+  if (kernel_info->smem > 0) result_shmem = gpgpu_shmem_size / k.smem;
 
   // Limit by register count, rounded up to multiple of 4.
   unsigned int result_regs = (unsigned)-1;
@@ -3444,7 +3444,7 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
     printf("Static shared memory per Block:  %luB\n", k.static_smem);
     printf("Dynamic shared memory per Block: %luB\n", k.dynamic_smem);
     printf("Total shared memory per Block:   %lukB\n", k.smem / 1024);
-    
+
     last_kinfo = kernel_info;
     printf("GPGPU-Sim uArch: CTA/core = %u, limited by:", result);
     if (result == result_thread) printf(" threads");
@@ -3721,7 +3721,9 @@ void barrier_set_t::allocate_barrier(unsigned cta_id, unsigned cluster_id,
     m_bar_id_to_warps[i] &= ~warps;
   }
   auto test = m_shader->get_simt_core_cluster()->m_gpc;
-  const unsigned cid = m_shader->get_sid() % m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
+  const unsigned cid =
+      m_shader->get_sid() %
+      m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
   unsigned cta_id_in_cluster =
       m_shader->get_config()->max_cta_per_core * cid + cta_id;
   m_cluster_barrier->m_cluster_to_cta[cluster_id].set(cta_id_in_cluster);
@@ -3748,7 +3750,8 @@ void barrier_set_t::deallocate_barrier(unsigned cluster_slot, unsigned cta_id) {
   m_cta_to_warps.erase(w);
 
   // deallocate cluster_barrier
-  unsigned cid = m_shader->get_sid() % m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
+  unsigned cid = m_shader->get_sid() %
+                 m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
   unsigned cta_id_in_cluster =
       m_shader->get_config()->max_cta_per_core * cid + cta_id;
   assert(!m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster));
@@ -3760,13 +3763,14 @@ void barrier_set_t::deallocate_barrier(unsigned cluster_slot, unsigned cta_id) {
   m_cluster_barrier->m_cluster_to_cta[cluster_slot].reset(cta_id_in_cluster);
   auto test = m_shader->get_simt_core_cluster()->m_gpc;
   m_shader->get_simt_core_cluster()->m_gpc->m_gpc_status[cluster_slot]--;
-  
+
   if (!active_cta_in_cluster.any()) {
     m_cluster_barrier->m_cta_active &
         ~m_cluster_barrier->m_cluster_to_cta[cluster_slot];
     m_cluster_barrier->m_cluster_to_cta[cluster_slot].reset();
-    assert(m_shader->get_simt_core_cluster()->m_gpc->m_gpc_status[cluster_slot] ==
-           0);
+    assert(
+        m_shader->get_simt_core_cluster()->m_gpc->m_gpc_status[cluster_slot] ==
+        0);
   }
 }
 
@@ -3825,7 +3829,9 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
     // Cluster Barrier
   } else {
     cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
-    unsigned cid = m_shader->get_sid() % m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
+    unsigned cid =
+        m_shader->get_sid() %
+        m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
     unsigned cta_id_in_cluster =
         m_shader->get_config()->max_cta_per_core * cid + cta_id;
     if (w == m_cta_to_warps.end()) {  // cta is active
@@ -3908,7 +3914,8 @@ bool barrier_set_t::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_warp_at_barrier.test(warp_id);
 }
 bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id) const {
-  unsigned cid = m_shader->get_sid() % m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
+  unsigned cid = m_shader->get_sid() %
+                 m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
   unsigned cta_id_in_cluster =
       m_shader->get_config()->max_cta_per_core * cid + cta_id;
   return m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster);
@@ -4107,7 +4114,8 @@ bool shd_warp_t::waiting() {
 
 void shd_warp_t::print(FILE *fout) const {
   if (!done_exit()) {
-    fprintf(fout, "w%02u npc: 0x%04llx, done:%c%c%c%c:%2u i:%u s:%u a:%u (done: ",
+    fprintf(fout,
+            "w%02u npc: 0x%04llx, done:%c%c%c%c:%2u i:%u s:%u a:%u (done: ",
             m_warp_id, m_next_pc, (functional_done() ? 'f' : ' '),
             (stores_done() ? 's' : ' '), (inst_in_pipeline() ? ' ' : 'i'),
             (done_exit() ? 'e' : ' '), n_completed, m_inst_in_pipeline,
@@ -4580,33 +4588,31 @@ bool gpu_processing_cluster::can_issue_cta_cluster() {
 
   int ctas_remaining = ctas_per_cluster;
   for (unsigned i = 0; i < m_clusters.size(); i++) {
-    const unsigned cluster_index = (i+m_cta_issue_next_cluster + 1) % m_clusters.size();
+    const unsigned cluster_index =
+        (i + m_cta_issue_next_cluster + 1) % m_clusters.size();
     const auto cluster = m_clusters.at(cluster_index);
     unsigned cta_issue_next_core = cluster->m_cta_issue_next_core;
     for (unsigned j = 0; j < cluster->m_core.size(); j++) {
-      const unsigned core_index = (j+cta_issue_next_core + 1) % cluster->m_core.size();
+      const unsigned core_index =
+          (j + cta_issue_next_core + 1) % cluster->m_core.size();
       const auto core = cluster->m_core.at(core_index);
-      
+
       if (core->can_issue_1block(*m_kernel)) ctas_remaining--;
     }
   }
-  if(ctas_remaining > 0)
+  if (ctas_remaining > 0)
     return false;
   else
     return true;
 }
 
 unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {
-
   unsigned num_blocks_issued = 0;
-  if(m_kernel == nullptr || m_kernel->is_finished())
+  if (m_kernel == nullptr || m_kernel->is_finished())
     m_kernel = m_gpu->select_kernel();
-  if (m_kernel == nullptr) 
-    return 0;
-  if(!m_gpu->kernel_more_cta_left(m_kernel))
-    return 0;
-  if(!can_issue_cta_cluster())
-    return 0;
+  if (m_kernel == nullptr) return 0;
+  if (!m_gpu->kernel_more_cta_left(m_kernel)) return 0;
+  if (!can_issue_cta_cluster()) return 0;
 
   unsigned ctas_to_issue = m_kernel->ctas_per_cluster();
 
@@ -4620,11 +4626,13 @@ unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {
   assert(free_cluster_slot != (unsigned)-1);
 
   for (unsigned i = 0; i < m_clusters.size(); i++) {
-    unsigned cluster_index = (i + m_cta_issue_next_cluster + 1) % m_clusters.size();
+    unsigned cluster_index =
+        (i + m_cta_issue_next_cluster + 1) % m_clusters.size();
     auto cluster = m_clusters.at(cluster_index);
 
     for (unsigned j = 0; j < cluster->m_core.size(); j++) {
-      unsigned core_index = (j + cluster->m_cta_issue_next_core + 1) % cluster->m_core.size();
+      unsigned core_index =
+          (j + cluster->m_cta_issue_next_core + 1) % cluster->m_core.size();
       auto core = cluster->m_core.at(core_index);
 
       if (core->get_kernel() != m_kernel) {
@@ -4887,32 +4895,31 @@ void exec_shader_core_ctx::checkExecutionStatusAndUpdate(warp_inst_t &inst,
   }
 }
 
-gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu, const shader_core_config *config, unsigned id, unsigned shader_per_gpc){
+gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
+                                               const shader_core_config *config,
+                                               unsigned id,
+                                               unsigned shader_per_gpc) {
   m_gpc_id = id;
   m_gpu = gpu;
   m_config = config;
   m_clusters.clear();
 
   m_shader_per_gpc = shader_per_gpc;
-  unsigned maximum_thread_block_cluster = config->max_cta_per_core * config->n_simt_cores_per_cluster * m_shader_per_gpc;
-  
+  unsigned maximum_thread_block_cluster = config->max_cta_per_core *
+                                          config->n_simt_cores_per_cluster *
+                                          m_shader_per_gpc;
+
   m_gpc_status.resize(maximum_thread_block_cluster);
 
   if ((strcmp(m_config->sm_2_sm_network_type, "crossbar") == 0))
-    m_sm_2_sm_network =
-        new local_crossbar(m_shader_per_gpc, config, m_gpu);
+    m_sm_2_sm_network = new local_crossbar(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "ideal") == 0))
-    m_sm_2_sm_network =
-        new ideal_network(m_shader_per_gpc, config, m_gpu);
+    m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "ringbus") == 0))
-    m_sm_2_sm_network =
-        new ringbus(m_shader_per_gpc, config, m_gpu);
+    m_sm_2_sm_network = new ringbus(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "booksim") == 0))
-    m_sm_2_sm_network =
-        new booksim(m_shader_per_gpc, config, m_gpu);
+    m_sm_2_sm_network = new booksim(m_shader_per_gpc, config, m_gpu);
   // Network needs to be there, although it will not be used
   else if ((strcmp(m_config->sm_2_sm_network_type, "none") == 0))
-    m_sm_2_sm_network =
-        new ideal_network(m_shader_per_gpc, config, m_gpu);
-
+    m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
 }

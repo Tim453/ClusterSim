@@ -396,7 +396,7 @@ class gpgpu_sim_config : public power_config,
   unsigned get_core_freq() const { return core_freq; }
   unsigned num_shader() const { return m_shader_config.num_shader(); }
   unsigned num_cluster() const { return m_shader_config.n_simt_clusters; }
-  unsigned num_shader_per_gpc() const { 
+  unsigned num_shader_per_gpc() const {
     if (m_shader_config.n_simt_cores_per_gpc)
       return m_shader_config.n_simt_cores_per_gpc;
     else

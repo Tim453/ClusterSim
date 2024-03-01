@@ -51,6 +51,7 @@ unsigned ptx_cluster_info::get_cta_rank_of_shared_memory_region(addr_t addr) {
     if (cta.second->is_in_generic_shared_memory(addr)) return cta.first;
   }
   assert(0);
+  return (UINT32_MAX - 1);
 }
 
 ptx_cta_info::ptx_cta_info(unsigned sm_idx, gpgpu_context *ctx) {

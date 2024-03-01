@@ -419,8 +419,8 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          &n_simt_cores_per_cluster,
                          "number of simd cores per cluster", "3");
   option_parser_register(opp, "-gpgpu_n_cores_per_gpc", OPT_UINT32,
-                         &n_simt_cores_per_gpc,
-                         "number of simd cores per gpc", "0");
+                         &n_simt_cores_per_gpc, "number of simd cores per gpc",
+                         "0");
   option_parser_register(opp, "-gpgpu_n_cluster_ejection_buffer_size",
                          OPT_UINT32, &n_simt_ejection_buffer_size,
                          "number of packets in ejection buffer", "8");
@@ -933,8 +933,8 @@ void exec_gpgpu_sim::createSIMTCluster() {
   m_cluster = new simt_core_cluster *[m_shader_config->n_simt_clusters];
 
   for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-    const int gpc_id =
-        i * m_shader_config->n_simt_cores_per_cluster / m_config.num_shader_per_gpc();
+    const int gpc_id = i * m_shader_config->n_simt_cores_per_cluster /
+                       m_config.num_shader_per_gpc();
 
     m_cluster[i] = new exec_simt_core_cluster(
         this, i, m_shader_config, m_memory_config, m_shader_stats,
@@ -1033,7 +1033,8 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
       m_config.num_shader() / m_config.num_shader_per_gpc();
   m_gpcs.clear();
   for (unsigned i = 0; i < num_gpc; i++) {
-    m_gpcs.push_back(gpu_processing_cluster(this, m_shader_config ,i, m_config.num_shader_per_gpc()));
+    m_gpcs.push_back(gpu_processing_cluster(this, m_shader_config, i,
+                                            m_config.num_shader_per_gpc()));
   }
 }
 
@@ -1671,8 +1672,7 @@ bool shader_core_ctx::occupy_shader_resource_1block(kernel_info_t &k,
 
   const struct gpgpu_ptx_sim_info *kernel_info = ptx_sim_kernel_info(kernel);
 
-  if (m_occupied_shmem + k.smem > m_config->gpgpu_shmem_size)
-    return false;
+  if (m_occupied_shmem + k.smem > m_config->gpgpu_shmem_size) return false;
 
   unsigned int used_regs = padded_cta_size * ((kernel_info->regs + 3) & ~3);
   if (m_occupied_regs + used_regs > m_config->gpgpu_shader_registers)
@@ -1747,7 +1747,8 @@ unsigned exec_shader_core_ctx::sim_init_thread(
   unsigned cid = this->m_cluster->get_cluster_id();
   unsigned gpc_id = this->m_cluster->m_gpc->get_gpc_id();
   unsigned cta_cluster_id =
-      this->m_cluster->get_maximum_thread_block_cluster() * gpc_id + cluster_slot;
+      this->m_cluster->get_maximum_thread_block_cluster() * gpc_id +
+      cluster_slot;
   return ptx_sim_init_thread(kernel, thread_info, sid, cta_cluster_id, tid,
                              threads_left, num_threads, core, hw_cta_id,
                              hw_warp_id, gpu);

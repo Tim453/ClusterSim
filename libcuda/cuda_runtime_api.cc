@@ -4056,7 +4056,8 @@ int cuda_runtime_api::load_constants(symbol_table *symtab, addr_t min_gaddr,
 
 kernel_info_t *cuda_runtime_api::gpgpu_cuda_ptx_sim_init_grid(
     const char *hostFun, gpgpu_ptx_sim_arg_list_t args, struct dim3 gridDim,
-    struct dim3 blockDim, CUctx_st *context, unsigned dynamic_smem, dim3 clusterDim) {
+    struct dim3 blockDim, CUctx_st *context, unsigned dynamic_smem,
+    dim3 clusterDim) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }

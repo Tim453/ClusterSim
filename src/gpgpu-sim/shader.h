@@ -127,8 +127,9 @@ class shd_warp_t {
     m_cdp_latency = 0;
     m_cdp_dummy = false;
   }
-  void init(address_type start_pc, unsigned cta_id, unsigned cluster_id, unsigned gpc_id,
-            unsigned wid, const std::bitset<MAX_WARP_SIZE> &active,
+  void init(address_type start_pc, unsigned cta_id, unsigned cluster_id,
+            unsigned gpc_id, unsigned wid,
+            const std::bitset<MAX_WARP_SIZE> &active,
             unsigned dynamic_warp_id) {
     m_gpc_id = gpc_id;
     m_cluster_id = cluster_id;
@@ -2626,33 +2627,31 @@ class exec_shader_core_ctx : public shader_core_ctx {
 };
 
 class gpu_processing_cluster {
-
  private:
-  
-  std::vector<simt_core_cluster*> m_clusters;
+  std::vector<simt_core_cluster *> m_clusters;
   unsigned m_gpc_id;
   gpgpu_sim *m_gpu;
   const shader_core_config *m_config;
   cluster_barrier_set_t m_cluster_barrier;
   unsigned m_cta_issue_next_cluster;
   kernel_info_t *m_kernel = nullptr;
-  
-  
+
   unsigned m_shader_per_gpc = 1;
 
-  public:
-    sm_2_sm_network *m_sm_2_sm_network;
-    gpu_processing_cluster(class gpgpu_sim *gpu, const shader_core_config *config, unsigned id, unsigned shader_per_gpc);
-    void add_cluster(class simt_core_cluster* cluster){
-      m_clusters.push_back(cluster);
-      m_cta_issue_next_cluster = m_clusters.size() - 1;
-    };
-    unsigned get_gpc_id(){return m_gpc_id;};
-    unsigned get_shader_per_gpc(){return m_shader_per_gpc;};
-    bool can_issue_cta_cluster();
-    unsigned issue_cta_cluster_to_gpc();
-    std::vector<unsigned> m_gpc_status;
-    cluster_barrier_set_t *get_cluster_barrier(){return &m_cluster_barrier;};
+ public:
+  sm_2_sm_network *m_sm_2_sm_network;
+  gpu_processing_cluster(class gpgpu_sim *gpu, const shader_core_config *config,
+                         unsigned id, unsigned shader_per_gpc);
+  void add_cluster(class simt_core_cluster *cluster) {
+    m_clusters.push_back(cluster);
+    m_cta_issue_next_cluster = m_clusters.size() - 1;
+  };
+  unsigned get_gpc_id() { return m_gpc_id; };
+  unsigned get_shader_per_gpc() { return m_shader_per_gpc; };
+  bool can_issue_cta_cluster();
+  unsigned issue_cta_cluster_to_gpc();
+  std::vector<unsigned> m_gpc_status;
+  cluster_barrier_set_t *get_cluster_barrier() { return &m_cluster_barrier; };
 };
 
 class simt_core_cluster {
@@ -2724,7 +2723,7 @@ class simt_core_cluster {
   const shader_core_config *m_config;
   shader_core_stats *m_stats;
   memory_stats_t *m_memory_stats;
-  std::vector<shader_core_ctx*> m_core;
+  std::vector<shader_core_ctx *> m_core;
   const memory_config *m_mem_config;
 
   unsigned m_cta_issue_next_core;
@@ -2740,7 +2739,8 @@ class exec_simt_core_cluster : public simt_core_cluster {
                          class shader_core_stats *stats,
                          class memory_stats_t *mstats,
                          gpu_processing_cluster *gpc)
-      : simt_core_cluster(gpu, cluster_id, config, mem_config, stats, mstats, gpc) {
+      : simt_core_cluster(gpu, cluster_id, config, mem_config, stats, mstats,
+                          gpc) {
     create_shader_core_ctx();
   }
 

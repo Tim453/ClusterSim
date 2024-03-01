@@ -79,7 +79,7 @@ class sm_2_sm_network {
   unsigned m_n_shader, m_n_mem;
   const class shader_core_config* m_config;
   const class gpgpu_sim* m_gpu;
-  unsigned sid_to_gid(unsigned sid) const {return sid % m_n_shader;}
+  unsigned sid_to_gid(unsigned sid) const { return sid % m_n_shader; }
 };
 
 class local_crossbar : public sm_2_sm_network {
