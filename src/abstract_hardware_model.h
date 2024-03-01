@@ -519,7 +519,7 @@ class simt_stack {
 // in .ptx file)
 const unsigned long long GLOBAL_HEAP_START = 0xC0000000;
 // Volta max shmem size is 96kB
-const unsigned long long SHARED_MEM_SIZE_MAX = 96 * (1 << 10);
+const unsigned long long SHARED_MEM_SIZE_MAX = 228 * (1 << 10);
 // Volta max local mem is 16kB
 const unsigned long long LOCAL_MEM_SIZE_MAX = 1 << 14;
 // Volta Titan V has 80 SMs
