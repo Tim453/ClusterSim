@@ -3422,7 +3422,7 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
   // Limit by shmem/shader
   unsigned int result_shmem = (unsigned)-1;
   if (kernel_info->smem > 0)
-    result_shmem = gpgpu_shmem_size / kernel_info->smem;
+    result_shmem = gpgpu_shmem_size / k.smem;
 
   // Limit by register count, rounded up to multiple of 4.
   unsigned int result_regs = (unsigned)-1;
@@ -3441,6 +3441,10 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
   static const struct gpgpu_ptx_sim_info *last_kinfo = NULL;
   if (last_kinfo !=
       kernel_info) {  // Only print out stats if kernel_info struct changes
+    printf("Static shared memory per Block:  %luB\n", k.static_smem);
+    printf("Dynamic shared memory per Block: %luB\n", k.dynamic_smem);
+    printf("Total shared memory per Block:   %lukB\n", k.smem / 1024);
+    
     last_kinfo = kernel_info;
     printf("GPGPU-Sim uArch: CTA/core = %u, limited by:", result);
     if (result == result_thread) printf(" threads");

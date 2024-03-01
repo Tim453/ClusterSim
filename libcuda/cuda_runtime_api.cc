@@ -949,7 +949,7 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
          stream ? stream->get_uid() : 0);
   kernel_info_t *grid = ctx->api->gpgpu_cuda_ptx_sim_init_grid(
       hostFun, config.get_args(), config.grid_dim(), config.block_dim(),
-      context, config.cluster_dim());
+      context, config.dynamic_smem(), config.cluster_dim());
   // do dynamic PDOM analysis for performance simulation scenario
   std::string kname = grid->name();
   function_info *kernel_func_info = grid->entry();
@@ -4056,7 +4056,7 @@ int cuda_runtime_api::load_constants(symbol_table *symtab, addr_t min_gaddr,
 
 kernel_info_t *cuda_runtime_api::gpgpu_cuda_ptx_sim_init_grid(
     const char *hostFun, gpgpu_ptx_sim_arg_list_t args, struct dim3 gridDim,
-    struct dim3 blockDim, CUctx_st *context, dim3 clusterDim) {
+    struct dim3 blockDim, CUctx_st *context, unsigned dynamic_smem, dim3 clusterDim) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
@@ -4068,7 +4068,7 @@ kernel_info_t *cuda_runtime_api::gpgpu_cuda_ptx_sim_init_grid(
   */
   kernel_info_t *result =
       new kernel_info_t(gridDim, blockDim, entry, gpu->getNameArrayMapping(),
-                        gpu->getNameInfoMapping(), clusterDim);
+                        gpu->getNameInfoMapping(), dynamic_smem, clusterDim);
   if (entry == NULL) {
     printf(
         "GPGPU-Sim PTX: ERROR launching kernel -- no PTX implementation found "

@@ -1671,7 +1671,7 @@ bool shader_core_ctx::occupy_shader_resource_1block(kernel_info_t &k,
 
   const struct gpgpu_ptx_sim_info *kernel_info = ptx_sim_kernel_info(kernel);
 
-  if (m_occupied_shmem + kernel_info->smem > m_config->gpgpu_shmem_size)
+  if (m_occupied_shmem + k.smem > m_config->gpgpu_shmem_size)
     return false;
 
   unsigned int used_regs = padded_cta_size * ((kernel_info->regs + 3) & ~3);
@@ -1682,7 +1682,7 @@ bool shader_core_ctx::occupy_shader_resource_1block(kernel_info_t &k,
 
   if (occupy) {
     m_occupied_n_threads += padded_cta_size;
-    m_occupied_shmem += kernel_info->smem;
+    m_occupied_shmem += k.smem;
     m_occupied_regs += (padded_cta_size * ((kernel_info->regs + 3) & ~3));
     m_occupied_ctas++;
 
@@ -1718,8 +1718,8 @@ void shader_core_ctx::release_shader_resource_1block(unsigned hw_ctaid,
 
     const struct gpgpu_ptx_sim_info *kernel_info = ptx_sim_kernel_info(kernel);
 
-    assert(m_occupied_shmem >= (unsigned int)kernel_info->smem);
-    m_occupied_shmem -= kernel_info->smem;
+    assert(m_occupied_shmem >= (unsigned int)(k.smem));
+    m_occupied_shmem -= k.smem;
 
     unsigned int used_regs = padded_cta_size * ((kernel_info->regs + 3) & ~3);
     assert(m_occupied_regs >= used_regs);

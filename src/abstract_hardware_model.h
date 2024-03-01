@@ -238,7 +238,7 @@ class kernel_info_t {
       dim3 gridDim, dim3 blockDim, class function_info *entry,
       std::map<std::string, const struct cudaArray *> nameToCudaArray,
       std::map<std::string, const struct textureInfo *> nameToTextureInfo,
-      dim3 clusterDim = dim3(1, 1, 1));
+      unsigned dynamic_smem = 0, dim3 clusterDim = dim3(1, 1, 1));
   ~kernel_info_t();
 
   void inc_running() { m_num_cores_running++; }
@@ -384,6 +384,12 @@ class kernel_info_t {
   void destroy_cta_streams();
   void print_parent_info();
   kernel_info_t *get_parent() { return m_parent_kernel; }
+  // Dynmaic shared memory per block
+  const size_t dynamic_smem;
+  // Static shared memory per block
+  const size_t static_smem;
+  // Total shared memory per block
+  const size_t smem;
 
  private:
   kernel_info_t *m_parent_kernel;

@@ -807,7 +807,10 @@ void warp_inst_t::completed(unsigned long long cycle) const {
 }
 
 kernel_info_t::kernel_info_t(dim3 gridDim, dim3 blockDim,
-                             class function_info *entry) {
+                             class function_info *entry)
+    : dynamic_smem(0),
+      static_smem(entry->get_kernel_info()->smem),
+      smem(dynamic_smem + static_smem) {
   m_kernel_entry = entry;
   m_grid_dim = gridDim;
   m_block_dim = blockDim;
@@ -853,7 +856,10 @@ kernel_info_t::kernel_info_t(
     dim3 gridDim, dim3 blockDim, class function_info *entry,
     std::map<std::string, const struct cudaArray *> nameToCudaArray,
     std::map<std::string, const struct textureInfo *> nameToTextureInfo,
-    dim3 clusterDim) {
+    unsigned dynamic_smem, dim3 clusterDim)
+    : dynamic_smem(dynamic_smem),
+      static_smem(entry->get_kernel_info()->smem),
+      smem(dynamic_smem + static_smem) {
   m_kernel_entry = entry;
   m_grid_dim = gridDim;
   m_block_dim = blockDim;
