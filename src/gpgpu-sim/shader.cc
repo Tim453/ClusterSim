@@ -4504,7 +4504,6 @@ void simt_core_cluster::core_cycle() {
     m_core_sim_order.splice(m_core_sim_order.end(), m_core_sim_order,
                             m_core_sim_order.begin());
   }
-  m_sm_2_sm_network->Advance();
 }
 
 void simt_core_cluster::reinit() {
@@ -4922,4 +4921,8 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
   // Network needs to be there, although it will not be used
   else if ((strcmp(m_config->sm_2_sm_network_type, "none") == 0))
     m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
+}
+
+void gpu_processing_cluster::cycle(){
+  m_sm_2_sm_network->Advance();
 }

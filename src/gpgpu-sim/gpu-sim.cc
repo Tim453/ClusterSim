@@ -2005,6 +2005,10 @@ void gpgpu_sim::cycle() {
   if (clock_mask & ICNT) {
     icnt_transfer();
   }
+  
+  // Cycles the SM to SM Network
+  for(auto& gpc: m_gpcs)
+    gpc.cycle();
 
   if (clock_mask & CORE) {
     // L1 cache + shader core pipeline stages

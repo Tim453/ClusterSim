@@ -2652,6 +2652,7 @@ class gpu_processing_cluster {
   unsigned issue_cta_cluster_to_gpc();
   std::vector<unsigned> m_gpc_status;
   cluster_barrier_set_t *get_cluster_barrier() { return &m_cluster_barrier; };
+  void cycle();
 };
 
 class simt_core_cluster {
