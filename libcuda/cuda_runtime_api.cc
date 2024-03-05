@@ -1001,10 +1001,16 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
   printf(
       "GPGPU-Sim PTX: pushing kernel \'%s\' to stream %u, gridDim= (%u,%u,%u) "
       "clusterDim = (%u,%u,%u) "
-      "blockDim = (%u,%u,%u) \n",
+      "blockDim = (%u,%u,%u) \n"
+      "======================================================================\n"
+      "\t\t\t\t Static\t\t Dynamic\t Total\n"
+      "Shared Memory per block \t %luByte\t\t %luByte\t %lukB\n"
+      "======================================================================"
+      "\n",
       kname.c_str(), stream ? stream->get_uid() : 0, gridDim.x, gridDim.y,
       gridDim.z, clusterDim.x, clusterDim.y, clusterDim.z, blockDim.x,
-      blockDim.y, blockDim.z);
+      blockDim.y, blockDim.z, grid->static_smem, grid->dynamic_smem,
+      grid->smem / 1024);
   stream_operation op(grid, ctx->func_sim->g_ptx_sim_mode, stream);
   ctx->the_gpgpusim->g_stream_manager->push(op);
   ctx->api->g_cuda_launch_stack.pop_back();

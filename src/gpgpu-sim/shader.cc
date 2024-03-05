@@ -3441,10 +3441,6 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
   static const struct gpgpu_ptx_sim_info *last_kinfo = NULL;
   if (last_kinfo !=
       kernel_info) {  // Only print out stats if kernel_info struct changes
-    printf("Static shared memory per Block:  %luB\n", k.static_smem);
-    printf("Dynamic shared memory per Block: %luB\n", k.dynamic_smem);
-    printf("Total shared memory per Block:   %lukB\n", k.smem / 1024);
-
     last_kinfo = kernel_info;
     printf("GPGPU-Sim uArch: CTA/core = %u, limited by:", result);
     if (result == result_thread) printf(" threads");
@@ -4923,6 +4919,4 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
     m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
 }
 
-void gpu_processing_cluster::cycle(){
-  m_sm_2_sm_network->Advance();
-}
+void gpu_processing_cluster::cycle() { m_sm_2_sm_network->Advance(); }
