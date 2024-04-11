@@ -2007,7 +2007,7 @@ void gpgpu_sim::cycle() {
   }
 
   // The SM to SM network has the same frequency like the Cores
-  if (clock_mask & Core) {
+  if (clock_mask & CORE) {
     for (auto &gpc : m_gpcs) gpc.cycle();
   }
 
