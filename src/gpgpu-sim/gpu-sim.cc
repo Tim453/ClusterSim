@@ -2006,8 +2006,10 @@ void gpgpu_sim::cycle() {
     icnt_transfer();
   }
 
-  // Cycles the SM to SM Network
-  for (auto &gpc : m_gpcs) gpc.cycle();
+  // The SM to SM network has the same frequency like the Cores
+  if (clock_mask & Core) {
+    for (auto &gpc : m_gpcs) gpc.cycle();
+  }
 
   if (clock_mask & CORE) {
     // L1 cache + shader core pipeline stages
