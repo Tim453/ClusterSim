@@ -281,8 +281,8 @@ void ringbus::Advance() {
 
           if (m_bidirectional) {
             // Distance from current node to target
-            int distance = std::min(abs(i + 1 - targetID),
-                                    (int)m_n_shader - abs(i + 1 - targetID));
+            int distance = std::min(abs(i - targetID),
+                                    (int)m_n_shader - abs(i - targetID));
             // Distance if we move one step right
             int distance_right = std::min(
                 abs(i + 1 - targetID), (int)m_n_shader - abs(i + 1 - targetID));
