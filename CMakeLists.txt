@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-project(GPGPUSim VERSION 11.0 LANGUAGES CXX C CUDA)
+project(GPGPUSim VERSION 12.0 LANGUAGES CXX C CUDA)
 
 find_package(CUDAToolkit REQUIRED)
 find_package(BISON REQUIRED)
@@ -111,4 +111,9 @@ set_target_properties(cudart PROPERTIES
     SOVERSION 1
 )
 
-set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--version-script=${CMAKE_SOURCE_DIR}/linux-so-version.txt")
+set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux-so-version.txt")
+
+ADD_CUSTOM_TARGET(cudart12 ALL
+                  COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12)
+ADD_CUSTOM_TARGET(cudart11 ALL
+                  COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.11.0)

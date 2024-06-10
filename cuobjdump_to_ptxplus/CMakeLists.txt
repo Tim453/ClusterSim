@@ -38,5 +38,5 @@ add_executable(cuobjdump_to_ptxplus
 
 target_include_directories(cuobjdump_to_ptxplus PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/src/cuda-sim 
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cuda-sim 
     ${CMAKE_CURRENT_BINARY_DIR})

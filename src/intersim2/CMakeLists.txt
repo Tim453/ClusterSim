@@ -14,8 +14,8 @@ add_library(booksim OBJECT
 
 target_include_directories(booksim PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR} 
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/gpgpu-sim
+    ${CMAKE_CURRENT_SOURCE_DIR}/../
+    ${CMAKE_CURRENT_SOURCE_DIR}/../gpgpu-sim
     allocators 
     arbiters 
     networks 
