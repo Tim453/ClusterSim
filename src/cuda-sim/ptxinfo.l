@@ -52,6 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 %%
 "ptxas info    : Function properties for"[^\n]*\n[^\n]*
+"cumulative stack size" TC; return CUMULATIVE_STACK_SIZE;
 "warning"[^\n]* TC; return WARNING;
 "ptxas"	TC; 	return HEADER;
 "info"	TC; 	return INFO;

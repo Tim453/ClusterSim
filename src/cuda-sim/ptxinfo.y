@@ -46,6 +46,7 @@ typedef void * yyscan_t;
 %token <int_value> INT_OPERAND
 %token HEADER
 %token INFO
+%token CUMULATIVE_STACK_SIZE
 %token FUNC
 %token USED
 %token REGS
@@ -128,6 +129,7 @@ info: 	  USED INT_OPERAND REGS { ptxinfo_regs($2); }
 	| INT_OPERAND BYTES CMEM { ptxinfo_cmem($1,0); }
 	| INT_OPERAND REGS { ptxinfo_regs($1); }
 	| INT_OPERAND TEXTURES {}
+	| INT_OPERAND BYTES CUMULATIVE_STACK_SIZE {}
 	;
 
 tuple: INT_OPERAND PLUS INT_OPERAND BYTES { g_declared=$1; g_system=$3; }
