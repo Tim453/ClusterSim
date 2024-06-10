@@ -60,7 +60,8 @@ if(OPENGL_FOUND AND OPENGL_SUPPORT)
 endif()
 
 
-add_compile_definitions(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}${CUDAToolkit_VERSION_PATCH})
+add_compile_definitions(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}00)
+message(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}00)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
