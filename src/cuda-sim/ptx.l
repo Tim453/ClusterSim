@@ -252,6 +252,7 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 "%clock64" TC; yylval->int_value = CLOCK64_REG; return SPECIAL_REGISTER;
 "%ctaid" TC; yylval->int_value = CTAID_REG; return SPECIAL_REGISTER;
 "%envreg"[0-9]+ TC; sscanf(yytext+7,"%u",&yylval->int_value); yylval->int_value<<=16; yylval->int_value += ENVREG_REG; return SPECIAL_REGISTER;
+"%globaltimer" TC; yylval->int_value = GLOBALTIMER_REG; return SPECIAL_REGISTER;
 "%gridid" TC; yylval->int_value = GRIDID_REG; return SPECIAL_REGISTER;
 "%is_explicit_cluster" TC; yylval->int_value = IS_EXPLICIT_CLUSTER_REG; return SPECIAL_REGISTER;
 "%laneid"  TC; yylval->int_value = LANEID_REG; return SPECIAL_REGISTER;

@@ -424,7 +424,7 @@ class ptx_thread_info {
         m_cluster_nctaid.x * m_cluster_nctaid.y * m_cluster_nctaid.z;
   }
 
-  unsigned get_builtin(int builtin_id, unsigned dim_mod);
+  unsigned long long get_builtin(int builtin_id, unsigned dim_mod);
 
   void set_done();
   bool is_done() { return m_thread_done; }

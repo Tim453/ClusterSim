@@ -217,7 +217,7 @@ void ptx_thread_info::set_done() {
   m_cycle_done = m_gpu->gpu_sim_cycle;
 }
 
-unsigned ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
+unsigned long long ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
   assert(m_valid);
   switch ((builtin_id & 0xFFFF)) {
     case CLOCK_REG:
@@ -231,6 +231,9 @@ unsigned ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
       // Hardware clock counter is incremented at half the shader clock
       // frequency - divide by 2 (Henry '10)
       return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle) * 2;
+      // ToDo: Is this the right value
+    case GLOBALTIMER_REG:
+      return (unsigned)(m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
     case CLUSTER_CTAID_REG:
       assert(dim_mod < 3);
       if (dim_mod == 0) return m_cluster_ctaid.x;
