@@ -209,7 +209,7 @@ gpgpu_sim *gpgpu_context::gpgpu_ptx_sim_init_perf() {
   the_gpgpusim->g_the_gpu_config->reg_options(
       opp);  // register GPU microrachitecture options
 
-  const char *custom_arg[3] = {"", "-config", "gpgpusim.config"};
+  const char *custom_arg[3] = {"", "-config", GPU_SIM_ROOT "/configs/tested-cfgs/SM86_RTX3070/gpgpusim.config"};
   if (std::getenv("GPUSIM_CONFIG") != nullptr) {
     std::cout << "Using config File: " << std::getenv("GPUSIM_CONFIG") << "\n";
     custom_arg[2] = std::getenv("GPUSIM_CONFIG");

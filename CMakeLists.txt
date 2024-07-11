@@ -61,6 +61,7 @@ endif()
 
 
 add_compile_definitions(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}00)
+add_compile_definitions(GPU_SIM_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 message(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}00)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
