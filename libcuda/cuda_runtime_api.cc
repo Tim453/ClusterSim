@@ -3074,7 +3074,10 @@ void cuda_runtime_api::extract_code_using_cuobjdump() {
   CUctx_st *context = GPGPUSim_Context(gpgpu_ctx);
 
   // prevent the dumping by cuobjdump everytime we execute the code!
-  const char *override_cuobjdump = getenv("CUOBJDUMP_SIM_FILE");
+  char *override_cuobjdump = (char *)"jj";
+  auto temp_sim_file = getenv("CUOBJDUMP_SIM_FILE");
+  if (temp_sim_file) override_cuobjdump = temp_sim_file;
+
   char command[1000];
   std::string app_binary = get_app_binary();
   // Running cuobjdump using dynamic link to current process
@@ -3466,7 +3469,8 @@ void cuda_runtime_api::cuobjdumpInit() {
   CUctx_st *context = GPGPUSim_Context(gpgpu_ctx);
   extract_code_using_cuobjdump();  // extract all the output of cuobjdump to
                                    // _cuobjdump_*.*
-  const char *pre_load = getenv("CUOBJDUMP_SIM_FILE");
+  char *pre_load = (char *)"ll";
+  if (getenv("CUOBJDUMP_SIM_FILE")) pre_load = getenv("CUOBJDUMP_SIM_FILE");
   if (pre_load == NULL || strlen(pre_load) == 0) {
     cuobjdumpSectionList = pruneSectionList(context);
     cuobjdumpSectionList = mergeSections();
@@ -3534,11 +3538,14 @@ void gpgpu_context::cuobjdumpParseBinary(unsigned int handle) {
                          .get_forced_max_capability();
 
   cuobjdumpPTXSection *ptx = NULL;
-  const char *pre_load = getenv("CUOBJDUMP_SIM_FILE");
+  const char *pre_load = "ll";
+  if (getenv("CUOBJDUMP_SIM_FILE")) pre_load = getenv("CUOBJDUMP_SIM_FILE");
   if (pre_load == NULL || strlen(pre_load) == 0)
     ptx = api->findPTXSection(fname);
   char *ptxcode;
-  const char *override_ptx_name = getenv("PTX_SIM_KERNELFILE");
+  char *override_ptx_name = (char *)"_1.ptx";
+  if (getenv("PTX_SIM_KERNELFILE"))
+    override_ptx_name = getenv("PTX_SIM_KERNELFILE");
   if (override_ptx_name == NULL or getenv("PTX_SIM_USE_PTX_FILE") == NULL or
       strlen(getenv("PTX_SIM_USE_PTX_FILE")) == 0) {
     ptxcode = readfile(ptx->getPTXfilename());

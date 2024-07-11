@@ -62,7 +62,11 @@ static std::map<unsigned, std::string> g_ptx_token_decode;
 const char *decode_token(int type) { return g_ptx_token_decode[type].c_str(); }
 
 void ptx_recognizer::read_parser_environment_variables() {
-  gpgpu_ctx->g_filename = getenv("PTX_SIM_KERNELFILE");
+  const auto filename = getenv("PTX_SIM_KERNELFILE");
+  if(filename == nullptr)
+    gpgpu_ctx->g_filename = "_1.ptx";
+  else 
+    gpgpu_ctx->g_filename = filename;
   char *dbg_level = getenv("PTX_SIM_DEBUG");
   if (dbg_level && strlen(dbg_level)) {
     int debug_execution = 0;
