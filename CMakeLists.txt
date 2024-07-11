@@ -109,7 +109,7 @@ target_link_libraries(cudart_static ZLIB::ZLIB)
 
 set_target_properties(cudart PROPERTIES
     VERSION ${PROJECT_VERSION}
-    SOVERSION 1
+    VERSION 12.0
 )
 
 set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux-so-version.txt")
