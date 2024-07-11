@@ -3009,7 +3009,7 @@ void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
 
   // only want file names
   snprintf(command, 1200,
-           "$CUDA_INSTALL_PATH/bin/cuobjdump -lptx %s  | cut -d \":\" -f 2 | "
+           "cuobjdump -lptx %s  | cut -d \":\" -f 2 | "
            "awk '{$1=$1}1' > %s",
            app_binary.c_str(), ptx_list_file_name);
   if (system(command) != 0) {
@@ -3026,7 +3026,7 @@ void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
       // int pos = line.find(std::string(get_app_binary_name(app_binary)));
       const char *ptx_file = line.c_str();
       printf("Extracting specific PTX file named %s \n", ptx_file);
-      snprintf(command, 1200, "$CUDA_INSTALL_PATH/bin/cuobjdump -xptx %s %s",
+      snprintf(command, 1200, "cuobjdump -xptx %s %s",
                ptx_file, app_binary.c_str());
       if (system(command) != 0) {
         printf("ERROR: command: %s failed \n", command);
@@ -3103,11 +3103,11 @@ void cuda_runtime_api::extract_code_using_cuobjdump() {
     close(fd);
     if (!gpgpu_ctx->device_runtime->g_cdp_enabled)
       snprintf(command, 1000,
-               "$CUDA_INSTALL_PATH/bin/cuobjdump -ptx -elf -sass %s > %s",
+               "cuobjdump -ptx -elf -sass %s > %s",
                app_binary.c_str(), fname);
     else
       snprintf(command, 1000,
-               "$CUDA_INSTALL_PATH/bin/cuobjdump -ptx -elf -sass -all %s > %s",
+               "$cuobjdump -ptx -elf -sass -all %s > %s",
                app_binary.c_str(), fname);
     bool parse_output = true;
     result = system(command);
@@ -3183,7 +3183,7 @@ void cuda_runtime_api::extract_code_using_cuobjdump() {
         std::stringstream libcodfn;
         libcodfn << "_cuobjdump_complete_lib_" << cnt << "_";
         cmd.str("");  // resetting
-        cmd << "$CUDA_INSTALL_PATH/bin/cuobjdump -ptx -elf -sass ";
+        cmd << "cuobjdump -ptx -elf -sass ";
         cmd << line;
         cmd << " > ";
         cmd << libcodfn.str();
