@@ -816,6 +816,7 @@ void ptx_instruction::set_opcode_and_latency() {
       op = LOAD_OP;
       mem_op = TEX;
       break;
+    case RED_OP:
     case ATOM_OP:
       op = LOAD_OP;
       break;
@@ -1135,7 +1136,7 @@ void ptx_instruction::pre_decode() {
       // else if( m_opcode == ST_OP )
       else if (m_opcode == MMA_ST_OP || m_opcode == ST_OP)
         cache_op = CACHE_WRITE_BACK;
-      else if (m_opcode == ATOM_OP)
+      else if (m_opcode == ATOM_OP || m_opcode == RED_OP)
         cache_op = CACHE_GLOBAL;
       break;
   }
@@ -1899,7 +1900,7 @@ void ptx_thread_info::ptx_exec_inst(warp_inst_t &inst, unsigned lane_id) {
                         false /*not atomic*/);
     }
 
-    if (pI->get_opcode() == ATOM_OP) {
+    if (pI->get_opcode() == ATOM_OP || pI->get_opcode() == RED_OP) {
       insn_memaddr = last_eaddr();
       insn_space = last_space();
       inst.add_callback(lane_id, last_callback().function,

@@ -1216,6 +1216,337 @@ void bar_callback(const inst_t *inst, ptx_thread_info *thread) {
   thread->set_operand_value(dst, value, U32_TYPE, thread, pI);
 }
 
+// Copied from atom_callback
+void red_callback(const inst_t *inst, ptx_thread_info *thread) {
+  const ptx_instruction *pI = dynamic_cast<const ptx_instruction *>(inst);
+
+  // "Decode" the output type
+  unsigned to_type = pI->get_type();
+  size_t size;
+  int t;
+  type_info_key::type_decode(to_type, size, t);
+
+  // Set up operand variables
+  ptx_reg_t data;       // d
+  ptx_reg_t src1_data;  // a
+  ptx_reg_t dst_data;
+  ptx_reg_t op_result;  // temp variable to hold operation result
+
+  bool data_ready = false;
+
+  // Get operand info of sources and destination
+  const operand_info &dst = pI->dst();    // d
+  const operand_info &src1 = pI->src1();  // a
+
+  // Get operand values
+  src1_data = thread->get_operand_value(src1, src1, to_type, thread, 1);  // a
+  dst_data = thread->get_operand_value(dst, dst, to_type, thread, 1);
+
+  // Check state space
+  unsigned cta_rank;
+  ptx_cluster_info *cluster_info = thread->m_cluster_info;
+  addr_t effective_address = dst_data.u64;
+  memory_space_t space = pI->get_space();
+  if (space == undefined_space) {
+    // generic space - determine space via address
+    if (whichspace(effective_address) == global_space) {
+      effective_address = generic_to_global(effective_address);
+      space = global_space;
+    } else if (whichspace(effective_address) == shared_space) {
+      unsigned smid = thread->get_hw_sid();
+      space = shared_space;
+      if (isspace_shared(smid, effective_address)) {
+        cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            effective_address);
+        effective_address = generic_to_shared(smid, effective_address);
+      } else {
+        cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            effective_address);
+        unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
+        effective_address = generic_to_shared(target_smid, effective_address);
+      }
+    } else {
+      abort();
+    }
+  } else if (space == shared_space) {
+    addr_t generic_address =
+        shared_to_generic(thread->get_hw_sid(), effective_address);
+    cta_rank =
+        cluster_info->get_cta_rank_of_shared_memory_region(generic_address);
+  }
+  assert(space == global_space || space == shared_space);
+
+  memory_space *mem = NULL;
+  if (space == global_space)
+    mem = thread->get_global_memory();
+  else if (space == shared_space) {
+    mem = cluster_info->get_cta(cta_rank)->get_shared_memory();
+  } else
+    abort();
+
+  // Copy value pointed to in operand 'a' into register 'd'
+  // (i.e. copy src1_data to dst)
+  mem->read(effective_address, size / 8, &data.s64);
+  if (dst.get_symbol()->type()) {
+    thread->set_operand_value(dst, data, to_type, thread,
+                              pI);  // Write value into register 'd'
+  }
+
+  // Get the atomic operation to be performed
+  unsigned m_atomic_spec = pI->get_atomic();
+
+  switch (m_atomic_spec) {
+    // AND
+    case ATOMIC_AND: {
+      switch (to_type) {
+        case B32_TYPE:
+        case U32_TYPE:
+          op_result.u32 = data.u32 & src1_data.u32;
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = data.s32 & src1_data.s32;
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch (%x) with instruction\natom.AND "
+              "only accepts b32\n",
+              to_type);
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // OR
+    case ATOMIC_OR: {
+      switch (to_type) {
+        case B32_TYPE:
+        case U32_TYPE:
+          op_result.u32 = data.u32 | src1_data.u32;
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = data.s32 | src1_data.s32;
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch (%x) with instruction\natom.OR "
+              "only accepts b32\n",
+              to_type);
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // XOR
+    case ATOMIC_XOR: {
+      switch (to_type) {
+        case B32_TYPE:
+        case U32_TYPE:
+          op_result.u32 = data.u32 ^ src1_data.u32;
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = data.s32 ^ src1_data.s32;
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch (%x) with instruction\natom.XOR "
+              "only accepts b32\n",
+              to_type);
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // CAS
+    case ATOMIC_CAS: {
+      ptx_reg_t src3_data;
+      const operand_info &src3 = pI->src3();
+      src3_data = thread->get_operand_value(src3, dst, to_type, thread, 1);
+
+      switch (to_type) {
+        case B32_TYPE:
+        case U32_TYPE:
+          op_result.u32 = MY_CAS_I(data.u32, src1_data.u32, src3_data.u32);
+          data_ready = true;
+          break;
+        case B64_TYPE:
+        case U64_TYPE:
+          op_result.u64 = MY_CAS_I(data.u64, src1_data.u64, src3_data.u64);
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = MY_CAS_I(data.s32, src1_data.s32, src3_data.s32);
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch (%x) with instruction\natom.CAS "
+              "only accepts b32 and b64\n",
+              to_type);
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // EXCH
+    case ATOMIC_EXCH: {
+      switch (to_type) {
+        case B32_TYPE:
+        case U32_TYPE:
+          op_result.u32 = MY_EXCH(data.u32, src1_data.u32);
+          data_ready = true;
+          break;
+        case B64_TYPE:
+        case U64_TYPE:
+          op_result.u64 = MY_EXCH(data.u64, src1_data.u64);
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = MY_EXCH(data.s32, src1_data.s32);
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch (%x) with instruction\natom.EXCH "
+              "only accepts b32\n",
+              to_type);
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // ADD
+    case ATOMIC_ADD: {
+      switch (to_type) {
+        case U32_TYPE:
+          op_result.u32 = data.u32 + src1_data.u32;
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = data.s32 + src1_data.s32;
+          data_ready = true;
+          break;
+        case U64_TYPE:
+          op_result.u64 = data.u64 + src1_data.u64;
+          data_ready = true;
+          break;
+        case F32_TYPE:
+          op_result.f32 = data.f32 + src1_data.f32;
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch with instruction\natom.ADD only "
+              "accepts u32, s32, u64, and f32\n");
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // INC
+    case ATOMIC_INC: {
+      switch (to_type) {
+        case U32_TYPE:
+          op_result.u32 = MY_INC_I(data.u32, src1_data.u32);
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch with instruction\natom.INC only "
+              "accepts u32 and s32\n");
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // DEC
+    case ATOMIC_DEC: {
+      switch (to_type) {
+        case U32_TYPE:
+          op_result.u32 = MY_DEC_I(data.u32, src1_data.u32);
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch with instruction\natom.DEC only "
+              "accepts u32 and s32\n");
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // MIN
+    case ATOMIC_MIN: {
+      switch (to_type) {
+        case U32_TYPE:
+          op_result.u32 = MY_MIN_I(data.u32, src1_data.u32);
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = MY_MIN_I(data.s32, src1_data.s32);
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch with instruction\natom.MIN only "
+              "accepts u32 and s32\n");
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // MAX
+    case ATOMIC_MAX: {
+      switch (to_type) {
+        case U32_TYPE:
+          op_result.u32 = MY_MAX_I(data.u32, src1_data.u32);
+          data_ready = true;
+          break;
+        case S32_TYPE:
+          op_result.s32 = MY_MAX_I(data.s32, src1_data.s32);
+          data_ready = true;
+          break;
+        default:
+          printf(
+              "Execution error: type mismatch with instruction\natom.MAX only "
+              "accepts u32 and s32\n");
+          assert(0);
+          break;
+      }
+
+      break;
+    }
+      // DEFAULT
+    default: {
+      assert(0);
+      break;
+    }
+  }
+
+  // Write operation result into  memory
+  // (i.e. copy src1_data to dst)
+  if (data_ready) {
+    mem->write(effective_address, size / 8, &op_result.s64, thread, pI);
+  } else {
+    printf("Execution error: data_ready not set\n");
+    assert(0);
+  }
+}
+
 void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
   const ptx_instruction *pI = dynamic_cast<const ptx_instruction *>(inst);
 
@@ -4939,8 +5270,65 @@ void rcp_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   thread->set_operand_value(dst, data, i_type, thread, pI);
 }
 
+// Copied from atom_impl
 void red_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
-  inst_not_implemented(pI);
+  // SYNTAX
+  // atom.space.operation.type d, a, b[, c]; (now read in callback)
+
+  // obtain memory space of the operation
+  memory_space_t space = pI->get_space();
+
+  // get the memory address
+  const operand_info &dst = pI->dst();
+  const operand_info &src1 = pI->src1();
+  // const operand_info &dst  = pI->dst();  // not needed for effective address
+  // calculation
+  unsigned i_type = pI->get_type();
+  ptx_reg_t src1_data, dst_data;
+  dst_data = thread->get_operand_value(dst, dst, i_type, thread, 1);
+  src1_data = thread->get_operand_value(src1, src1, i_type, thread, 1);
+  addr_t effective_address = dst_data.u64;
+
+  addr_t effective_address_final;
+
+  // handle generic memory space by converting it to global
+  if (space == undefined_space) {
+    if (whichspace(effective_address) == global_space) {
+      effective_address_final = generic_to_global(effective_address);
+      space = global_space;
+    } else if (whichspace(effective_address) == shared_space) {
+      unsigned smid = thread->get_hw_sid();
+      space = shared_space;
+      if (isspace_shared(smid, effective_address)) {
+        effective_address_final = generic_to_shared(smid, effective_address);
+        thread->m_last_shared_memory_target_shader_id = smid;
+      } else {
+        ptx_cluster_info *cluster_info = thread->m_cluster_info;
+        unsigned cta_rank = cluster_info->get_cta_rank_of_shared_memory_region(
+            effective_address);
+        unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
+        thread->m_last_shared_memory_target_shader_id = target_smid;
+        effective_address_final =
+            generic_to_shared(target_smid, effective_address);
+      }
+    } else {
+      abort();
+    }
+  } else {
+    assert(space == global_space || space == shared_space);
+    if (space == shared_space) {
+      thread->m_last_shared_memory_target_shader_id = thread->get_hw_sid();
+    }
+    effective_address_final = effective_address;
+  }
+
+  // Check state space
+  assert(space == global_space || space == shared_space);
+
+  thread->m_last_effective_address = effective_address_final;
+  thread->m_last_memory_space = space;
+  thread->m_last_dram_callback.function = red_callback;
+  thread->m_last_dram_callback.instruction = pI;
 }
 
 void rem_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
