@@ -89,6 +89,7 @@ class ptx_recognizer {
   int g_scalar_type_spec;
   int g_vector_spec;
   int g_extern_spec;
+  int g_managed_attr;
   int g_func_decl;
   int g_ident_add_uid;
   unsigned g_const_alloc;
@@ -149,6 +150,7 @@ class ptx_recognizer {
   void add_space_spec(enum _memory_space_t spec, int value);
   void add_ptr_spec(enum _memory_space_t spec);
   void add_extern_spec();
+  void add_managed_attribute();
   void add_instruction();
   void set_return();
   void add_alignment_spec(int spec);

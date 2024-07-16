@@ -53,6 +53,8 @@ class ptx_recognizer;
 %token <int_value>  LAYOUT 
 %token <int_value>  CONFIGURATION 
 %token  ALIGN_DIRECTIVE
+%token  ATTRIBUTE_DIRECTIVE
+%token  MANAGED_DIRECTIVE
 %token  BRANCHTARGETS_DIRECTIVE
 %token  BYTE_DIRECTIVE
 %token  CALLPROTOTYPE_DIRECTIVE
@@ -369,10 +371,13 @@ var_spec_list: var_spec
 var_spec: space_spec 
 	| type_spec
 	| align_spec
+	| attribute align_spec 
 	| VISIBLE_DIRECTIVE
 	| EXTERN_DIRECTIVE { recognizer->add_extern_spec(); }
     | WEAK_DIRECTIVE
 	;
+
+attribute: ATTRIBUTE_DIRECTIVE LEFT_PAREN MANAGED_DIRECTIVE RIGHT_PAREN  { recognizer->add_managed_attribute(); }
 
 align_spec: ALIGN_DIRECTIVE INT_OPERAND { recognizer->add_alignment_spec($2); }
 

@@ -548,6 +548,11 @@ void ptx_recognizer::add_extern_spec() {
   g_extern_spec = 1;
 }
 
+void ptx_recognizer::add_managed_attribute() {
+  PTX_PARSE_DPRINTF("add_managed_attr");
+  g_managed_attr = 1;
+}
+
 void ptx_recognizer::add_alignment_spec(int spec) {
   PTX_PARSE_DPRINTF("add_alignment_spec");
   parse_assert(

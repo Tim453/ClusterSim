@@ -288,7 +288,7 @@ void cuda_not_implemented(const char *func, unsigned line) {
   printf(
       "\n\nGPGPU-Sim PTX: Execution error: CUDA API function \"%s()\" has not "
       "been implemented yet.\n"
-      "                 [$GPGPUSIM_ROOT/libcuda/%s around line %u]\n\n\n",
+      "                 %s:%u\n\n\n",
       func, __FILE__, line);
   fflush(stdout);
   abort();
@@ -3653,6 +3653,15 @@ extern void __cudaRegisterVar(
                           ext, size, constant, global);
 }
 
+extern void __cudaRegisterManagedVar(
+    void **fatCubinHandle,
+    char *hostVar,           // pointer to...something
+    char *deviceAddress,     // name of variable
+    const char *deviceName,  // name of variable (same as above)
+    int ext, int size, int constant, int global) {
+  cuda_not_implemented(__my_func__, __LINE__);
+}
+
 __host__ cudaError_t CUDARTAPI cudaConfigureCall(dim3 gridDim, dim3 blockDim,
                                                  size_t sharedMem,
                                                  cudaStream_t stream) {
@@ -3708,7 +3717,7 @@ char __cudaInitModule(void **fatCubinHandle) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
-  cuda_not_implemented(__my_func__, __LINE__);
+ // cuda_not_implemented(__my_func__, __LINE__);
   return g_last_cudaError = cudaErrorUnknown;
 }
 
