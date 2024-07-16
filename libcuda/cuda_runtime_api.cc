@@ -1180,37 +1180,48 @@ cudaMemcpyInternal(void *dst, const void *src, size_t count,
   // gpgpu_t *gpu = context->get_device()->get_gpgpu();
   if (g_debug_execution >= 3)
     printf("GPGPU-Sim PTX: cudaMemcpy(): devPtr = %p\n", dst);
-  if (kind == cudaMemcpyHostToDevice)
-    ctx->the_gpgpusim->g_stream_manager->push(
-        stream_operation(src, (size_t)dst, count, 0));
-  else if (kind == cudaMemcpyDeviceToHost)
-    ctx->the_gpgpusim->g_stream_manager->push(
-        stream_operation((size_t)src, dst, count, 0));
-  else if (kind == cudaMemcpyDeviceToDevice)
-    ctx->the_gpgpusim->g_stream_manager->push(
-        stream_operation((size_t)src, (size_t)dst, count, 0));
-  else if (kind == cudaMemcpyDefault) {
-    if ((size_t)src >= GLOBAL_HEAP_START) {
-      if ((size_t)dst >= GLOBAL_HEAP_START)
-        ctx->the_gpgpusim->g_stream_manager->push(stream_operation(
-            (size_t)src, (size_t)dst, count, 0));  // device to device
-      else
-        ctx->the_gpgpusim->g_stream_manager->push(
-            stream_operation((size_t)src, dst, count, 0));  // device to host
-    } else {
-      if ((size_t)dst >= GLOBAL_HEAP_START)
-        ctx->the_gpgpusim->g_stream_manager->push(
-            stream_operation(src, (size_t)dst, count, 0));
-      else {
-        printf(
-            "GPGPU-Sim PTX: cudaMemcpy - ERROR : unsupported transfer: host to "
-            "host\n");
-        abort();
+  switch (kind) {
+    case cudaMemcpyHostToDevice:
+      ctx->the_gpgpusim->g_stream_manager->push(
+          stream_operation(src, (size_t)dst, count, 0));
+      break;
+
+    case cudaMemcpyDeviceToHost:
+      ctx->the_gpgpusim->g_stream_manager->push(
+          stream_operation((size_t)src, dst, count, 0));
+      break;
+
+    case cudaMemcpyDeviceToDevice:
+      ctx->the_gpgpusim->g_stream_manager->push(
+          stream_operation((size_t)src, (size_t)dst, count, 0));
+      break;
+
+    case cudaMemcpyDefault:
+      if ((size_t)src >= GLOBAL_HEAP_START) {
+        if ((size_t)dst >= GLOBAL_HEAP_START)
+          ctx->the_gpgpusim->g_stream_manager->push(stream_operation(
+              (size_t)src, (size_t)dst, count, 0));  // device to device
+        else
+          ctx->the_gpgpusim->g_stream_manager->push(
+              stream_operation((size_t)src, dst, count, 0));  // device to host
+      } else {
+        if ((size_t)dst >= GLOBAL_HEAP_START)
+          ctx->the_gpgpusim->g_stream_manager->push(
+              stream_operation(src, (size_t)dst, count, 0));
+        else {
+          printf(
+              "GPGPU-Sim PTX: cudaMemcpy - ERROR : unsupported transfer: host "
+              "to "
+              "host\n");
+          abort();
+        }
       }
-    }
-  } else {
-    printf("GPGPU-Sim PTX: cudaMemcpy - ERROR : unsupported cudaMemcpyKind\n");
-    abort();
+      break;
+    default:
+      printf(
+          "GPGPU-Sim PTX: cudaMemcpy - ERROR : unsupported cudaMemcpyKind\n");
+      abort();
+      break;
   }
   return g_last_cudaError = cudaSuccess;
 }
