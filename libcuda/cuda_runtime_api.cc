@@ -3717,7 +3717,7 @@ char __cudaInitModule(void **fatCubinHandle) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
- // cuda_not_implemented(__my_func__, __LINE__);
+  cuda_not_implemented(__my_func__, __LINE__);
   return g_last_cudaError = cudaErrorUnknown;
 }
 
