@@ -35,6 +35,7 @@
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <numeric>
 #include "../abstract_hardware_model.h"
 #include "../option_parser.h"
 #include "../trace.h"
@@ -397,11 +398,16 @@ class gpgpu_sim_config : public power_config,
   unsigned num_shader() const { return m_shader_config.num_shader(); }
   unsigned num_cluster() const { return m_shader_config.n_simt_clusters; }
   unsigned num_shader_per_gpc() const {
-    if (m_shader_config.n_simt_cores_per_gpc)
-      return m_shader_config.n_simt_cores_per_gpc;
-    else
-      return m_shader_config.num_shader();
+    return m_shader_config.m_cores_per_gpc_list.size();
   }
+  auto get_sm_per_gpc_list() const {
+    return m_shader_config.m_cores_per_gpc_list;
+  }
+  auto number_of_sms_in_gpcs() const {
+    const auto &v = m_shader_config.m_cores_per_gpc_list;
+    return std::reduce(v.begin(), v.end());
+  }
+
   unsigned get_max_concurrent_kernel() const { return max_concurrent_kernel; }
   unsigned checkpoint_option;
 
@@ -626,7 +632,7 @@ class gpgpu_sim : public gpgpu_t {
  protected:
   ///// data /////
   std::vector<gpu_processing_cluster> m_gpcs;
-  class simt_core_cluster **m_cluster;
+  std::vector<class simt_core_cluster*> m_cluster;
   class memory_partition_unit **m_memory_partition_unit;
   class memory_sub_partition **m_memory_sub_partition;
 

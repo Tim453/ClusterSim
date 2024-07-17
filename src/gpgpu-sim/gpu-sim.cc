@@ -418,9 +418,9 @@ void shader_core_config::reg_options(class OptionParser *opp) {
   option_parser_register(opp, "-gpgpu_n_cores_per_cluster", OPT_UINT32,
                          &n_simt_cores_per_cluster,
                          "number of simd cores per cluster", "3");
-  option_parser_register(opp, "-gpgpu_n_cores_per_gpc", OPT_UINT32,
-                         &n_simt_cores_per_gpc, "number of simd cores per gpc",
-                         "0");
+  option_parser_register(opp, "-gpgpu_n_cores_per_gpc", OPT_CSTR,
+                         &n_simt_cores_per_gpc, "List of SMs per gpc",
+                         "");
   option_parser_register(opp, "-gpgpu_n_cluster_ejection_buffer_size",
                          OPT_UINT32, &n_simt_ejection_buffer_size,
                          "number of packets in ejection buffer", "8");
@@ -930,17 +930,25 @@ void gpgpu_sim::stop_all_running_kernels() {
 }
 
 void exec_gpgpu_sim::createSIMTCluster() {
-  m_cluster = new simt_core_cluster *[m_shader_config->n_simt_clusters];
+
+  auto number_of_cores_per_gpc = m_config.get_sm_per_gpc_list();
+  m_cluster.resize(m_shader_config->n_simt_clusters);
+  const int cores_per_tpc = m_shader_config->n_simt_cores_per_cluster; 
+  
+  int gpc_id = 0;
+  int remaining = number_of_cores_per_gpc[0];
 
   for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-    const int gpc_id = i * m_shader_config->n_simt_cores_per_cluster /
-                       m_config.num_shader_per_gpc();
-
+    if(remaining == 0)
+      remaining = number_of_cores_per_gpc.at(++gpc_id);
     m_cluster[i] = new exec_simt_core_cluster(
         this, i, m_shader_config, m_memory_config, m_shader_stats,
         m_memory_stats, &m_gpcs.at(gpc_id));
 
     m_gpcs.at(gpc_id).add_cluster(m_cluster[i]);
+    remaining -= cores_per_tpc;
+    assert(remaining >= 0);
+
   }
 }
 
@@ -1022,19 +1030,17 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
   m_functional_sim = false;
   m_functional_sim_kernel = NULL;
 
-  if (m_config.num_shader() % m_config.num_shader_per_gpc() != 0) {
-    std::cout << "Number of shaders need to be a multiple of number of "
-                 "shader per gpc "
-              << m_config.num_shader_per_gpc() << "\n";
+  if (m_config.num_shader() != m_config.number_of_sms_in_gpcs()) {
+    std::cout << "Total number of SMs " << m_config.num_shader() << " does not match the number of SMs specified in gpgpu_n_cores_per_gpc " << m_config.number_of_sms_in_gpcs() << "\n";
     exit(1);
   }
 
-  const unsigned num_gpc =
-      m_config.num_shader() / m_config.num_shader_per_gpc();
+
   m_gpcs.clear();
-  for (unsigned i = 0; i < num_gpc; i++) {
+  const auto sm_in_gpc_list = m_config.get_sm_per_gpc_list();
+  for (unsigned i = 0; i < sm_in_gpc_list.size(); i++) {
     m_gpcs.push_back(gpu_processing_cluster(this, m_shader_config, i,
-                                            m_config.num_shader_per_gpc()));
+                                            sm_in_gpc_list.at(i)));
   }
 }
 
@@ -2241,4 +2247,4 @@ const shader_core_config *gpgpu_sim::getShaderCoreConfig() {
 
 const memory_config *gpgpu_sim::getMemoryConfig() { return m_memory_config; }
 
-simt_core_cluster *gpgpu_sim::getSIMTCluster() { return *m_cluster; }
+simt_core_cluster *gpgpu_sim::getSIMTCluster() { return *m_cluster.data(); }

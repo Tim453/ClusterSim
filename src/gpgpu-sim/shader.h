@@ -1615,6 +1615,18 @@ class shader_core_config : public core_config {
       }
       std::sort(shmem_opt_list.begin(), shmem_opt_list.end());
     }
+    {
+      std::string temp(n_simt_cores_per_gpc);
+      std::stringstream ss(n_simt_cores_per_gpc);
+      while (ss.good() && temp.size()) {
+        std::string option;
+        std::getline(ss, option, ',');
+        m_cores_per_gpc_list.push_back((unsigned)std::stoi(option));
+      }
+      if (m_cores_per_gpc_list.size() == 0){
+        m_cores_per_gpc_list = std::vector<int>(n_simt_clusters, n_simt_cores_per_cluster);
+      }
+    }
   }
   void reg_options(class OptionParser *opp);
   unsigned max_cta(const kernel_info_t &k) const;
@@ -1715,7 +1727,8 @@ class shader_core_config : public core_config {
 
   unsigned n_simt_cores_per_cluster;
   unsigned n_simt_clusters;
-  unsigned n_simt_cores_per_gpc;
+  char* n_simt_cores_per_gpc;
+  std::vector<int> m_cores_per_gpc_list;
   unsigned n_simt_ejection_buffer_size;
   unsigned ldst_unit_response_queue_size;
 

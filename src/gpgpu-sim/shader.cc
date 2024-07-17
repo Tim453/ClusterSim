@@ -4581,6 +4581,9 @@ bool simt_core_cluster::next_cores_can_issue_cluster(kernel_info_t *kernel,
 bool gpu_processing_cluster::can_issue_cta_cluster() {
   const unsigned ctas_per_cluster = m_kernel->ctas_per_cluster();
 
+  if(m_shader_per_gpc < ctas_per_cluster)
+    return 0;
+
   int ctas_remaining = ctas_per_cluster;
   for (unsigned i = 0; i < m_clusters.size(); i++) {
     const unsigned cluster_index =
