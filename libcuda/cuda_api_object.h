@@ -228,8 +228,8 @@ class cuda_runtime_api {
       const char *kernel_key, gpgpu_ptx_sim_arg_list_t args,
       struct dim3 gridDim, struct dim3 blockDim, struct CUctx_st *context,
       unsigned dynamic_smem = 0, dim3 clusterDim = dim3(1, 1, 1));
-  int load_static_globals(symbol_table *symtab, unsigned min_gaddr,
-                          unsigned max_gaddr, gpgpu_t *gpu);
+  int load_static_globals(symbol_table *symtab, addr_t min_gaddr,
+                          addr_t max_gaddr, gpgpu_t *gpu);
   int load_constants(symbol_table *symtab, addr_t min_gaddr, gpgpu_t *gpu);
 };
 #endif /* __cuda_api_object_h__ */

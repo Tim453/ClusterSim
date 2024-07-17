@@ -3989,8 +3989,8 @@ int CUDARTAPI __cudaSynchronizeThreads(void **, void *) {
 /// static functions
 
 int cuda_runtime_api::load_static_globals(symbol_table *symtab,
-                                          unsigned min_gaddr,
-                                          unsigned max_gaddr, gpgpu_t *gpu) {
+                                          addr_t min_gaddr,
+                                          addr_t max_gaddr, gpgpu_t *gpu) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
@@ -4004,7 +4004,7 @@ int cuda_runtime_api::load_static_globals(symbol_table *symtab,
     if (global->has_initializer()) {
       printf("GPGPU-Sim PTX:     initializing '%s' ... ",
              global->name().c_str());
-      unsigned addr = global->get_address();
+      addr_t addr = global->get_address();
       const type_info *type = global->type();
       type_info_key ti = type->get_key();
       size_t size;
@@ -4071,7 +4071,7 @@ int cuda_runtime_api::load_constants(symbol_table *symtab, addr_t min_gaddr,
           default:
             abort();
         }
-        unsigned addr = constant->get_address() + nbytes_written;
+        addr_t addr = constant->get_address() + nbytes_written;
         assert(addr + nbytes < min_gaddr);
 
         gpu->get_global_memory()->write(

@@ -523,7 +523,7 @@ const unsigned long long SHARED_MEM_SIZE_MAX = 228 * (1 << 10);
 // Volta max local mem is 16kB
 const unsigned long long LOCAL_MEM_SIZE_MAX = 1 << 14;
 // Volta Titan V has 80 SMs
-const unsigned MAX_STREAMING_MULTIPROCESSORS = 80;
+const unsigned MAX_STREAMING_MULTIPROCESSORS = 114;
 // Max 2048 threads / SM
 const unsigned MAX_THREAD_PER_SM = 1 << 11;
 // MAX 64 warps / SM
