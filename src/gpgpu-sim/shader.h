@@ -252,6 +252,9 @@ class shd_warp_t {
     return m_shader;
   }
 
+  // Remaining cycles to complete sync instructions
+  int m_sync_latency = 0;
+
  private:
   static const unsigned IBUFFER_SIZE = 2;
   class shader_core_ctx *m_shader;
@@ -2556,7 +2559,9 @@ class shader_core_ctx : public core_t {
   int m_last_warp_fetched;
 
   // decode/dispatch
+  public:
   std::vector<shd_warp_t *> m_warp;  // per warp information array
+  private:
   barrier_set_t m_barriers;
   ifetch_buffer_t m_inst_fetch_buffer;
   std::vector<register_set> m_pipeline_reg;

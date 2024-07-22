@@ -449,6 +449,14 @@ void shader_core_config::reg_options(class OptionParser *opp) {
   option_parser_register(
       opp, "-sm_2_sm_network_log", OPT_BOOL, &sm_2_sm_network_log,
       "Log the number of open Requests/Replys for each Cycle", "0");
+  option_parser_register(opp, "-gpgpu_cluster_arrive_latency", OPT_INT32,
+                         &cluster_arrive_latency,
+                         "Minimum latency for cluster.arrive",
+                         "1050");
+  option_parser_register(opp, "-gpgpu_cluster_wait_latency", OPT_INT32,
+                         &cluster_wait_latency,
+                         "Minimum latency for cluster.wait",
+                         "50");
   option_parser_register(
       opp, "-gpgpu_shmem_sizeDefault", OPT_UINT32, &gpgpu_shmem_sizeDefault,
       "Size of shared memory per shader core (default 16kB)", "16384");

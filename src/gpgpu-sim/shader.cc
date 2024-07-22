@@ -1229,6 +1229,9 @@ void scheduler_unit::cycle() {
                                                  // units (as in Maxwell and
                                                  // Pascal)
 
+    if(warp(warp_id).m_sync_latency != 0)
+      warp(warp_id).m_sync_latency--;
+
     if (warp(warp_id).ibuffer_empty())
       SCHED_DPRINTF(
           "Warp (warp_id %u, dynamic_warp_id %u) fails as ibuffer_empty\n",
@@ -3848,6 +3851,8 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
     cta_set_t ctas_active;
     switch (bar_type) {
       case WAIT:
+        assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
+        m_shader->m_warp[warp_id]->m_sync_latency = m_shader->get_config()->cluster_wait_latency;
         m_cluster_barrier->m_cta_at_barrier.set(cta_id_in_cluster);
         ctas_in_cluster = m_cluster_barrier->m_cluster_to_cta[cluster_slot];
         ctas_at_barrier = ctas_in_cluster & m_cluster_barrier->m_cta_arrived;
@@ -3861,6 +3866,8 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
         }
         break;
       case ARRIVE:
+        assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
+        m_shader->m_warp[warp_id]->m_sync_latency = m_shader->get_config()->cluster_arrive_latency;
         m_cluster_bar.set(warp_id);
         warps_in_cta = w->second;
         at_barrier = warps_in_cta & m_cluster_bar;
@@ -4103,6 +4110,8 @@ bool shd_warp_t::waiting() {
     // stall here since if a call/return instruction occurs in the meantime
     // the functional execution of the atomic when it hits DRAM can cause
     // the wrong register to be read.
+    return true;
+  } else if (m_sync_latency != 0){
     return true;
   }
   return false;

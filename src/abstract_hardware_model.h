@@ -460,6 +460,8 @@ class core_config {
   bool adaptive_cache_config;
   char *sm_2_sm_network_type;
   bool sm_2_sm_network_log;
+  uint32_t cluster_arrive_latency;
+  uint32_t cluster_wait_latency;
 };
 
 // bounded stack that implements simt reconvergence using pdom mechanism from
