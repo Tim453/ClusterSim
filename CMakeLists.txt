@@ -113,7 +113,7 @@ set_target_properties(cudart PROPERTIES
     VERSION 12.0
 )
 
-set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux-so-version.txt")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux-so-version.txt")
 
 ADD_CUSTOM_TARGET(cudart12 ALL
                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12)

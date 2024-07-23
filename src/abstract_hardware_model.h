@@ -98,6 +98,7 @@ enum AdaptiveCache { FIXED = 0, ADAPTIVE_CACHE = 1 };
 #include <stdio.h>
 #include <string.h>
 #include <set>
+#include <cstdint>
 
 typedef unsigned long long new_addr_type;
 typedef unsigned long long cudaTextureObject_t;
