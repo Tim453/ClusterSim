@@ -3527,9 +3527,9 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
 void shader_core_config::set_pipeline_latency() {
   // calculate the max latency  based on the input
 
-  unsigned int_latency[6];
-  unsigned fp_latency[5];
-  unsigned dp_latency[5];
+  std::array<unsigned, 6> int_latency;
+  std::array<unsigned, 5> fp_latency;
+  std::array<unsigned, 5> dp_latency;
   unsigned sfu_latency;
   unsigned tensor_latency;
 
@@ -3541,6 +3541,28 @@ void shader_core_config::set_pipeline_latency() {
    * [4] DIV
    * [5] SHFL
    */
+  
+  auto check = [](unsigned size, char* input){
+    const std::string temp(input);
+    const auto n = std::count(temp.begin(), temp.end(), ',');
+    if(size == n + 1)
+      return false;
+    else
+      return true;
+  };
+
+  if(check(int_latency.size(), gpgpu_ctx->func_sim->opcode_latency_int)){
+    printf("Config Error: opcode_latency_int wrong\n");
+    exit(EXIT_FAILURE);
+  }
+  if(check(fp_latency.size(), gpgpu_ctx->func_sim->opcode_latency_fp)){
+    printf("Config Error: opcode_latency_fp wrong\n");
+    exit(EXIT_FAILURE);
+  }
+  if(check(dp_latency.size(), gpgpu_ctx->func_sim->opcode_latency_dp)){
+    printf("Config Error: opcode_latency_dp wrong\n");
+    exit(EXIT_FAILURE);
+  }
   sscanf(gpgpu_ctx->func_sim->opcode_latency_int, "%u,%u,%u,%u,%u,%u",
          &int_latency[0], &int_latency[1], &int_latency[2], &int_latency[3],
          &int_latency[4], &int_latency[5]);
