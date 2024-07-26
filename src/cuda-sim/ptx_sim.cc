@@ -221,8 +221,9 @@ unsigned long long ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod
   assert(m_valid);
   switch ((builtin_id & 0xFFFF)) {
     case CLOCK_REG:
-      return (unsigned)(m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
+      return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
     case CLOCK64_REG:
+      return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
       abort();  // change return value to unsigned long long?
                 // GPGPUSim clock is 4 times slower - multiply by 4
       return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle) * 4;
@@ -340,8 +341,7 @@ unsigned long long ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod
       feature_not_implemented("%pm");
       return 0;
     case SMID_REG:
-      feature_not_implemented("%smid");
-      return 0;
+      return m_hw_sid;
     case TID_REG:
       assert(dim_mod < 3);
       if (dim_mod == 0) return m_tid.x;
