@@ -1,5 +1,6 @@
 #include "sm_2_sm_network.h"
 #include <algorithm>
+#include <unordered_set>
 #include "gpu-sim.h"
 
 inct_config sm2sm_crossbar_config;
@@ -323,3 +324,226 @@ void ringbus::Advance() {
     }
   }
 }
+
+h100_model::h100_node::h100_node(uint32_t packets_per_cycle)
+    : packets_per_cycle(packets_per_cycle) {}
+
+h100_model::h100_node::~h100_node() {}
+
+h100_model::h100_processor::h100_processor(uint32_t packets_per_cycle,
+                                           uint32_t block_rank)
+    : h100_node(packets_per_cycle), block_rank(block_rank) {}
+
+h100_model::h100_junction::h100_junction(uint32_t packets_per_cycle)
+    : h100_node(packets_per_cycle) {}
+
+h100_model::h100_pipe::h100_pipe(h100_node* in_node, h100_node* out_node,
+                                 uint32_t packets_per_cycle,
+                                 uint32_t buffer_capacity)
+    : in_node(in_node),
+      out_node(out_node),
+      packets_per_cycle(packets_per_cycle),
+      buffer_capacity(buffer_capacity),
+      counterpart(nullptr),
+      reachable_processors{false} {}
+
+h100_model::h100_model(unsigned n_shader,
+                       const class shader_core_config* config,
+                       const class gpgpu_sim* gpu)
+    : sm_2_sm_network(n_shader, config, gpu), node_list(), pipe_list() {
+  // Default packets_per_cycle and buffer_capacity for all pipes and junctions.
+  uint32_t ppc = 32;
+  uint32_t bfs = 128;
+
+  // Generate the 16 processors.
+  for (uint32_t i = 0; i < 16; ++i) {
+    node_list.push_back(new h100_processor(ppc, i));
+  }
+
+  // Generate the 8 junctions with the correct speeds.
+  node_list.push_back(new h100_junction(ppc));      // JL0
+  node_list.push_back(new h100_junction(ppc));      // JR1
+  node_list.push_back(new h100_junction(ppc * 2));  // JM1
+  node_list.push_back(new h100_junction(ppc));      // JL1
+  node_list.push_back(new h100_junction(ppc));      // JR0
+  node_list.push_back(new h100_junction(ppc));      // JM0
+  node_list.push_back(new h100_junction(ppc));      // JL2
+  node_list.push_back(new h100_junction(ppc));      // JR2
+
+  // Hardcoded list of bidirectional edges for the interconnect.
+  // Tuples follow the form (node_a, node_b, ppc, buf_size).
+  // Will be expanded to the actual data structures down below.
+  std::vector<std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>> edges;
+
+  // SMs to Junctions
+  edges.push_back({0, 16, ppc, bfs});  // JL0
+  edges.push_back({1, 16, ppc, bfs});
+  edges.push_back({2, 17, ppc, bfs});  // JR1
+  edges.push_back({3, 17, ppc, bfs});
+  edges.push_back({4, 18, ppc, bfs});  // JM1
+  edges.push_back({5, 18, ppc, bfs});
+  edges.push_back({6, 19, ppc, bfs});  // JL1
+  edges.push_back({7, 19, ppc, bfs});
+  edges.push_back({8, 20, ppc, bfs});  // JR0
+  edges.push_back({9, 20, ppc, bfs});
+  edges.push_back({10, 21, ppc, bfs});  // JM0
+  edges.push_back({11, 21, ppc, bfs});
+  edges.push_back({12, 22, ppc, bfs});  // JL2
+  edges.push_back({13, 22, ppc, bfs});
+  edges.push_back({14, 23, ppc, bfs});  // JR2
+  edges.push_back({15, 23, ppc, bfs});
+
+  // Junction to Junction
+  edges.push_back({16, 19, ppc, bfs});  // JL0 <-> JL1
+  edges.push_back({19, 22, ppc, bfs});  // JL1 <-> JL2
+
+  edges.push_back({20, 17, ppc, bfs});  // JR0 <-> JR1
+  edges.push_back({17, 23, ppc, bfs});  // JR1 <-> JR2
+
+  edges.push_back({21, 18, ppc, bfs});  // JM0 <-> JM1
+
+  edges.push_back({19, 18, ppc * 2, bfs * 2});  // JL1 <-> JM1
+  edges.push_back({18, 17, ppc * 2, bfs * 2});  // JM1 <-> JR1
+
+  // Translate the vector of tuples into actual edges.
+  for (auto [node_idx_a, node_idx_b, packets_per_cycle, buffer_capacity] :
+       edges) {
+    // Create the two pipes.
+    h100_pipe* ab_pipe =
+        new h100_pipe(node_list[node_idx_a], node_list[node_idx_b],
+                      packets_per_cycle, buffer_capacity);
+    h100_pipe* ba_pipe =
+        new h100_pipe(node_list[node_idx_b], node_list[node_idx_a],
+                      packets_per_cycle, buffer_capacity);
+
+    // Correctly set up counterparts.
+    ab_pipe->counterpart = ba_pipe;
+    ba_pipe->counterpart = ab_pipe;
+
+    // Connect the pipes to their respective nodes.
+    node_list[node_idx_a]->incoming_pipes.push_back(ba_pipe);
+    node_list[node_idx_a]->outgoing_pipes.push_back(ab_pipe);
+    node_list[node_idx_b]->incoming_pipes.push_back(ab_pipe);
+    node_list[node_idx_b]->outgoing_pipes.push_back(ba_pipe);
+
+    // Throw them onto the list.
+    pipe_list.push_back(ab_pipe);
+    pipe_list.push_back(ba_pipe);
+  }
+
+  // Perform BFS for each processor to calculate the routing hints.
+  for (uint32_t proc = 0; proc < 16; ++proc) {
+    // Prepare the node-queue and push the processor.
+    std::deque<h100_node*> node_queue;
+    node_queue.push_back(node_list[proc]);
+    // Also keep around a set of nodes already visited.
+    std::unordered_set<h100_node*> visited_nodes;
+
+    // Continue as long as there are nodes in the queue.
+    while (!node_queue.empty()) {
+      // Grab the front node from the queue.
+      h100_node* node = node_queue.front();
+      node_queue.pop_front();
+
+      // Mark it as visited.
+      visited_nodes.insert(node);
+
+      // Go through all incoming pipes of this node.
+      for (auto in_pipe : node->incoming_pipes) {
+        // What node is on the other side of this pipe?
+        h100_node* other_node = in_pipe->in_node;
+
+        // If the node on the other side of this pipe hasn't already
+        // been visited, add a hint to this pipe that it can route packets
+        // to the processor currently being evaluated and add the node to the
+        // queue for further processing.
+        if (visited_nodes.count(other_node) == 0) {
+          // Mark the processor as reachable.
+          in_pipe->reachable_processors[proc] = true;
+          // And add the node to the queue.
+          node_queue.push_back(other_node);
+        }
+      }
+    }
+  }
+
+  // As a sanity check, print the whole network.
+  print_network();
+}
+
+void h100_model::print_network() {
+  printf("Nodes: \n");
+  for (uint32_t i = 0; i < node_list.size(); ++i) {
+    h100_node* node = node_list[i];
+    // Print differently depending on subtype.
+    h100_processor* proc = dynamic_cast<h100_processor*>(node);
+    h100_junction* jun = dynamic_cast<h100_junction*>(node);
+    if (proc) {
+      printf("  Node %2u is Processor %2u (ppc: %3u, ", i, proc->block_rank,
+             proc->packets_per_cycle);
+    } else if (jun) {
+      printf("  Node %2u is Junction     (ppc: %3u, ", i, jun->packets_per_cycle);
+    } else {
+      printf("  Node %2u is INVALID                  ", i);
+    }
+    printf("incoming_pipes: (");
+    for (auto pipe : node->incoming_pipes) {
+      uint32_t idx = std::find(pipe_list.begin(), pipe_list.end(), pipe) -
+                     pipe_list.begin();
+      printf("%u,", idx);
+    }
+    printf("), outgoing_pipes: (");
+    for (auto pipe : node->outgoing_pipes) {
+      uint32_t idx = std::find(pipe_list.begin(), pipe_list.end(), pipe) -
+                     pipe_list.begin();
+      printf("%u,", idx);
+    }
+    printf("))\n");
+  }
+
+  printf("Pipes: \n");
+  for (uint32_t i = 0; i < pipe_list.size(); ++i) {
+    h100_pipe* pipe = pipe_list[i];
+    // Determine the index of the incoming and outgoing node.
+    uint32_t in_idx =
+        std::find(node_list.begin(), node_list.end(), pipe->in_node) -
+        node_list.begin();
+    uint32_t out_idx =
+        std::find(node_list.begin(), node_list.end(), pipe->out_node) -
+        node_list.begin();
+
+    printf("  Pipe %3u (in: %3u, out: %3u, ppc: %u, bufsize: %4u, reachable: (",
+           i, in_idx, out_idx, pipe->packets_per_cycle, pipe->buffer_capacity);
+
+    for (uint32_t j = 0; j < 16; ++j) {
+      if (pipe->reachable_processors[j]) {
+        printf("%u,", j);
+      }
+    }
+
+    printf("))\n");
+  }
+}
+
+h100_model::~h100_model() {
+  // Free all of the pipes and nodes.
+  for (auto pipe : pipe_list) delete pipe;
+  for (auto node : node_list) delete node;
+}
+
+void h100_model::Push(unsigned input_deviceID, unsigned output_deviceID,
+                      void* data, unsigned int size,
+                      Interconnect_type network) {}
+
+void* h100_model::Pop(unsigned ouput_deviceID, Interconnect_type network) {}
+
+void h100_model::Advance() {}
+
+void h100_model::h100_processor::Advance() {}
+
+void h100_model::h100_junction::Advance() {}
+
+bool h100_model::Busy() const {}
+
+bool h100_model::HasBuffer(unsigned deviceID, unsigned int size,
+                           Interconnect_type network) const {}

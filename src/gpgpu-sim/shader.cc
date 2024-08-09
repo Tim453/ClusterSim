@@ -4948,6 +4948,8 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
     m_sm_2_sm_network = new ringbus(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "booksim") == 0))
     m_sm_2_sm_network = new booksim(m_shader_per_gpc, config, m_gpu);
+  else if ((strcmp(m_config->sm_2_sm_network_type, "h100") == 0))
+    m_sm_2_sm_network = new h100_model(m_shader_per_gpc, config, m_gpu);
   // Network needs to be there, although it will not be used
   else if ((strcmp(m_config->sm_2_sm_network_type, "none") == 0))
     m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);

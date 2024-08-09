@@ -206,4 +206,132 @@ class ringbus : public sm_2_sm_network {
   std::array<std::vector<std::queue<Packet>>, 2> m_out;
 };
 
+/// The SM-to-SM interconnect based on (micro-)benchmarks of the real H100.
+class h100_model : public sm_2_sm_network {
+ public:
+  h100_model(unsigned n_shader, const class shader_core_config* config,
+             const class gpgpu_sim* gpu);
+
+  /// Due to manual memory management, explicitly define a destructor.
+  ~h100_model();
+
+  /// Rule of three: Disallow copy construction.
+  h100_model(const h100_model& other) = delete;
+  /// Rule of three: Disallow copy assignment.
+  h100_model& operator=(const h100_model& other) = delete;
+
+  virtual void Push(unsigned input_deviceID, unsigned output_deviceID,
+                    void* data, unsigned int size, Interconnect_type network);
+  virtual void* Pop(unsigned ouput_deviceID, Interconnect_type network);
+
+  /// Advance the entire interconnect by one cycle.
+  ///
+  /// Will first advance all nodes (junctions) and then all pipes.
+  virtual void Advance();
+
+  /// Returns true if there is at least one packet still in transit
+  /// anywhere in the network, be it a junction or a pipe.
+  virtual bool Busy() const;
+
+  /// ? TODO
+  virtual bool HasBuffer(unsigned deviceID, unsigned int size,
+                         Interconnect_type network) const;
+
+ protected:
+  // Forward delcarations.
+  class h100_pipe;
+
+  /// Class representing a single node within the interconnect.
+  ///
+  /// Can be either a processor or a junction.
+  class h100_node {
+   public:
+    /// Initializes the node with the given ppc.
+    h100_node(uint32_t packets_per_cycle);
+    /// Requires a virtual destructor since it is abstract.
+    virtual ~h100_node();
+
+    /// Advance the node by one cycle. Implemented in subclass.
+    virtual void Advance() = 0;
+
+    /// All the pipes sending packets to this node.
+    ///
+    /// The order matters here as that is the order in which packets are
+    /// processed.
+    std::vector<h100_pipe*> incoming_pipes;
+    /// All the pipes where this node can send packets.
+    std::vector<h100_pipe*> outgoing_pipes;
+    /// How many packets this node processes on each incoming pipe per cycle.
+    uint32_t packets_per_cycle;
+  };
+
+  /// A junction within the interconnect.
+  ///
+  /// A junction is always an intermediate destination for any packet,
+  /// and is used connect pipes in the interconnect and forward packets.
+  class h100_junction : public h100_node {
+   public:
+    /// Advance the junction by one cycle.
+    virtual void Advance();
+    /// Constructor. Simply calls the base-class constructor.
+    h100_junction(uint32_t packets_per_cycle);
+  };
+
+  /// A processor (SM) within the interconnect.
+  ///
+  /// Processors are the source / sink of packets, but do not perform any
+  /// routing work. Only one bi-directional pipe should be connected to a
+  /// processor, which connects it to the wider interconnect.
+  class h100_processor : public h100_node {
+   public:
+    /// Advance the processor by one cycle.
+    virtual void Advance();
+    /// Constructor. Calls base-class constructor and copies over block_rank.
+    h100_processor(uint32_t packets_per_cycle, uint32_t block_rank);
+    /// The rank of this processor within the cluster. Within [0,16).
+    uint32_t block_rank;
+  };
+
+  /// A single, uni-directional pipe within the interconnect.
+  ///
+  /// Forwards packets from the in_node to the out_node.
+  class h100_pipe {
+   public:
+    h100_pipe(h100_node* in_node, h100_node* out_node,
+              uint32_t packets_per_cycle, uint32_t buffer_capacity);
+    /// The node forwarding packets into this pipe.
+    h100_node* in_node;
+    /// The node to which packets are being forwarded to.
+    h100_node* out_node;
+
+    /// Pointer to the pipe that points in the opposite direction.
+    ///
+    /// Pipes are conceptually single-directional. Bi-directional pipes are
+    /// implemented by simply adding two pipes to the network, one for each
+    /// direction. This pointer points to the reverse-direction counterpart, if
+    /// it exists.
+    h100_pipe* counterpart;
+
+    /// How many packets are forwarded from the input to the output buffer each
+    /// cycle.
+    uint32_t packets_per_cycle;
+    /// How many packets both the input and output buffer can hold.
+    uint32_t buffer_capacity;
+
+    /// This array contains routing hints for the network.
+    /// If the boolean at the given index returns true,
+    /// a packet can and should be forwarded through this pipe to reach the
+    /// respective processor.
+    bool reachable_processors[16];
+  };
+
+  /// List of all pipes in the interconnect.
+  std::vector<h100_pipe*> pipe_list;
+  /// List of all nodes (junctions and processors) in the interconnect.
+  std::vector<h100_node*> node_list;
+
+  /// Prints the entire network to stdout for debugging purposes.
+  void print_network();
+};
+
 #endif  // SM_2_SM_NETWORK_H
