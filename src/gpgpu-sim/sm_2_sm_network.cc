@@ -325,29 +325,31 @@ void ringbus::Advance() {
   }
 }
 
-h100_model::h100_node::h100_node(uint32_t packets_per_cycle)
+H100Model::Node::Node(uint32_t packets_per_cycle)
     : packets_per_cycle(packets_per_cycle) {}
 
-h100_model::h100_node::~h100_node() {}
+H100Model::Node::~Node() {}
 
-h100_model::h100_processor::h100_processor(uint32_t packets_per_cycle,
+H100Model::Processor::Processor(uint32_t packets_per_cycle,
                                            uint32_t block_rank)
-    : h100_node(packets_per_cycle), block_rank(block_rank) {}
+    : Node(packets_per_cycle), block_rank(block_rank) {}
 
-h100_model::h100_junction::h100_junction(uint32_t packets_per_cycle)
-    : h100_node(packets_per_cycle) {}
+H100Model::Junction::Junction(uint32_t packets_per_cycle)
+    : Node(packets_per_cycle) {}
 
-h100_model::h100_pipe::h100_pipe(h100_node* in_node, h100_node* out_node,
+H100Model::Pipe::Pipe(Node* in_node, Node* out_node,
                                  uint32_t packets_per_cycle,
                                  uint32_t buffer_capacity)
     : in_node(in_node),
       out_node(out_node),
+      in_q(),
+      out_q(),
       packets_per_cycle(packets_per_cycle),
       buffer_capacity(buffer_capacity),
       counterpart(nullptr),
       reachable_processors{false} {}
 
-h100_model::h100_model(unsigned n_shader,
+H100Model::H100Model(unsigned n_shader,
                        const class shader_core_config* config,
                        const class gpgpu_sim* gpu)
     : sm_2_sm_network(n_shader, config, gpu), node_list(), pipe_list() {
@@ -357,18 +359,18 @@ h100_model::h100_model(unsigned n_shader,
 
   // Generate the 16 processors.
   for (uint32_t i = 0; i < 16; ++i) {
-    node_list.push_back(new h100_processor(ppc, i));
+    node_list.push_back(new Processor(ppc, i));
   }
 
   // Generate the 8 junctions with the correct speeds.
-  node_list.push_back(new h100_junction(ppc));      // JL0
-  node_list.push_back(new h100_junction(ppc));      // JR1
-  node_list.push_back(new h100_junction(ppc * 2));  // JM1
-  node_list.push_back(new h100_junction(ppc));      // JL1
-  node_list.push_back(new h100_junction(ppc));      // JR0
-  node_list.push_back(new h100_junction(ppc));      // JM0
-  node_list.push_back(new h100_junction(ppc));      // JL2
-  node_list.push_back(new h100_junction(ppc));      // JR2
+  node_list.push_back(new Junction(ppc));      // JL0
+  node_list.push_back(new Junction(ppc));      // JR1
+  node_list.push_back(new Junction(ppc * 2));  // JM1
+  node_list.push_back(new Junction(ppc));      // JL1
+  node_list.push_back(new Junction(ppc));      // JR0
+  node_list.push_back(new Junction(ppc));      // JM0
+  node_list.push_back(new Junction(ppc));      // JL2
+  node_list.push_back(new Junction(ppc));      // JR2
 
   // Hardcoded list of bidirectional edges for the interconnect.
   // Tuples follow the form (node_a, node_b, ppc, buf_size).
@@ -409,11 +411,11 @@ h100_model::h100_model(unsigned n_shader,
   for (auto [node_idx_a, node_idx_b, packets_per_cycle, buffer_capacity] :
        edges) {
     // Create the two pipes.
-    h100_pipe* ab_pipe =
-        new h100_pipe(node_list[node_idx_a], node_list[node_idx_b],
+    Pipe* ab_pipe =
+        new Pipe(node_list[node_idx_a], node_list[node_idx_b],
                       packets_per_cycle, buffer_capacity);
-    h100_pipe* ba_pipe =
-        new h100_pipe(node_list[node_idx_b], node_list[node_idx_a],
+    Pipe* ba_pipe =
+        new Pipe(node_list[node_idx_b], node_list[node_idx_a],
                       packets_per_cycle, buffer_capacity);
 
     // Correctly set up counterparts.
@@ -434,15 +436,15 @@ h100_model::h100_model(unsigned n_shader,
   // Perform BFS for each processor to calculate the routing hints.
   for (uint32_t proc = 0; proc < 16; ++proc) {
     // Prepare the node-queue and push the processor.
-    std::deque<h100_node*> node_queue;
+    std::deque<Node*> node_queue;
     node_queue.push_back(node_list[proc]);
     // Also keep around a set of nodes already visited.
-    std::unordered_set<h100_node*> visited_nodes;
+    std::unordered_set<Node*> visited_nodes;
 
     // Continue as long as there are nodes in the queue.
     while (!node_queue.empty()) {
       // Grab the front node from the queue.
-      h100_node* node = node_queue.front();
+      Node* node = node_queue.front();
       node_queue.pop_front();
 
       // Mark it as visited.
@@ -451,7 +453,7 @@ h100_model::h100_model(unsigned n_shader,
       // Go through all incoming pipes of this node.
       for (auto in_pipe : node->incoming_pipes) {
         // What node is on the other side of this pipe?
-        h100_node* other_node = in_pipe->in_node;
+        Node* other_node = in_pipe->in_node;
 
         // If the node on the other side of this pipe hasn't already
         // been visited, add a hint to this pipe that it can route packets
@@ -468,21 +470,22 @@ h100_model::h100_model(unsigned n_shader,
   }
 
   // As a sanity check, print the whole network.
-  print_network();
+  // print_network();
 }
 
-void h100_model::print_network() {
+void H100Model::print_network() {
   printf("Nodes: \n");
   for (uint32_t i = 0; i < node_list.size(); ++i) {
-    h100_node* node = node_list[i];
+    Node* node = node_list[i];
     // Print differently depending on subtype.
-    h100_processor* proc = dynamic_cast<h100_processor*>(node);
-    h100_junction* jun = dynamic_cast<h100_junction*>(node);
+    Processor* proc = dynamic_cast<Processor*>(node);
+    Junction* jun = dynamic_cast<Junction*>(node);
     if (proc) {
       printf("  Node %2u is Processor %2u (ppc: %3u, ", i, proc->block_rank,
              proc->packets_per_cycle);
     } else if (jun) {
-      printf("  Node %2u is Junction     (ppc: %3u, ", i, jun->packets_per_cycle);
+      printf("  Node %2u is Junction     (ppc: %3u, ", i,
+             jun->packets_per_cycle);
     } else {
       printf("  Node %2u is INVALID                  ", i);
     }
@@ -503,7 +506,7 @@ void h100_model::print_network() {
 
   printf("Pipes: \n");
   for (uint32_t i = 0; i < pipe_list.size(); ++i) {
-    h100_pipe* pipe = pipe_list[i];
+    Pipe* pipe = pipe_list[i];
     // Determine the index of the incoming and outgoing node.
     uint32_t in_idx =
         std::find(node_list.begin(), node_list.end(), pipe->in_node) -
@@ -525,25 +528,148 @@ void h100_model::print_network() {
   }
 }
 
-h100_model::~h100_model() {
+H100Model::~H100Model() {
   // Free all of the pipes and nodes.
   for (auto pipe : pipe_list) delete pipe;
   for (auto node : node_list) delete node;
 }
 
-void h100_model::Push(unsigned input_deviceID, unsigned output_deviceID,
+void H100Model::Push(unsigned input_deviceID, unsigned output_deviceID,
                       void* data, unsigned int size,
-                      Interconnect_type network) {}
+                      Interconnect_type network) {
+  // Translate the SMIDs to the block rank of the corresponding processors.
+  uint32_t input_rank = sid_to_gid(input_deviceID);
+  uint32_t output_rank = sid_to_gid(output_deviceID);
 
-void* h100_model::Pop(unsigned ouput_deviceID, Interconnect_type network) {}
+  // Assemble the packet.
+  Packet packet(input_rank, output_rank, network, data);
 
-void h100_model::Advance() {}
+  // Grab a reference to the input-buffer of the input SMID.
+  auto pipe = node_list[input_rank]->outgoing_pipes[0];
 
-void h100_model::h100_processor::Advance() {}
+  // Push the packet onto the pipe.
+  pipe->in_q.push_back(packet);
 
-void h100_model::h100_junction::Advance() {}
+  // Check assumptions.
+  if (pipe->in_q.size() > pipe->buffer_capacity) {
+    printf("Packet count in input queue of pipe exceeds capacity.");
+    exit(1);
+  }
+}
 
-bool h100_model::Busy() const {}
+void* H100Model::Pop(unsigned output_deviceID, Interconnect_type network) {
+  uint32_t output_block_rank = sid_to_gid(output_deviceID);
+  auto pipe = node_list[output_block_rank]->incoming_pipes[0];
 
-bool h100_model::HasBuffer(unsigned deviceID, unsigned int size,
-                           Interconnect_type network) const {}
+  // Check if there is a packet in the input-queue with the associated network.
+  for (auto it = pipe->out_q.begin(); it != pipe->out_q.end(); it++) {
+    if (it->associated_network == network) {
+      // We found the packet we're looking for. Copy it.
+      Packet packet = *it;
+      // Remove it from the queue.
+      pipe->out_q.erase(it);
+      // And return the `cluster_shmem_request` contained within the packet.
+      return packet.data;
+    }
+  }
+
+  return nullptr;
+}
+
+// Nothing to advance within a processor.
+void H100Model::Processor::Advance() {}
+
+void H100Model::Junction::Advance() {
+  // Iterate through all incoming pipes, in order.
+  for (auto in_pipe : incoming_pipes) {
+    // Process `ppc` packets.
+    for (uint32_t i = 0; i < packets_per_cycle; ++i) {
+      // We're done if there is nothing left to process.
+      if (in_pipe->out_q.empty()) break;
+
+      // Grab the next packet.
+      Packet packet = in_pipe->out_q.front();
+
+      // Find the destination pipe.
+      Pipe* out_pipe = nullptr;
+      for (auto op : outgoing_pipes) {
+        if (op->reachable_processors[packet.destination_block_rank]) {
+          out_pipe = op;
+          break;
+        }
+      }
+
+      if (out_pipe == nullptr) {
+        printf(
+            "Implementation error. Cannot determine route for given packet.");
+        exit(1);
+      }
+
+      // Check if the pipe is full.
+      if (out_pipe->in_q.size() >= out_pipe->buffer_capacity) {
+        // We're stalling. Ignore the remaining packets at the input and try
+        // again next cycle.
+        break;
+      }
+
+      // Actually forward the packet by removing it from the incoming pipe and
+      // putting it in the outgoing pipe.
+      in_pipe->out_q.pop_front();
+      out_pipe->in_q.push_back(packet);
+    }
+  }
+}
+
+void H100Model::Pipe::Advance() {
+  // Forward as many packets as possible.
+  for (uint32_t i = 0; i < packets_per_cycle; ++i) {
+    // Quit if there are no more input packets *or* the output buffer is full.
+    if (in_q.empty() || out_q.size() >= buffer_capacity) break;
+    // Otherwise grab a packet from the in_q.
+    Packet packet = in_q.front();
+    in_q.pop_front();
+    // And deposit it in the out_q.
+    out_q.push_back(packet);
+  }
+}
+
+void H100Model::Advance() {
+  // First, advance all nodes.
+  for (auto node : node_list) {
+    node->Advance();
+  }
+  // Then, advance all pipes.
+  for (auto pipe : pipe_list) {
+    pipe->Advance();
+  }
+}
+
+bool H100Model::Busy() const {
+  // Check all pipes.
+  for (auto pipe : pipe_list) {
+    // If at least one pipe contains a packet somehwere, we're not done yet.
+    if (!pipe->in_q.empty() || !pipe->out_q.empty()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool H100Model::HasBuffer(unsigned deviceID, unsigned int size,
+                           Interconnect_type network) const {
+  // Translate the SMID to the processor's block rank.
+  uint32_t block_rank = sid_to_gid(deviceID);
+  // Grab a reference to the (only) outgoing pipe of the processor-node.
+  auto pipe = node_list[block_rank]->outgoing_pipes[0];
+  // And finally, check whether the input-queue has space for another packet.
+  return pipe->in_q.size() < pipe->buffer_capacity;
+}
+
+H100Model::Packet::Packet(uint32_t source_block_rank,
+                                     uint32_t destination_block_rank,
+                                     Interconnect_type associated_network,
+                                     void* data)
+    : source_block_rank(source_block_rank),
+      destination_block_rank(destination_block_rank),
+      associated_network(associated_network),
+      data(data) {}

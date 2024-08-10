@@ -207,49 +207,68 @@ class ringbus : public sm_2_sm_network {
 };
 
 /// The SM-to-SM interconnect based on (micro-)benchmarks of the real H100.
-class h100_model : public sm_2_sm_network {
+class H100Model : public sm_2_sm_network {
  public:
-  h100_model(unsigned n_shader, const class shader_core_config* config,
+  H100Model(unsigned n_shader, const class shader_core_config* config,
              const class gpgpu_sim* gpu);
 
   /// Due to manual memory management, explicitly define a destructor.
-  ~h100_model();
+  ~H100Model();
 
   /// Rule of three: Disallow copy construction.
-  h100_model(const h100_model& other) = delete;
+  H100Model(const H100Model& other) = delete;
   /// Rule of three: Disallow copy assignment.
-  h100_model& operator=(const h100_model& other) = delete;
+  H100Model& operator=(const H100Model& other) = delete;
 
-  virtual void Push(unsigned input_deviceID, unsigned output_deviceID,
-                    void* data, unsigned int size, Interconnect_type network);
-  virtual void* Pop(unsigned ouput_deviceID, Interconnect_type network);
+  /// Push a new packet onto the network.
+  ///
+  /// `input_deviceID` is the ID of the SM sending the packet
+  /// `output_deviceID` is the ID of the SM where the packet is supposed to go
+  /// `data` is the `cluster_shmem_request*` associated with this this packet.
+  /// `size` TODO
+  /// `network` indicates whether this packet is on the REQUEST_NET or
+  /// REPLY_NET.
+  void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
+            unsigned int size, Interconnect_type network);
+
+  /// Retrieve a packet for the given deviceID.
+  ///
+  /// `output_deviceID` is the ID of the SM whose output-buffer we want to
+  /// check. `network` indicates whether to query the REQUEST_NET or REPLY_NET.
+  ///
+  /// Returns: The `cluster_shmem_request*` associated with this packet.
+  void* Pop(unsigned output_deviceID, Interconnect_type network);
 
   /// Advance the entire interconnect by one cycle.
   ///
   /// Will first advance all nodes (junctions) and then all pipes.
-  virtual void Advance();
+  void Advance();
 
   /// Returns true if there is at least one packet still in transit
   /// anywhere in the network, be it a junction or a pipe.
-  virtual bool Busy() const;
+  bool Busy() const;
 
-  /// ? TODO
-  virtual bool HasBuffer(unsigned deviceID, unsigned int size,
-                         Interconnect_type network) const;
+  /// Checks if the input buffer for SMID `deviceID` still has space for another packet.
+  ///
+  /// `size` indicates the size of the packet. Ignored in the H100Model as packets are discrete units.
+  /// `network` differentates the REQUEST_NET and REPLY_NET, something the H100Model does not do.
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const;
 
  protected:
   // Forward delcarations.
-  class h100_pipe;
+  class Pipe;
+  struct Packet;
 
   /// Class representing a single node within the interconnect.
   ///
   /// Can be either a processor or a junction.
-  class h100_node {
+  class Node {
    public:
     /// Initializes the node with the given ppc.
-    h100_node(uint32_t packets_per_cycle);
+    Node(uint32_t packets_per_cycle);
     /// Requires a virtual destructor since it is abstract.
-    virtual ~h100_node();
+    virtual ~Node();
 
     /// Advance the node by one cycle. Implemented in subclass.
     virtual void Advance() = 0;
@@ -258,9 +277,9 @@ class h100_model : public sm_2_sm_network {
     ///
     /// The order matters here as that is the order in which packets are
     /// processed.
-    std::vector<h100_pipe*> incoming_pipes;
+    std::vector<Pipe*> incoming_pipes;
     /// All the pipes where this node can send packets.
-    std::vector<h100_pipe*> outgoing_pipes;
+    std::vector<Pipe*> outgoing_pipes;
     /// How many packets this node processes on each incoming pipe per cycle.
     uint32_t packets_per_cycle;
   };
@@ -269,12 +288,12 @@ class h100_model : public sm_2_sm_network {
   ///
   /// A junction is always an intermediate destination for any packet,
   /// and is used connect pipes in the interconnect and forward packets.
-  class h100_junction : public h100_node {
+  class Junction : public Node {
    public:
     /// Advance the junction by one cycle.
     virtual void Advance();
     /// Constructor. Simply calls the base-class constructor.
-    h100_junction(uint32_t packets_per_cycle);
+    Junction(uint32_t packets_per_cycle);
   };
 
   /// A processor (SM) within the interconnect.
@@ -282,12 +301,12 @@ class h100_model : public sm_2_sm_network {
   /// Processors are the source / sink of packets, but do not perform any
   /// routing work. Only one bi-directional pipe should be connected to a
   /// processor, which connects it to the wider interconnect.
-  class h100_processor : public h100_node {
+  class Processor : public Node {
    public:
     /// Advance the processor by one cycle.
     virtual void Advance();
     /// Constructor. Calls base-class constructor and copies over block_rank.
-    h100_processor(uint32_t packets_per_cycle, uint32_t block_rank);
+    Processor(uint32_t packets_per_cycle, uint32_t block_rank);
     /// The rank of this processor within the cluster. Within [0,16).
     uint32_t block_rank;
   };
@@ -295,14 +314,24 @@ class h100_model : public sm_2_sm_network {
   /// A single, uni-directional pipe within the interconnect.
   ///
   /// Forwards packets from the in_node to the out_node.
-  class h100_pipe {
+  class Pipe {
    public:
-    h100_pipe(h100_node* in_node, h100_node* out_node,
+    Pipe(Node* in_node, Node* out_node,
               uint32_t packets_per_cycle, uint32_t buffer_capacity);
+
+    /// Advance the pipe by one cycle,
+    /// forwarind `packets_per_cycle` packets from the in_q to the out_q.
+    void Advance();
+
     /// The node forwarding packets into this pipe.
-    h100_node* in_node;
+    Node* in_node;
     /// The node to which packets are being forwarded to.
-    h100_node* out_node;
+    Node* out_node;
+
+    /// The queue of incoming packets limited by the pipe's `buffer_capacity`.
+    std::deque<Packet> in_q;
+    /// The queue of outgoing packets limited by the pipe's `buffer_capacity`.
+    std::deque<Packet> out_q;
 
     /// Pointer to the pipe that points in the opposite direction.
     ///
@@ -310,7 +339,7 @@ class h100_model : public sm_2_sm_network {
     /// implemented by simply adding two pipes to the network, one for each
     /// direction. This pointer points to the reverse-direction counterpart, if
     /// it exists.
-    h100_pipe* counterpart;
+    Pipe* counterpart;
 
     /// How many packets are forwarded from the input to the output buffer each
     /// cycle.
@@ -325,10 +354,30 @@ class h100_model : public sm_2_sm_network {
     bool reachable_processors[16];
   };
 
+  /// A single packet being transmitted across the interconnect.
+  struct Packet {
+    /// Simple constructor
+    Packet(uint32_t source_block_rank, uint32_t destination_block_rank,
+                Interconnect_type associated_network, void* data);
+    /// The block_rank (value in [0,16)) of the processor who sent this packet.
+    uint32_t source_block_rank;
+    /// The block_rank (value in [0,16)) of this packet's destination processor.
+    uint32_t destination_block_rank;
+    /// Whether this packet is associated with the REQUEST_NET or the REPLY_NET.
+    /// The h100_model does not internally differentate between the two, every
+    /// packet is sent across the same simulated network. Nonetheless, the code
+    /// interfacing with the network expects to know whether a packet is
+    /// associated with one or the other.
+    Interconnect_type associated_network;
+    /// The associated `cluster_shmem_request`, stored as a void* to be
+    /// consistent with the interface provided by the sm_2_sm_network-baseclass.
+    void* data;
+  };
+
   /// List of all pipes in the interconnect.
-  std::vector<h100_pipe*> pipe_list;
+  std::vector<Pipe*> pipe_list;
   /// List of all nodes (junctions and processors) in the interconnect.
-  std::vector<h100_node*> node_list;
+  std::vector<Node*> node_list;
 
   /// Prints the entire network to stdout for debugging purposes.
   void print_network();
