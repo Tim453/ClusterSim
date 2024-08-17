@@ -1,6 +1,7 @@
 #include "sm_2_sm_network.h"
 #include <algorithm>
 #include <unordered_set>
+#include <utility>
 #include "gpu-sim.h"
 
 inct_config sm2sm_crossbar_config;
@@ -362,15 +363,45 @@ H100Model::H100Model(unsigned n_shader,
     node_list.push_back(new Processor(ppc, i));
   }
 
-  // Generate the 8 junctions with the correct speeds.
-  node_list.push_back(new Junction(ppc));      // JL0
-  node_list.push_back(new Junction(ppc));      // JR1
-  node_list.push_back(new Junction(ppc * 2));  // JM1
-  node_list.push_back(new Junction(ppc));      // JL1
-  node_list.push_back(new Junction(ppc));      // JR0
-  node_list.push_back(new Junction(ppc));      // JM0
-  node_list.push_back(new Junction(ppc));      // JL2
-  node_list.push_back(new Junction(ppc));      // JR2
+  // Generate the 9 junctions with the correct speeds.
+  node_list.push_back(new Junction(ppc));  // JL0
+  node_list.push_back(new Junction(ppc));  // JL1
+  node_list.push_back(new Junction(ppc));  // JL2
+  node_list.push_back(new Junction(ppc));  // JR0
+  node_list.push_back(new Junction(ppc));  // JR1
+  node_list.push_back(new Junction(ppc));  // JR2
+  node_list.push_back(new Junction(ppc));  // JM0
+  node_list.push_back(new Junction(ppc));  // JM1
+  node_list.push_back(new Junction(ppc));  // JM2
+
+  // Create shorthand variables for the processor and junction identifiers.
+  // This makes it easier to port over the PacketSim network config.
+  uint32_t Proc02 =  0;
+  uint32_t Proc03 =  1;
+  uint32_t Proc16 =  2;
+  uint32_t Proc17 =  3;
+  uint32_t Proc30 =  4;
+  uint32_t Proc31 =  5;
+  uint32_t Proc44 =  6;
+  uint32_t Proc45 =  7;
+  uint32_t Proc58 =  8;
+  uint32_t Proc59 =  9;
+  uint32_t Proc72 = 10;
+  uint32_t Proc73 = 11;
+  uint32_t Proc86 = 12;
+  uint32_t Proc87 = 13;
+  uint32_t Proc98 = 14;
+  uint32_t Proc99 = 15;
+
+  uint32_t NodeL0 = 16;
+  uint32_t NodeL1 = 17;
+  uint32_t NodeL2 = 18;
+  uint32_t NodeR0 = 19;
+  uint32_t NodeR1 = 20;
+  uint32_t NodeR2 = 21;
+  uint32_t NodeM0 = 22;
+  uint32_t NodeM1 = 23;
+  uint32_t NodeM2 = 24;
 
   // Hardcoded list of bidirectional edges for the interconnect.
   // Tuples follow the form (node_a, node_b, ppc, buf_size).
@@ -378,34 +409,35 @@ H100Model::H100Model(unsigned n_shader,
   std::vector<std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>> edges;
 
   // SMs to Junctions
-  edges.push_back({0, 16, ppc, bfs});  // JL0
-  edges.push_back({1, 16, ppc, bfs});
-  edges.push_back({2, 17, ppc, bfs});  // JR1
-  edges.push_back({3, 17, ppc, bfs});
-  edges.push_back({4, 18, ppc, bfs});  // JM1
-  edges.push_back({5, 18, ppc, bfs});
-  edges.push_back({6, 19, ppc, bfs});  // JL1
-  edges.push_back({7, 19, ppc, bfs});
-  edges.push_back({8, 20, ppc, bfs});  // JR0
-  edges.push_back({9, 20, ppc, bfs});
-  edges.push_back({10, 21, ppc, bfs});  // JM0
-  edges.push_back({11, 21, ppc, bfs});
-  edges.push_back({12, 22, ppc, bfs});  // JL2
-  edges.push_back({13, 22, ppc, bfs});
-  edges.push_back({14, 23, ppc, bfs});  // JR2
-  edges.push_back({15, 23, ppc, bfs});
+  edges.push_back({Proc02, NodeL0, ppc, bfs});
+  edges.push_back({Proc03, NodeL0, ppc, bfs});
+  edges.push_back({Proc16, NodeR1, ppc, bfs});
+  edges.push_back({Proc17, NodeR1, ppc, bfs});
+  edges.push_back({Proc30, NodeM0, ppc, bfs});
+  edges.push_back({Proc31, NodeM0, ppc, bfs});
+  edges.push_back({Proc44, NodeL1, ppc, bfs});
+  edges.push_back({Proc45, NodeL1, ppc, bfs});
+  edges.push_back({Proc58, NodeR0, ppc, bfs});
+  edges.push_back({Proc59, NodeR0, ppc, bfs});
+  edges.push_back({Proc72, NodeM2, ppc, bfs});
+  edges.push_back({Proc73, NodeM2, ppc, bfs});
+  edges.push_back({Proc86, NodeL2, ppc, bfs});
+  edges.push_back({Proc87, NodeL2, ppc, bfs});
+  edges.push_back({Proc98, NodeR2, ppc, bfs});
+  edges.push_back({Proc99, NodeR2, ppc, bfs});
 
   // Junction to Junction
-  edges.push_back({16, 19, ppc, bfs});  // JL0 <-> JL1
-  edges.push_back({19, 22, ppc, bfs});  // JL1 <-> JL2
+  edges.push_back({NodeL0, NodeL1, ppc, bfs});
+  edges.push_back({NodeL1, NodeL2, ppc, bfs});
 
-  edges.push_back({20, 17, ppc, bfs});  // JR0 <-> JR1
-  edges.push_back({17, 23, ppc, bfs});  // JR1 <-> JR2
+  edges.push_back({NodeR0, NodeR1, ppc, bfs});
+  edges.push_back({NodeR1, NodeR2, ppc, bfs});
 
-  edges.push_back({21, 18, ppc, bfs});  // JM0 <-> JM1
+  edges.push_back({NodeM0, NodeM1, ppc, bfs});
+  edges.push_back({NodeM1, NodeM2, ppc, bfs});
 
-  edges.push_back({19, 18, ppc * 2, bfs * 2});  // JL1 <-> JM1
-  edges.push_back({18, 17, ppc * 2, bfs * 2});  // JM1 <-> JR1
+  edges.push_back({NodeL1, NodeM1, ppc, bfs});
+  edges.push_back({NodeM1, NodeR1, ppc, bfs});
 
   // Translate the vector of tuples into actual edges.
   for (auto [node_idx_a, node_idx_b, packets_per_cycle, buffer_capacity] :
@@ -431,6 +463,49 @@ H100Model::H100Model(unsigned n_shader,
     // Throw them onto the list.
     pipe_list.push_back(ab_pipe);
     pipe_list.push_back(ba_pipe);
+  }
+
+  // Debug sanity check: What are the priorites beforehand?
+  // print_network();
+
+  // Now encode manual priorites for each of the junctions.
+  // lhs is the NodeID of the junction, rhs is a vector of NodeIDs to prioritize.
+  std::vector<std::tuple<uint32_t, std::vector<uint32_t>>> priorities;
+
+  // These are copied over from the network config found by the genetic search.
+  priorities.push_back({NodeL0, {Proc03, Proc02, NodeL1}});
+  priorities.push_back({NodeL1, {NodeL0, Proc45, Proc44, NodeM1, NodeL2}});
+  priorities.push_back({NodeL2, {NodeL1, Proc86, Proc87}});
+  priorities.push_back({NodeM0, {Proc31, Proc30, NodeM1}});
+  priorities.push_back({NodeM1, {NodeM0, NodeM2, NodeL1, NodeR1}});
+  priorities.push_back({NodeM2, {Proc72, Proc73, NodeM1}});
+  priorities.push_back({NodeR0, {Proc59, NodeR1, Proc58}});
+  priorities.push_back({NodeR1, {Proc17, Proc16, NodeM1, NodeR0, NodeR2}});
+  priorities.push_back({NodeR2, {Proc98, NodeR1, Proc99}});
+
+  // Now go through the list and actually encode those priorities.
+  for (auto& [node, priority_list] : priorities) {
+    std::vector<Pipe*> new_incoming_pipes{};
+    for (auto priority_node : priority_list) {
+      // Find the pipe that has the prio_node on the other side.
+      Pipe* matching_pipe = nullptr;
+      for (auto& pipe : node_list[node]->incoming_pipes) {
+        if (pipe->in_node == node_list[priority_node]) {
+          matching_pipe = pipe;
+          break;
+        }
+      }
+      // Panic if it could not be found.
+      // That means the specified priorities do not match the actual network.
+      if (!matching_pipe) {
+        printf("Implementation error. Failed to initialize H100-interconnect network.");
+        exit(1);
+      }
+      // Add it on to the new priority list.
+      new_incoming_pipes.push_back(matching_pipe);
+    }
+    // Finally, update the priorities.
+    node_list[node]->incoming_pipes = new_incoming_pipes;
   }
 
   // Perform BFS for each processor to calculate the routing hints.
@@ -469,7 +544,7 @@ H100Model::H100Model(unsigned n_shader,
     }
   }
 
-  // As a sanity check, print the whole network.
+  // Debug sanity check: print the whole network
   // print_network();
 }
 
