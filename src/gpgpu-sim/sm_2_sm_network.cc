@@ -433,11 +433,12 @@ H100Model::H100Model(unsigned n_shader,
   edges.push_back({NodeR0, NodeR1, ppc, bfs});
   edges.push_back({NodeR1, NodeR2, ppc, bfs});
 
-  edges.push_back({NodeM0, NodeM1, ppc, bfs});
-  edges.push_back({NodeM1, NodeM2, ppc, bfs});
+  edges.push_back({NodeM1, NodeM0, ppc, bfs});
+  edges.push_back({NodeM0, NodeM2, ppc, bfs});
 
   edges.push_back({NodeL1, NodeM1, ppc, bfs});
   edges.push_back({NodeM1, NodeR1, ppc, bfs});
+  edges.push_back({NodeM0, NodeR1, ppc, bfs});
 
   // Translate the vector of tuples into actual edges.
   for (auto [node_idx_a, node_idx_b, packets_per_cycle, buffer_capacity] :
@@ -473,15 +474,15 @@ H100Model::H100Model(unsigned n_shader,
   std::vector<std::tuple<uint32_t, std::vector<uint32_t>>> priorities;
 
   // These are copied over from the network config found by the genetic search.
-  priorities.push_back({NodeL0, {Proc03, Proc02, NodeL1}});
-  priorities.push_back({NodeL1, {NodeL0, Proc45, Proc44, NodeM1, NodeL2}});
-  priorities.push_back({NodeL2, {NodeL1, Proc86, Proc87}});
-  priorities.push_back({NodeM0, {Proc31, Proc30, NodeM1}});
-  priorities.push_back({NodeM1, {NodeM0, NodeM2, NodeL1, NodeR1}});
-  priorities.push_back({NodeM2, {Proc72, Proc73, NodeM1}});
-  priorities.push_back({NodeR0, {Proc59, NodeR1, Proc58}});
-  priorities.push_back({NodeR1, {Proc17, Proc16, NodeM1, NodeR0, NodeR2}});
-  priorities.push_back({NodeR2, {Proc98, NodeR1, Proc99}});
+  priorities.push_back({NodeL0, {NodeL1, Proc02, Proc03 }});
+  priorities.push_back({NodeL1, {NodeM1, Proc45, NodeL0, Proc44, NodeL2 }});
+  priorities.push_back({NodeL2, {NodeL1, Proc87, Proc86 }});
+  priorities.push_back({NodeM0, {Proc30, NodeM2, Proc31, NodeR1, NodeM1 }});
+  priorities.push_back({NodeM1, {NodeL1, NodeM0, NodeR1 }});
+  priorities.push_back({NodeM2, {Proc72, Proc73, NodeM0 }});
+  priorities.push_back({NodeR0, {NodeR1, Proc58, Proc59 }});
+  priorities.push_back({NodeR1, {NodeM1, NodeM0, NodeR0, Proc17, Proc16, NodeR2 }});
+  priorities.push_back({NodeR2, {NodeR1, Proc99, Proc98 }});
 
   // Now go through the list and actually encode those priorities.
   for (auto& [node, priority_list] : priorities) {
