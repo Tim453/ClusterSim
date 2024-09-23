@@ -50,7 +50,7 @@ By default the simulator uses `configs/tested-cfgs/SM90_H100/gpgpusim.config`. I
 
 ```bash
 # If the simulator is already in the rpath this step is not needed
-source enable simulator
+source enable_simulator.sh
 # Make sure that cuda program uses libcudart.so of the simulator
 ldd hello_cuda
 # Run a CUDA program
