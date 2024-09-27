@@ -899,18 +899,60 @@ void ptx_thread_info::set_wmma_vector_operand_values(
   m_last_set_operand_value = data8;
 }
 
-#define my_abs(a) (((a) < 0) ? (-a) : (a))
+// #define my_abs(a) (((a) < 0) ? (-a) : (a))
+// #define MY_MAX_I(a, b) (a > b) ? a : b
+// #define MY_MAX_F(a, b) isNaN(a) ? b : isNaN(b) ? a : (a > b) ? a : b
+// #define MY_MIN_I(a, b) (a < b) ? a : b
+// #define MY_MIN_F(a, b) isNaN(a) ? b : isNaN(b) ? a : (a < b) ? a : b
+// #define MY_INC_I(a, b) (a >= b) ? 0 : a + 1
+// #define MY_DEC_I(a, b) ((a == 0) || (a > b)) ? b : a - 1
+// #define MY_CAS_I(a, b, c) (a == b) ? c : a
+// #define MY_EXCH(a, b) b
 
-#define MY_MAX_I(a, b) (a > b) ? a : b
-#define MY_MAX_F(a, b) isNaN(a) ? b : isNaN(b) ? a : (a > b) ? a : b
+template <typename T>
+inline auto my_abs(T a) {
+  return ((a) < 0) ? (-a) : (a);
+}
 
-#define MY_MIN_I(a, b) (a < b) ? a : b
-#define MY_MIN_F(a, b) isNaN(a) ? b : isNaN(b) ? a : (a < b) ? a : b
+template <typename T>
+inline auto MY_MAX_I(T a, T b) {
+  return (a > b) ? a : b;
+}
 
-#define MY_INC_I(a, b) (a >= b) ? 0 : a + 1
-#define MY_DEC_I(a, b) ((a == 0) || (a > b)) ? b : a - 1
+template <typename T>
+inline auto MY_MAX_F(T a, T b) {
+  return std::isnan(a) ? b : std::isnan(b) ? a : (a > b) ? a : b;
+}
 
-#define MY_CAS_I(a, b, c) (a == b) ? c : a
+template <typename T>
+inline auto MY_MIN_I(T a, T b) {
+  return (a < b) ? a : b;
+}
+
+template <typename T>
+inline auto MY_MIN_F(T a, T b) {
+  return std::isnan(a) ? b : std::isnan(b) ? a : (a < b) ? a : b;
+}
+
+template <typename T>
+inline auto MY_INC_I(T a, T b) {
+  return (a >= b) ? 0 : a + 1;
+}
+
+template <typename T>
+inline auto MY_DEC_I(T a, T b) {
+  return ((a == 0) || (a > b)) ? b : a - 1;
+}
+
+template <typename T>
+inline auto MY_CAS_I(T a, T b, T c) {
+  return (a == b) ? c : a;
+}
+
+template <typename T>
+inline auto MY_EXCH(T a, T b) {
+  return b;
+}
 
 #define MY_EXCH(a, b) b
 
