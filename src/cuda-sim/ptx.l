@@ -308,6 +308,8 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.bb128  TC;  return BB128_TYPE;
 \.pred TC;  return PRED_TYPE;
 
+\.u16x2 TC; return U16X2_TYPE;
+
 \.texref TC; BEGIN(NOT_OPCODE); return TEXREF_TYPE;
 \.samplerref TC;  return SAMPLERREF_TYPE;
 \.surfref TC;  return SURFREF_TYPE;

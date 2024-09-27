@@ -1075,6 +1075,11 @@ unsigned type_info_key::type_decode(int type, size_t &size, int &basic_type) {
       size = 32;
       basic_type = 3;
       return 16;
+    case U16X2_TYPE:
+      size = 32;
+      // ToDo: What does basic type mean, what is the return value?
+      basic_type = 0;
+      return 17;
     default:
       printf("ERROR ** type_decode() does not know about \"%s\"\n",
              decode_token(type));

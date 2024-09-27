@@ -954,7 +954,19 @@ inline auto MY_EXCH(T a, T b) {
   return b;
 }
 
-#define MY_EXCH(a, b) b
+// Splits a 32 bit register into the upper and lower half and performs the
+// function func on both of them
+// @param a 32 bit register
+// @param b 32 bit register
+// @param func Function to perform
+// @return Function func performed on the first 16 and the last 16 bit of a and
+// b
+template <typename T>
+inline auto vector_16inst(T a, T b, T (*func)(T, T)) {
+  const auto lower_result = func(a & 0xFFFF, b & 0xFFFF);
+  const auto upper_result = func(a & 0xFFFF0000, b & 0xFFFF0000);
+  return lower_result | upper_result;
+}
 
 void abs_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   ptx_reg_t a, d;
@@ -4597,6 +4609,9 @@ void max_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   switch (i_type) {
     case U16_TYPE:
       d.u16 = MY_MAX_I(a.u16, b.u16);
+      break;
+    case U16X2_TYPE:
+      d.u32 = vector_16inst(a.u32, b.u32, &MY_MAX_I);
       break;
     case U32_TYPE:
       d.u32 = MY_MAX_I(a.u32, b.u32);
