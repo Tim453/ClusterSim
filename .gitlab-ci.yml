@@ -1,4 +1,4 @@
-image: collaborating.tuhh.de:5005/e-exk5/research/thread-block-cluster/tbc_bench
+image: $CI_REGISTRY/e-exk5/container-images:tbc_research
 
 stages:
   - build
@@ -20,7 +20,7 @@ build:
       - build/bin/
   script:
     - mkdir -p build
-    - cmake -G Ninja -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+    - cmake -G Ninja -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
     - ninja -C build
 
 test:

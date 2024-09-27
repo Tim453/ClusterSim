@@ -26,7 +26,7 @@ export PATH=$GPGPUSIM_ROOT/bin:$PATH
 # source setup_environment debug
 
 
-CUDA_VERSION_STRING=`$CUDA_INSTALL_PATH/bin/nvcc --version | awk '/release/ {print $5;}' | sed 's/,//'`;
+CUDA_VERSION_STRING=`nvcc --version | awk '/release/ {print $5;}' | sed 's/,//'`;
 export CUDA_VERSION_NUMBER=`echo $CUDA_VERSION_STRING | sed 's/\./ /' | awk '{printf("%02u%02u", 10*int($1), 10*$2);}'`
 if [ $CUDA_VERSION_NUMBER -gt 12100 -o $CUDA_VERSION_NUMBER -lt 2030  ]; then
 	echo "ERROR ** GPGPU-Sim version $GPGPUSIM_VERSION_STRING not tested with CUDA version $CUDA_VERSION_STRING (please see README)";
