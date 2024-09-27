@@ -58,7 +58,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 "info"	TC; 	return INFO;
 "Compiling entry function"	TC; return FUNC;
 "Used"		TC; return USED;
+"used"		TC; return USED;
 "registers"	TC; return REGS;
+"barriers"  TC; return BARRIERS;
 "bytes"		TC; return BYTES;
 "lmem"		TC; return LMEM;
 "smem"		TC; return SMEM;

@@ -50,6 +50,7 @@ typedef void * yyscan_t;
 %token FUNC
 %token USED
 %token REGS
+%token BARRIERS
 %token BYTES
 %token LMEM
 %token SMEM
@@ -120,6 +121,7 @@ gmem_info: INT_OPERAND BYTES GMEM
 	;
 
 info: 	  USED INT_OPERAND REGS { ptxinfo_regs($2); }
+	| USED INT_OPERAND BARRIERS {}
 	| tuple LMEM { ptxinfo_lmem(g_declared,g_system); }
 	| tuple SMEM { ptxinfo_smem(g_declared,g_system); }
 	| INT_OPERAND BYTES CMEM LEFT_SQUARE_BRACKET INT_OPERAND RIGHT_SQUARE_BRACKET { ptxinfo_cmem($1,$5); }
