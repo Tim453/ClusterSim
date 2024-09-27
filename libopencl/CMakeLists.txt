@@ -1,5 +1,5 @@
 
-add_library(opencl OBJECT 
+add_library(opencl OBJECT
     opencl_runtime_api.cc
 )
 

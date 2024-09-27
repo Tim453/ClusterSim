@@ -46,7 +46,7 @@
 #include <utility>
 #include <vector>
 
-//#include "../cuda-sim/ptx.tab.h"
+// #include "../cuda-sim/ptx.tab.h"
 
 #include "../abstract_hardware_model.h"
 #include "delayqueue.h"
@@ -248,9 +248,7 @@ class shd_warp_t {
   unsigned get_dynamic_warp_id() const { return m_dynamic_warp_id; }
   unsigned get_warp_id() const { return m_warp_id; }
 
-  class shader_core_ctx *get_shader() {
-    return m_shader;
-  }
+  class shader_core_ctx *get_shader() { return m_shader; }
 
   // Remaining cycles to complete sync instructions
   int m_sync_latency = 0;
@@ -1626,8 +1624,9 @@ class shader_core_config : public core_config {
         std::getline(ss, option, ',');
         m_cores_per_gpc_list.push_back((unsigned)std::stoi(option));
       }
-      if (m_cores_per_gpc_list.size() == 0){
-        m_cores_per_gpc_list = std::vector<int>(n_simt_clusters, n_simt_cores_per_cluster);
+      if (m_cores_per_gpc_list.size() == 0) {
+        m_cores_per_gpc_list =
+            std::vector<int>(n_simt_clusters, n_simt_cores_per_cluster);
       }
     }
   }
@@ -1730,7 +1729,7 @@ class shader_core_config : public core_config {
 
   unsigned n_simt_cores_per_cluster;
   unsigned n_simt_clusters;
-  char* n_simt_cores_per_gpc;
+  char *n_simt_cores_per_gpc;
   std::vector<int> m_cores_per_gpc_list;
   unsigned n_simt_ejection_buffer_size;
   unsigned ldst_unit_response_queue_size;
@@ -2559,9 +2558,9 @@ class shader_core_ctx : public core_t {
   int m_last_warp_fetched;
 
   // decode/dispatch
-  public:
+ public:
   std::vector<shd_warp_t *> m_warp;  // per warp information array
-  private:
+ private:
   barrier_set_t m_barriers;
   ifetch_buffer_t m_inst_fetch_buffer;
   std::vector<register_set> m_pipeline_reg;

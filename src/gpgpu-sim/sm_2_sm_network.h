@@ -210,7 +210,7 @@ class ringbus : public sm_2_sm_network {
 class H100Model : public sm_2_sm_network {
  public:
   H100Model(unsigned n_shader, const class shader_core_config* config,
-             const class gpgpu_sim* gpu);
+            const class gpgpu_sim* gpu);
 
   /// Due to manual memory management, explicitly define a destructor.
   ~H100Model();
@@ -248,10 +248,12 @@ class H100Model : public sm_2_sm_network {
   /// anywhere in the network, be it a junction or a pipe.
   bool Busy() const;
 
-  /// Checks if the input buffer for SMID `deviceID` still has space for another packet.
+  /// Checks if the input buffer for SMID `deviceID` still has space for another
+  /// packet.
   ///
-  /// `size` indicates the size of the packet. Ignored in the H100Model as packets are discrete units.
-  /// `network` differentates the REQUEST_NET and REPLY_NET, something the H100Model does not do.
+  /// `size` indicates the size of the packet. Ignored in the H100Model as
+  /// packets are discrete units. `network` differentates the REQUEST_NET and
+  /// REPLY_NET, something the H100Model does not do.
   bool HasBuffer(unsigned deviceID, unsigned int size,
                  Interconnect_type network) const;
 
@@ -316,8 +318,8 @@ class H100Model : public sm_2_sm_network {
   /// Forwards packets from the in_node to the out_node.
   class Pipe {
    public:
-    Pipe(Node* in_node, Node* out_node,
-              uint32_t packets_per_cycle, uint32_t buffer_capacity);
+    Pipe(Node* in_node, Node* out_node, uint32_t packets_per_cycle,
+         uint32_t buffer_capacity);
 
     /// Advance the pipe by one cycle,
     /// forwarind `packets_per_cycle` packets from the in_q to the out_q.
@@ -358,7 +360,7 @@ class H100Model : public sm_2_sm_network {
   struct Packet {
     /// Simple constructor
     Packet(uint32_t source_block_rank, uint32_t destination_block_rank,
-                Interconnect_type associated_network, void* data);
+           Interconnect_type associated_network, void* data);
     /// The block_rank (value in [0,16)) of the processor who sent this packet.
     uint32_t source_block_rank;
     /// The block_rank (value in [0,16)) of this packet's destination processor.

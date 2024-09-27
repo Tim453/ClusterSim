@@ -1229,8 +1229,7 @@ void scheduler_unit::cycle() {
                                                  // units (as in Maxwell and
                                                  // Pascal)
 
-    if(warp(warp_id).m_sync_latency != 0)
-      warp(warp_id).m_sync_latency--;
+    if (warp(warp_id).m_sync_latency != 0) warp(warp_id).m_sync_latency--;
 
     if (warp(warp_id).ibuffer_empty())
       SCHED_DPRINTF(
@@ -3541,25 +3540,25 @@ void shader_core_config::set_pipeline_latency() {
    * [4] DIV
    * [5] SHFL
    */
-  
-  auto check = [](unsigned size, char* input){
+
+  auto check = [](unsigned size, char *input) {
     const std::string temp(input);
     const auto n = std::count(temp.begin(), temp.end(), ',');
-    if(size == n + 1)
+    if (size == n + 1)
       return false;
     else
       return true;
   };
 
-  if(check(int_latency.size(), gpgpu_ctx->func_sim->opcode_latency_int)){
+  if (check(int_latency.size(), gpgpu_ctx->func_sim->opcode_latency_int)) {
     printf("Config Error: opcode_latency_int wrong\n");
     exit(EXIT_FAILURE);
   }
-  if(check(fp_latency.size(), gpgpu_ctx->func_sim->opcode_latency_fp)){
+  if (check(fp_latency.size(), gpgpu_ctx->func_sim->opcode_latency_fp)) {
     printf("Config Error: opcode_latency_fp wrong\n");
     exit(EXIT_FAILURE);
   }
-  if(check(dp_latency.size(), gpgpu_ctx->func_sim->opcode_latency_dp)){
+  if (check(dp_latency.size(), gpgpu_ctx->func_sim->opcode_latency_dp)) {
     printf("Config Error: opcode_latency_dp wrong\n");
     exit(EXIT_FAILURE);
   }
@@ -3874,7 +3873,8 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
     switch (bar_type) {
       case WAIT:
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
-        m_shader->m_warp[warp_id]->m_sync_latency = m_shader->get_config()->cluster_wait_latency;
+        m_shader->m_warp[warp_id]->m_sync_latency =
+            m_shader->get_config()->cluster_wait_latency;
         m_cluster_barrier->m_cta_at_barrier.set(cta_id_in_cluster);
         ctas_in_cluster = m_cluster_barrier->m_cluster_to_cta[cluster_slot];
         ctas_at_barrier = ctas_in_cluster & m_cluster_barrier->m_cta_arrived;
@@ -3889,7 +3889,8 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
         break;
       case ARRIVE:
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
-        m_shader->m_warp[warp_id]->m_sync_latency = m_shader->get_config()->cluster_arrive_latency;
+        m_shader->m_warp[warp_id]->m_sync_latency =
+            m_shader->get_config()->cluster_arrive_latency;
         m_cluster_bar.set(warp_id);
         warps_in_cta = w->second;
         at_barrier = warps_in_cta & m_cluster_bar;
@@ -4133,7 +4134,7 @@ bool shd_warp_t::waiting() {
     // the functional execution of the atomic when it hits DRAM can cause
     // the wrong register to be read.
     return true;
-  } else if (m_sync_latency != 0){
+  } else if (m_sync_latency != 0) {
     return true;
   }
   return false;
@@ -4612,8 +4613,7 @@ bool simt_core_cluster::next_cores_can_issue_cluster(kernel_info_t *kernel,
 bool gpu_processing_cluster::can_issue_cta_cluster() {
   const unsigned ctas_per_cluster = m_kernel->ctas_per_cluster();
 
-  if(m_shader_per_gpc < ctas_per_cluster)
-    return 0;
+  if (m_shader_per_gpc < ctas_per_cluster) return 0;
 
   int ctas_remaining = ctas_per_cluster;
   for (unsigned i = 0; i < m_clusters.size(); i++) {

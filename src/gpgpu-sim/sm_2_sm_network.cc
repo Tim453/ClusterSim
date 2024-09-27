@@ -331,16 +331,14 @@ H100Model::Node::Node(uint32_t packets_per_cycle)
 
 H100Model::Node::~Node() {}
 
-H100Model::Processor::Processor(uint32_t packets_per_cycle,
-                                           uint32_t block_rank)
+H100Model::Processor::Processor(uint32_t packets_per_cycle, uint32_t block_rank)
     : Node(packets_per_cycle), block_rank(block_rank) {}
 
 H100Model::Junction::Junction(uint32_t packets_per_cycle)
     : Node(packets_per_cycle) {}
 
-H100Model::Pipe::Pipe(Node* in_node, Node* out_node,
-                                 uint32_t packets_per_cycle,
-                                 uint32_t buffer_capacity)
+H100Model::Pipe::Pipe(Node* in_node, Node* out_node, uint32_t packets_per_cycle,
+                      uint32_t buffer_capacity)
     : in_node(in_node),
       out_node(out_node),
       in_q(),
@@ -350,9 +348,8 @@ H100Model::Pipe::Pipe(Node* in_node, Node* out_node,
       counterpart(nullptr),
       reachable_processors{false} {}
 
-H100Model::H100Model(unsigned n_shader,
-                       const class shader_core_config* config,
-                       const class gpgpu_sim* gpu)
+H100Model::H100Model(unsigned n_shader, const class shader_core_config* config,
+                     const class gpgpu_sim* gpu)
     : sm_2_sm_network(n_shader, config, gpu), node_list(), pipe_list() {
   // Default packets_per_cycle and buffer_capacity for all pipes and junctions.
   uint32_t ppc = 32;
@@ -376,16 +373,16 @@ H100Model::H100Model(unsigned n_shader,
 
   // Create shorthand variables for the processor and junction identifiers.
   // This makes it easier to port over the PacketSim network config.
-  uint32_t Proc02 =  0;
-  uint32_t Proc03 =  1;
-  uint32_t Proc16 =  2;
-  uint32_t Proc17 =  3;
-  uint32_t Proc30 =  4;
-  uint32_t Proc31 =  5;
-  uint32_t Proc44 =  6;
-  uint32_t Proc45 =  7;
-  uint32_t Proc58 =  8;
-  uint32_t Proc59 =  9;
+  uint32_t Proc02 = 0;
+  uint32_t Proc03 = 1;
+  uint32_t Proc16 = 2;
+  uint32_t Proc17 = 3;
+  uint32_t Proc30 = 4;
+  uint32_t Proc31 = 5;
+  uint32_t Proc44 = 6;
+  uint32_t Proc45 = 7;
+  uint32_t Proc58 = 8;
+  uint32_t Proc59 = 9;
   uint32_t Proc72 = 10;
   uint32_t Proc73 = 11;
   uint32_t Proc86 = 12;
@@ -444,12 +441,10 @@ H100Model::H100Model(unsigned n_shader,
   for (auto [node_idx_a, node_idx_b, packets_per_cycle, buffer_capacity] :
        edges) {
     // Create the two pipes.
-    Pipe* ab_pipe =
-        new Pipe(node_list[node_idx_a], node_list[node_idx_b],
-                      packets_per_cycle, buffer_capacity);
-    Pipe* ba_pipe =
-        new Pipe(node_list[node_idx_b], node_list[node_idx_a],
-                      packets_per_cycle, buffer_capacity);
+    Pipe* ab_pipe = new Pipe(node_list[node_idx_a], node_list[node_idx_b],
+                             packets_per_cycle, buffer_capacity);
+    Pipe* ba_pipe = new Pipe(node_list[node_idx_b], node_list[node_idx_a],
+                             packets_per_cycle, buffer_capacity);
 
     // Correctly set up counterparts.
     ab_pipe->counterpart = ba_pipe;
@@ -470,19 +465,21 @@ H100Model::H100Model(unsigned n_shader,
   // print_network();
 
   // Now encode manual priorites for each of the junctions.
-  // lhs is the NodeID of the junction, rhs is a vector of NodeIDs to prioritize.
+  // lhs is the NodeID of the junction, rhs is a vector of NodeIDs to
+  // prioritize.
   std::vector<std::tuple<uint32_t, std::vector<uint32_t>>> priorities;
 
   // These are copied over from the network config found by the genetic search.
-  priorities.push_back({NodeL0, {NodeL1, Proc02, Proc03 }});
-  priorities.push_back({NodeL1, {NodeM1, Proc45, NodeL0, Proc44, NodeL2 }});
-  priorities.push_back({NodeL2, {NodeL1, Proc87, Proc86 }});
-  priorities.push_back({NodeM0, {Proc30, NodeM2, Proc31, NodeR1, NodeM1 }});
-  priorities.push_back({NodeM1, {NodeL1, NodeM0, NodeR1 }});
-  priorities.push_back({NodeM2, {Proc72, Proc73, NodeM0 }});
-  priorities.push_back({NodeR0, {NodeR1, Proc58, Proc59 }});
-  priorities.push_back({NodeR1, {NodeM1, NodeM0, NodeR0, Proc17, Proc16, NodeR2 }});
-  priorities.push_back({NodeR2, {NodeR1, Proc99, Proc98 }});
+  priorities.push_back({NodeL0, {NodeL1, Proc02, Proc03}});
+  priorities.push_back({NodeL1, {NodeM1, Proc45, NodeL0, Proc44, NodeL2}});
+  priorities.push_back({NodeL2, {NodeL1, Proc87, Proc86}});
+  priorities.push_back({NodeM0, {Proc30, NodeM2, Proc31, NodeR1, NodeM1}});
+  priorities.push_back({NodeM1, {NodeL1, NodeM0, NodeR1}});
+  priorities.push_back({NodeM2, {Proc72, Proc73, NodeM0}});
+  priorities.push_back({NodeR0, {NodeR1, Proc58, Proc59}});
+  priorities.push_back(
+      {NodeR1, {NodeM1, NodeM0, NodeR0, Proc17, Proc16, NodeR2}});
+  priorities.push_back({NodeR2, {NodeR1, Proc99, Proc98}});
 
   // Now go through the list and actually encode those priorities.
   for (auto& [node, priority_list] : priorities) {
@@ -499,7 +496,9 @@ H100Model::H100Model(unsigned n_shader,
       // Panic if it could not be found.
       // That means the specified priorities do not match the actual network.
       if (!matching_pipe) {
-        printf("Implementation error. Failed to initialize H100-interconnect network.");
+        printf(
+            "Implementation error. Failed to initialize H100-interconnect "
+            "network.");
         exit(1);
       }
       // Add it on to the new priority list.
@@ -611,8 +610,7 @@ H100Model::~H100Model() {
 }
 
 void H100Model::Push(unsigned input_deviceID, unsigned output_deviceID,
-                      void* data, unsigned int size,
-                      Interconnect_type network) {
+                     void* data, unsigned int size, Interconnect_type network) {
   // Translate the SMIDs to the block rank of the corresponding processors.
   uint32_t input_rank = sid_to_gid(input_deviceID);
   uint32_t output_rank = sid_to_gid(output_deviceID);
@@ -732,7 +730,7 @@ bool H100Model::Busy() const {
 }
 
 bool H100Model::HasBuffer(unsigned deviceID, unsigned int size,
-                           Interconnect_type network) const {
+                          Interconnect_type network) const {
   // Translate the SMID to the processor's block rank.
   uint32_t block_rank = sid_to_gid(deviceID);
   // Grab a reference to the (only) outgoing pipe of the processor-node.
@@ -742,9 +740,8 @@ bool H100Model::HasBuffer(unsigned deviceID, unsigned int size,
 }
 
 H100Model::Packet::Packet(uint32_t source_block_rank,
-                                     uint32_t destination_block_rank,
-                                     Interconnect_type associated_network,
-                                     void* data)
+                          uint32_t destination_block_rank,
+                          Interconnect_type associated_network, void* data)
     : source_block_rank(source_block_rank),
       destination_block_rank(destination_block_rank),
       associated_network(associated_network),

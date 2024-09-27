@@ -354,10 +354,8 @@ void gpgpu_context::gpgpu_ptx_info_load_from_filename(const char *filename,
     snprintf(extra_flags, 1024, "--gpu-name=sm_%u", sm_version);
   else
     snprintf(extra_flags, 1024, "--compile-only --gpu-name=sm_%u", sm_version);
-  snprintf(
-      buff, 1024,
-      "ptxas %s -v %s --output-file  /dev/null 2> %s",
-      extra_flags, filename, ptxas_filename.c_str());
+  snprintf(buff, 1024, "ptxas %s -v %s --output-file  /dev/null 2> %s",
+           extra_flags, filename, ptxas_filename.c_str());
   int result = system(buff);
   if (result != 0) {
     printf("GPGPU-Sim PTX: ERROR ** while loading PTX (b) %d\n", result);
@@ -524,10 +522,8 @@ void gpgpu_context::gpgpu_ptxinfo_load_from_string(const char *p_for_info,
                sm_version);
 #endif
 
-    snprintf(
-        commandline, 1024,
-        "ptxas %s -v %s --output-file  /dev/null 2> %s",
-        extra_flags, fname2, tempfile_ptxinfo);
+    snprintf(commandline, 1024, "ptxas %s -v %s --output-file  /dev/null 2> %s",
+             extra_flags, fname2, tempfile_ptxinfo);
     printf("GPGPU-Sim PTX: generating ptxinfo using \"%s\"\n", commandline);
     fflush(stdout);
     result = system(commandline);

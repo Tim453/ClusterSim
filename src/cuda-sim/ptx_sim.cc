@@ -217,7 +217,8 @@ void ptx_thread_info::set_done() {
   m_cycle_done = m_gpu->gpu_sim_cycle;
 }
 
-unsigned long long ptx_thread_info::get_builtin(int builtin_id, unsigned dim_mod) {
+unsigned long long ptx_thread_info::get_builtin(int builtin_id,
+                                                unsigned dim_mod) {
   assert(m_valid);
   switch ((builtin_id & 0xFFFF)) {
     case CLOCK_REG:

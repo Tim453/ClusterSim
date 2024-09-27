@@ -998,10 +998,8 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
     ctx->api->g_cuda_launch_stack.pop_back();
     return g_last_cudaError = cudaSuccess;
   }
-  
-  auto dim_3_prod = [](dim3 value){
-    return value.x * value.y * value.z;
-  };
+
+  auto dim_3_prod = [](dim3 value) { return value.x * value.y * value.z; };
 
   printf(
       "GPGPU-Sim PTX: pushing kernel \'%s\' to stream %u, gridDim= (%u,%u,%u) "
@@ -1019,7 +1017,8 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
       kname.c_str(), stream ? stream->get_uid() : 0, gridDim.x, gridDim.y,
       gridDim.z, clusterDim.x, clusterDim.y, clusterDim.z, blockDim.x,
       blockDim.y, blockDim.z, grid->static_smem, grid->dynamic_smem,
-      grid->smem / 1024, dim_3_prod(gridDim), dim_3_prod(clusterDim), dim_3_prod(blockDim));
+      grid->smem / 1024, dim_3_prod(gridDim), dim_3_prod(clusterDim),
+      dim_3_prod(blockDim));
   stream_operation op(grid, ctx->func_sim->g_ptx_sim_mode, stream);
   ctx->the_gpgpusim->g_stream_manager->push(op);
   ctx->api->g_cuda_launch_stack.pop_back();
@@ -2905,8 +2904,7 @@ __host__ cudaError_t CUDARTAPI cudaEventSynchronize(cudaEvent_t event) {
   printf("GPGPU-Sim API: cudaEventSynchronize ** waiting for event\n");
   fflush(stdout);
   CUevent_st *e = (CUevent_st *)event;
-  while (!e->done())
-    ;
+  while (!e->done());
   printf("GPGPU-Sim API: cudaEventSynchronize ** event detected\n");
   fflush(stdout);
   return g_last_cudaError = cudaSuccess;
@@ -3009,7 +3007,7 @@ __host__ cudaError_t CUDARTAPI cudaGetExportTable(
  *                                                                              *
  *******************************************************************************/
 
-//#include "../../cuobjdump_to_ptxplus/cuobjdump_parser.h"
+// #include "../../cuobjdump_to_ptxplus/cuobjdump_parser.h"
 
 // extracts all ptx files from binary and dumps into
 // prog_name.unique_no.sm_<>.ptx files
@@ -3046,8 +3044,8 @@ void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
       // int pos = line.find(std::string(get_app_binary_name(app_binary)));
       const char *ptx_file = line.c_str();
       printf("Extracting specific PTX file named %s \n", ptx_file);
-      snprintf(command, 1200, "cuobjdump -xptx %s %s",
-               ptx_file, app_binary.c_str());
+      snprintf(command, 1200, "cuobjdump -xptx %s %s", ptx_file,
+               app_binary.c_str());
       if (system(command) != 0) {
         printf("ERROR: command: %s failed \n", command);
         exit(0);
@@ -3125,12 +3123,10 @@ void cuda_runtime_api::extract_code_using_cuobjdump() {
     int fd = mkstemp(fname);
     close(fd);
     if (!gpgpu_ctx->device_runtime->g_cdp_enabled)
-      snprintf(command, 1000,
-               "cuobjdump -ptx -elf -sass %s > %s",
+      snprintf(command, 1000, "cuobjdump -ptx -elf -sass %s > %s",
                app_binary.c_str(), fname);
     else
-      snprintf(command, 1000,
-               "$cuobjdump -ptx -elf -sass -all %s > %s",
+      snprintf(command, 1000, "$cuobjdump -ptx -elf -sass -all %s > %s",
                app_binary.c_str(), fname);
     bool parse_output = true;
     result = system(command);
@@ -3865,9 +3861,9 @@ __host__ cudaError_t CUDARTAPI cudaDeviceSetLimit(enum cudaLimit limit,
   return g_last_cudaError = cudaSuccess;
 }
 
-//#if CUDART_VERSION >= 9000
+// #if CUDART_VERSION >= 9000
 //__host__  cudaError_t cudaFuncSetAttribute ( const void* func, enum
-// cudaFuncAttribute attr, int value ) {
+//  cudaFuncAttribute attr, int value ) {
 
 // ignore this Attribute for now, and the default is that carveout =
 // cudaSharedmemCarveoutDefault;   //  (-1)
@@ -3998,8 +3994,8 @@ int CUDARTAPI __cudaSynchronizeThreads(void **, void *) {
 /// static functions
 
 int cuda_runtime_api::load_static_globals(symbol_table *symtab,
-                                          addr_t min_gaddr,
-                                          addr_t max_gaddr, gpgpu_t *gpu) {
+                                          addr_t min_gaddr, addr_t max_gaddr,
+                                          gpgpu_t *gpu) {
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }

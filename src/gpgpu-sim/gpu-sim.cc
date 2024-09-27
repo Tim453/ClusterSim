@@ -420,8 +420,7 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          &n_simt_cores_per_cluster,
                          "number of simd cores per cluster", "3");
   option_parser_register(opp, "-gpgpu_n_cores_per_gpc", OPT_CSTR,
-                         &n_simt_cores_per_gpc, "List of SMs per gpc",
-                         "");
+                         &n_simt_cores_per_gpc, "List of SMs per gpc", "");
   option_parser_register(opp, "-gpgpu_n_cluster_ejection_buffer_size",
                          OPT_UINT32, &n_simt_ejection_buffer_size,
                          "number of packets in ejection buffer", "8");
@@ -452,12 +451,10 @@ void shader_core_config::reg_options(class OptionParser *opp) {
       "Log the number of open Requests/Replys for each Cycle", "0");
   option_parser_register(opp, "-gpgpu_cluster_arrive_latency", OPT_INT32,
                          &cluster_arrive_latency,
-                         "Minimum latency for cluster.arrive",
-                         "1050");
+                         "Minimum latency for cluster.arrive", "1050");
   option_parser_register(opp, "-gpgpu_cluster_wait_latency", OPT_INT32,
                          &cluster_wait_latency,
-                         "Minimum latency for cluster.wait",
-                         "50");
+                         "Minimum latency for cluster.wait", "50");
   option_parser_register(
       opp, "-gpgpu_shmem_sizeDefault", OPT_UINT32, &gpgpu_shmem_sizeDefault,
       "Size of shared memory per shader core (default 16kB)", "16384");
@@ -939,17 +936,15 @@ void gpgpu_sim::stop_all_running_kernels() {
 }
 
 void exec_gpgpu_sim::createSIMTCluster() {
-
   auto number_of_cores_per_gpc = m_config.get_sm_per_gpc_list();
   m_cluster.resize(m_shader_config->n_simt_clusters);
-  const int cores_per_tpc = m_shader_config->n_simt_cores_per_cluster; 
-  
+  const int cores_per_tpc = m_shader_config->n_simt_cores_per_cluster;
+
   int gpc_id = 0;
   int remaining = number_of_cores_per_gpc[0];
 
   for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-    if(remaining == 0)
-      remaining = number_of_cores_per_gpc.at(++gpc_id);
+    if (remaining == 0) remaining = number_of_cores_per_gpc.at(++gpc_id);
     m_cluster[i] = new exec_simt_core_cluster(
         this, i, m_shader_config, m_memory_config, m_shader_stats,
         m_memory_stats, &m_gpcs.at(gpc_id));
@@ -957,7 +952,6 @@ void exec_gpgpu_sim::createSIMTCluster() {
     m_gpcs.at(gpc_id).add_cluster(m_cluster[i]);
     remaining -= cores_per_tpc;
     assert(remaining >= 0);
-
   }
 }
 
@@ -1040,16 +1034,18 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
   m_functional_sim_kernel = NULL;
 
   if (m_config.num_shader() != m_config.number_of_sms_in_gpcs()) {
-    std::cout << "Total number of SMs " << m_config.num_shader() << " does not match the number of SMs specified in gpgpu_n_cores_per_gpc " << m_config.number_of_sms_in_gpcs() << "\n";
+    std::cout << "Total number of SMs " << m_config.num_shader()
+              << " does not match the number of SMs specified in "
+                 "gpgpu_n_cores_per_gpc "
+              << m_config.number_of_sms_in_gpcs() << "\n";
     exit(1);
   }
-
 
   m_gpcs.clear();
   const auto sm_in_gpc_list = m_config.get_sm_per_gpc_list();
   for (unsigned i = 0; i < sm_in_gpc_list.size(); i++) {
-    m_gpcs.push_back(gpu_processing_cluster(this, m_shader_config, i,
-                                            sm_in_gpc_list.at(i)));
+    m_gpcs.push_back(
+        gpu_processing_cluster(this, m_shader_config, i, sm_in_gpc_list.at(i)));
   }
 }
 
@@ -1106,7 +1102,7 @@ void gpgpu_sim_config::init_clock_domains(void) {
   icnt_freq = icnt_freq MhZ;
   l2_freq = l2_freq MhZ;
   dram_freq = dram_freq MhZ;
-  sm_2_sm_network_freq  = sm_2_sm_network_freq MhZ;
+  sm_2_sm_network_freq = sm_2_sm_network_freq MhZ;
   core_period = 1 / core_freq;
   icnt_period = 1 / icnt_freq;
   dram_period = 1 / dram_freq;
@@ -1115,7 +1111,8 @@ void gpgpu_sim_config::init_clock_domains(void) {
   printf("GPGPU-Sim uArch: clock freqs: %lf:%lf:%lf:%lf:%lf\n", core_freq,
          icnt_freq, l2_freq, dram_freq, sm_2_sm_network_freq);
   printf("GPGPU-Sim uArch: clock periods: %.20lf:%.20lf:%.20lf:%.20lf:%.20lf\n",
-         core_period, icnt_period, l2_period, dram_period, sm_2_sm_network_period);
+         core_period, icnt_period, l2_period, dram_period,
+         sm_2_sm_network_period);
 }
 
 void gpgpu_sim::reinit_clock_domains(void) {
@@ -1901,7 +1898,8 @@ void dram_t::dram_log(int task) {
 
 // Find next clock domain and increment its time
 int gpgpu_sim::next_clock_domain(void) {
-  double smallest = std::min({core_time, icnt_time, dram_time, sm_2_sm_network_time});
+  double smallest =
+      std::min({core_time, icnt_time, dram_time, sm_2_sm_network_time});
   int mask = 0x00;
   if (l2_time <= smallest) {
     smallest = l2_time;
@@ -1920,7 +1918,7 @@ int gpgpu_sim::next_clock_domain(void) {
     mask |= CORE;
     core_time += m_config.core_period;
   }
-  if(sm_2_sm_network_time <= smallest){
+  if (sm_2_sm_network_time <= smallest) {
     mask |= SM_NETWORK;
     sm_2_sm_network_time += m_config.sm_2_sm_network_period;
   }

@@ -63,9 +63,9 @@ const char *decode_token(int type) { return g_ptx_token_decode[type].c_str(); }
 
 void ptx_recognizer::read_parser_environment_variables() {
   const auto filename = getenv("PTX_SIM_KERNELFILE");
-  if(filename == nullptr)
+  if (filename == nullptr)
     gpgpu_ctx->g_filename = "_1.ptx";
-  else 
+  else
     gpgpu_ctx->g_filename = filename;
   char *dbg_level = getenv("PTX_SIM_DEBUG");
   if (dbg_level && strlen(dbg_level)) {

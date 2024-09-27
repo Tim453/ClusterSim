@@ -83,8 +83,7 @@ void *gpgpu_sim_thread_concurrent(void *ctx_ptr) {
       fflush(stdout);
     }
     while (ctx->the_gpgpusim->g_stream_manager->empty_protected() &&
-           !ctx->the_gpgpusim->g_sim_done)
-      ;
+           !ctx->the_gpgpusim->g_sim_done);
     if (g_debug_execution >= 3) {
       printf("GPGPU-Sim: ** START simulation thread (detected work) **\n");
       ctx->the_gpgpusim->g_stream_manager->print(stdout);
@@ -209,10 +208,12 @@ gpgpu_sim *gpgpu_context::gpgpu_ptx_sim_init_perf() {
   the_gpgpusim->g_the_gpu_config->reg_options(
       opp);  // register GPU microrachitecture options
 
-  const char *custom_arg[3] = {"", "-config", GPU_SIM_ROOT "/configs/tested-cfgs/SM90_H100/gpgpusim.config"};
+  const char *custom_arg[3] = {
+      "", "-config",
+      GPU_SIM_ROOT "/configs/tested-cfgs/SM90_H100/gpgpusim.config"};
   if (std::getenv("GPUSIM_CONFIG") != nullptr) {
     custom_arg[2] = std::getenv("GPUSIM_CONFIG");
-  } else if(FILE *file = fopen("gpgpusim.config", "r")){
+  } else if (FILE *file = fopen("gpgpusim.config", "r")) {
     fclose(file);
     custom_arg[2] = "gpgpusim.config";
   }
