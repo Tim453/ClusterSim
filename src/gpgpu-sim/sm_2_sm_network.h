@@ -115,7 +115,6 @@ class booksim : public sm_2_sm_network {
   booksim(unsigned n_shader, const class shader_core_config* config,
           const class gpgpu_sim* gpu);
 
-  ~booksim();
   void Init();
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
             unsigned int size, Interconnect_type network);
@@ -145,7 +144,6 @@ class ideal_network : public sm_2_sm_network {
     in_request.resize(n_shader);
     in_response.resize(n_shader);
   }
-  ~ideal_network();
   void Init();
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
             unsigned int size, Interconnect_type network);
