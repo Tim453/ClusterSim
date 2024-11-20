@@ -352,8 +352,8 @@ H100Model::H100Model(unsigned n_shader, const class shader_core_config* config,
                      const class gpgpu_sim* gpu)
     : sm_2_sm_network(n_shader, config, gpu), node_list(), pipe_list() {
   // Default packets_per_cycle and buffer_capacity for all pipes and junctions.
-  uint32_t ppc = 32;
-  uint32_t bfs = 128;
+  uint32_t ppc = 1;
+  uint32_t bfs = 4;
 
   // Generate the 16 processors.
   for (uint32_t i = 0; i < 16; ++i) {
@@ -369,36 +369,36 @@ H100Model::H100Model(unsigned n_shader, const class shader_core_config* config,
   node_list.push_back(new Junction(ppc));  // JR2
   node_list.push_back(new Junction(ppc));  // JM0
   node_list.push_back(new Junction(ppc));  // JM1
-  node_list.push_back(new Junction(ppc));  // JM2
+  // node_list.push_back(new Junction(ppc));  // JM2
 
   // Create shorthand variables for the processor and junction identifiers.
   // This makes it easier to port over the PacketSim network config.
-  uint32_t Proc02 = 0;
-  uint32_t Proc03 = 1;
-  uint32_t Proc16 = 2;
-  uint32_t Proc17 = 3;
-  uint32_t Proc30 = 4;
-  uint32_t Proc31 = 5;
-  uint32_t Proc44 = 6;
-  uint32_t Proc45 = 7;
-  uint32_t Proc58 = 8;
-  uint32_t Proc59 = 9;
-  uint32_t Proc72 = 10;
-  uint32_t Proc73 = 11;
-  uint32_t Proc86 = 12;
-  uint32_t Proc87 = 13;
-  uint32_t Proc98 = 14;
-  uint32_t Proc99 = 15;
+  uint32_t Proc0 = 0;
+  uint32_t Proc1 = 1;
+  uint32_t Proc2 = 2;
+  uint32_t Proc3 = 3;
+  uint32_t Proc4 = 4;
+  uint32_t Proc5 = 5;
+  uint32_t Proc6 = 6;
+  uint32_t Proc7 = 7;
+  uint32_t Proc8 = 8;
+  uint32_t Proc9 = 9;
+  uint32_t Proc10 = 10;
+  uint32_t Proc11 = 11;
+  uint32_t Proc12 = 12;
+  uint32_t Proc13 = 13;
+  uint32_t Proc14 = 14;
+  uint32_t Proc15 = 15;
 
-  uint32_t NodeL0 = 16;
-  uint32_t NodeL1 = 17;
-  uint32_t NodeL2 = 18;
-  uint32_t NodeR0 = 19;
-  uint32_t NodeR1 = 20;
-  uint32_t NodeR2 = 21;
-  uint32_t NodeM0 = 22;
-  uint32_t NodeM1 = 23;
-  uint32_t NodeM2 = 24;
+  uint32_t Node0 = 16;
+  uint32_t Node1 = 17;
+  uint32_t Node2 = 18;
+  uint32_t Node3 = 19;
+  uint32_t Node4 = 20;
+  uint32_t Node5 = 21;
+  uint32_t Node6 = 22;
+  uint32_t Node7 = 23;
+  // uint32_t NodeM2 = 24;
 
   // Hardcoded list of bidirectional edges for the interconnect.
   // Tuples follow the form (node_a, node_b, ppc, buf_size).
@@ -406,36 +406,39 @@ H100Model::H100Model(unsigned n_shader, const class shader_core_config* config,
   std::vector<std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>> edges;
 
   // SMs to Junctions
-  edges.push_back({Proc02, NodeL0, ppc, bfs});
-  edges.push_back({Proc03, NodeL0, ppc, bfs});
-  edges.push_back({Proc16, NodeR1, ppc, bfs});
-  edges.push_back({Proc17, NodeR1, ppc, bfs});
-  edges.push_back({Proc30, NodeM0, ppc, bfs});
-  edges.push_back({Proc31, NodeM0, ppc, bfs});
-  edges.push_back({Proc44, NodeL1, ppc, bfs});
-  edges.push_back({Proc45, NodeL1, ppc, bfs});
-  edges.push_back({Proc58, NodeR0, ppc, bfs});
-  edges.push_back({Proc59, NodeR0, ppc, bfs});
-  edges.push_back({Proc72, NodeM2, ppc, bfs});
-  edges.push_back({Proc73, NodeM2, ppc, bfs});
-  edges.push_back({Proc86, NodeL2, ppc, bfs});
-  edges.push_back({Proc87, NodeL2, ppc, bfs});
-  edges.push_back({Proc98, NodeR2, ppc, bfs});
-  edges.push_back({Proc99, NodeR2, ppc, bfs});
+  edges.push_back({Proc0, Node0, ppc, bfs});
+  edges.push_back({Proc1, Node0, ppc, bfs});
+  edges.push_back({Proc2, Node1, ppc, bfs});
+  edges.push_back({Proc3, Node1, ppc, bfs});
+  edges.push_back({Proc4, Node2, ppc, bfs});
+  edges.push_back({Proc5, Node2, ppc, bfs});
+  edges.push_back({Proc6, Node3, ppc, bfs});
+  edges.push_back({Proc7, Node3, ppc, bfs});
+  edges.push_back({Proc8, Node4, ppc, bfs});
+  edges.push_back({Proc9, Node4, ppc, bfs});
+  edges.push_back({Proc10, Node5, ppc, bfs});
+  edges.push_back({Proc11, Node5, ppc, bfs});
+  edges.push_back({Proc12, Node6, ppc, bfs});
+  edges.push_back({Proc13, Node6, ppc, bfs});
+  edges.push_back({Proc14, Node7, ppc, bfs});
+  edges.push_back({Proc15, Node7, ppc, bfs});
 
   // Junction to Junction
-  edges.push_back({NodeL0, NodeL1, ppc, bfs});
-  edges.push_back({NodeL1, NodeL2, ppc, bfs});
+  edges.push_back({Node0, Node1, ppc, bfs});
+  edges.push_back({Node0, Node2, ppc, bfs});
+  edges.push_back({Node0, Node3, ppc, bfs});
+  edges.push_back({Node1, Node2, ppc, bfs});
+  edges.push_back({Node1, Node3, ppc, bfs});
+  edges.push_back({Node2, Node3, ppc, bfs});
 
-  edges.push_back({NodeR0, NodeR1, ppc, bfs});
-  edges.push_back({NodeR1, NodeR2, ppc, bfs});
+  edges.push_back({Node4, Node5, ppc, bfs});
+  edges.push_back({Node4, Node6, ppc, bfs});
+  edges.push_back({Node4, Node7, ppc, bfs});
+  edges.push_back({Node5, Node6, ppc, bfs});
+  edges.push_back({Node5, Node7, ppc, bfs});
+  edges.push_back({Node6, Node7, ppc, bfs});
 
-  edges.push_back({NodeM1, NodeM0, ppc, bfs});
-  edges.push_back({NodeM0, NodeM2, ppc, bfs});
-
-  edges.push_back({NodeL1, NodeM1, ppc, bfs});
-  edges.push_back({NodeM1, NodeR1, ppc, bfs});
-  edges.push_back({NodeM0, NodeR1, ppc, bfs});
+  edges.push_back({Node2, Node6, ppc, bfs});
 
   // Translate the vector of tuples into actual edges.
   for (auto [node_idx_a, node_idx_b, packets_per_cycle, buffer_capacity] :
@@ -470,16 +473,14 @@ H100Model::H100Model(unsigned n_shader, const class shader_core_config* config,
   std::vector<std::tuple<uint32_t, std::vector<uint32_t>>> priorities;
 
   // These are copied over from the network config found by the genetic search.
-  priorities.push_back({NodeL0, {NodeL1, Proc02, Proc03}});
-  priorities.push_back({NodeL1, {NodeM1, Proc45, NodeL0, Proc44, NodeL2}});
-  priorities.push_back({NodeL2, {NodeL1, Proc87, Proc86}});
-  priorities.push_back({NodeM0, {Proc30, NodeM2, Proc31, NodeR1, NodeM1}});
-  priorities.push_back({NodeM1, {NodeL1, NodeM0, NodeR1}});
-  priorities.push_back({NodeM2, {Proc72, Proc73, NodeM0}});
-  priorities.push_back({NodeR0, {NodeR1, Proc58, Proc59}});
-  priorities.push_back(
-      {NodeR1, {NodeM1, NodeM0, NodeR0, Proc17, Proc16, NodeR2}});
-  priorities.push_back({NodeR2, {NodeR1, Proc99, Proc98}});
+  priorities.push_back({Node0, {Node2, Proc1, Proc0, Node1, Node3}});
+  priorities.push_back({Node1, {Node2, Proc3, Proc2, Node0, Node3}});
+  priorities.push_back({Node2, {Node1, Proc4, Node6, Proc5, Node3, Node0}});
+  priorities.push_back({Node3, {Node0, Node2, Proc6, Proc7, Node1}});
+  priorities.push_back({Node4, {Node6, Node5, Node7, Proc9, Proc8}});
+  priorities.push_back({Node5, {Node4, Node6, Proc10, Proc11, Node7}});
+  priorities.push_back({Node6, {Node5, Proc12, Node7, Proc13, Node2, Node4}});
+  priorities.push_back({Node7, {Node4, Node6, Proc15, Proc14, Node5}});
 
   // Now go through the list and actually encode those priorities.
   for (auto& [node, priority_list] : priorities) {
