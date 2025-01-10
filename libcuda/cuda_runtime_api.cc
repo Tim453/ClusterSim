@@ -924,6 +924,8 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
     announce_call(__my_func__);
   }
   CUctx_st *context = GPGPUSim_Context(ctx);
+  context->get_device()->get_gpgpu()->gpu_copyManagedMemorytoDevice();
+
   char *mode = getenv("PTX_SIM_MODE_FUNC");
   if (mode) sscanf(mode, "%u", &(ctx->func_sim->g_ptx_sim_mode));
   gpgpusim_ptx_assert(!ctx->api->g_cuda_launch_stack.empty(),
@@ -1022,6 +1024,7 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
   stream_operation op(grid, ctx->func_sim->g_ptx_sim_mode, stream);
   ctx->the_gpgpusim->g_stream_manager->push(op);
   ctx->api->g_cuda_launch_stack.pop_back();
+  context->get_device()->get_gpgpu()->gpu_copyManagedMemorytoHost();
   return g_last_cudaError = cudaSuccess;
 }
 
@@ -1044,6 +1047,53 @@ cudaError_t cudaMallocInternal(void **devPtr, size_t size,
     ctx->api->g_mallocPtr_Size[(unsigned long long)*devPtr] = size;
   }
   if (*devPtr) {
+    return g_last_cudaError = cudaSuccess;
+  } else {
+    return g_last_cudaError = cudaErrorMemoryAllocation;
+  }
+}
+
+cudaError_t cudaMallocManagedInternal(void **devPtr, size_t size,
+                                      unsigned int flags = cudaMemAttachGlobal,
+                                      gpgpu_context *gpgpu_ctx = NULL) {
+  gpgpu_context *ctx;
+  if (gpgpu_ctx) {
+    ctx = gpgpu_ctx;
+  } else {
+    ctx = GPGPU_Context();
+  }
+  if (g_debug_execution >= 3) {
+    announce_call(__my_func__);
+  }
+  CUctx_st *context = GPGPUSim_Context(ctx);
+
+  // Allocate Host memory
+  void *cpuMemPtr = (void *)malloc(size);
+  memset(cpuMemPtr, 0, size);
+
+  // Allocate device memory using cuda malloc
+  void *gpuMemPtr = context->get_device()->get_gpgpu()->gpu_malloc(size);
+
+  // maintain a map keyed by cpu memory pointer
+  // with a tuple of gpu malloc memory pointer and allocation size as value
+  context->get_device()->get_gpgpu()->gpu_mapManagedAllocations(
+      (uint64_t)cpuMemPtr, (uint64_t)gpuMemPtr, size);
+
+  // at the begining itself allocate memory storage for gpu malloced allocation
+  // note after this point data is not initialized on CPU
+  // so we need to copy the actual data on kernel launch
+  context->get_device()->get_gpgpu()->memcpy_to_gpu((size_t)gpuMemPtr,
+                                                    (void *)cpuMemPtr, size);
+
+  // return cpu memory pointer to the user code
+  // such that cpu side code can access the memory
+  *devPtr = cpuMemPtr;
+
+  if (g_debug_execution >= 3)
+    printf("GPGPU-Sim PTX: cudaMallocing %zu bytes starting at 0x%llx..\n",
+           size, (unsigned long long)*devPtr);
+
+  if (gpuMemPtr) {
     return g_last_cudaError = cudaSuccess;
   } else {
     return g_last_cudaError = cudaErrorMemoryAllocation;
@@ -2253,6 +2303,9 @@ cudaDeviceSynchronizeInternal(gpgpu_context *gpgpu_ctx = NULL) {
   }
   // Blocks until the device has completed all preceding requested tasks
   ctx->synchronize();
+  CUctx_st *context = GPGPUSim_Context(ctx);
+  context->get_device()->get_gpgpu()->gpu_copyManagedMemorytoHost();
+
   return g_last_cudaError = cudaSuccess;
 }
 
@@ -2273,6 +2326,11 @@ cudaError_t cudaPeekAtLastError(void) { return g_last_cudaError; }
 
 __host__ cudaError_t CUDARTAPI cudaMalloc(void **devPtr, size_t size) {
   return cudaMallocInternal(devPtr, size);
+}
+
+__host__ cudaError_t CUDARTAPI cudaMallocManaged(
+    void **devPtr, size_t size, unsigned int flags = cudaMemAttachGlobal) {
+  return cudaMallocManagedInternal(devPtr, size, flags);
 }
 
 __host__ cudaError_t CUDARTAPI cudaMallocHost(void **ptr, size_t size) {
@@ -4683,6 +4741,7 @@ CUresult CUDAAPI cuMemAllocManaged(CUdeviceptr *dptr, size_t bytesize,
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
+  cuda_not_implemented(__my_func__, __LINE__);
   printf("WARNING: this function has not been implemented yet.");
   return CUDA_SUCCESS;
 }

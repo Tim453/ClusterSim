@@ -415,7 +415,56 @@ addr_t generic_to_local(unsigned smid, unsigned hwtid, addr_t addr) {
                  (LOCAL_MEM_SIZE_MAX * hwtid));
 }
 
-addr_t generic_to_global(addr_t addr) { return addr; }
+addr_t generic_to_global(addr_t addr, gpgpu_sim *gpu) {
+  if (gpu == nullptr) return addr;
+
+  auto managedAllocations = gpu->gpu_getManagedAllocations();
+
+  if (managedAllocations.find(addr) == managedAllocations.end()) {
+    return addr;
+  } else {
+    return managedAllocations.find(addr)->second.first;
+  }
+}
+
+std::map<uint64_t, std::pair<uint64_t, size_t> > &
+gpgpu_t::gpu_getManagedAllocations() {
+  return managedAllocations;
+}
+
+size_t gpgpu_t::gpu_getManagedAllocation(uint64_t cpuMemAddr,
+                                         uint64_t *devMemAddr) {
+  if (managedAllocations.find(cpuMemAddr) == managedAllocations.end()) {
+    return 0;
+  } else {
+    *devMemAddr = managedAllocations.find(cpuMemAddr)->second.first;
+    return managedAllocations.find(cpuMemAddr)->second.second;
+  }
+}
+
+void gpgpu_t::gpu_mapManagedAllocations(uint64_t cpuMemAddr,
+                                        uint64_t gpuMemAddr, size_t size) {
+  managedAllocations.insert(std::pair<uint64_t, std::pair<uint64_t, size_t> >(
+      cpuMemAddr, std::pair<uint64_t, size_t>(gpuMemAddr, size)));
+}
+
+void gpgpu_t::gpu_copyManagedMemorytoDevice() {
+  for (auto &element : managedAllocations) {
+    auto dst = element.second.first;
+    void *src = (void *)element.first;
+    const auto size = element.second.second;
+    memcpy_to_gpu(dst, src, size);
+  }
+}
+
+void gpgpu_t::gpu_copyManagedMemorytoHost() {
+  for (auto &element : managedAllocations) {
+    void *dst = (void *)element.first;
+    auto src = element.second.first;
+    const auto size = element.second.second;
+    memcpy_from_gpu(dst, src, size);
+  }
+}
 
 void *gpgpu_t::gpu_malloc(size_t size) {
   unsigned long long result = m_dev_malloc;

@@ -574,7 +574,7 @@ class ptx_thread_info {
 
 addr_t generic_to_local(unsigned smid, unsigned hwtid, addr_t addr);
 addr_t generic_to_shared(unsigned smid, addr_t addr);
-addr_t generic_to_global(addr_t addr);
+addr_t generic_to_global(addr_t addr, gpgpu_sim *gpu = nullptr);
 addr_t local_to_generic(unsigned smid, unsigned hwtid, addr_t addr);
 addr_t shared_to_generic(unsigned smid, addr_t addr);
 addr_t global_to_generic(addr_t addr);

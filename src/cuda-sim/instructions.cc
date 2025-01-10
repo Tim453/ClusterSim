@@ -3609,6 +3609,9 @@ void cvta_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   unsigned smid = thread->get_hw_sid();
   unsigned hwtid = thread->get_hw_tid();
 
+  auto gpu =
+      pI->get_gpgpu_ctx()->the_gpgpusim->the_context->get_device()->get_gpgpu();
+
   if (to_non_generic) {
     switch (space.get_type()) {
       case shared_space:
@@ -3618,7 +3621,7 @@ void cvta_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
         to_addr_hw = generic_to_local(smid, hwtid, from_addr_hw);
         break;
       case global_space:
-        to_addr_hw = generic_to_global(from_addr_hw);
+        to_addr_hw = generic_to_global(from_addr_hw, gpu);
         break;
       default:
         abort();

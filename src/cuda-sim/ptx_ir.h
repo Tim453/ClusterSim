@@ -1121,6 +1121,8 @@ class ptx_instruction : public warp_inst_t {
     return false;
   }
 
+  auto get_gpgpu_ctx() const { return gpgpu_ctx; }
+
  private:
   void set_opcode_and_latency();
   void set_bar_type();

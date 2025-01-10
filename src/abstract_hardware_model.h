@@ -505,7 +505,7 @@ class simt_stack {
           m_active_mask(),
           m_recvg_pc(-1),
           m_branch_div_cycle(0),
-          m_type(STACK_ENTRY_TYPE_NORMAL){};
+          m_type(STACK_ENTRY_TYPE_NORMAL) {};
   };
 
   std::deque<simt_stack_entry> m_stack;
@@ -634,7 +634,12 @@ class gpgpu_t {
   // Move some cycle core stats here instead of being global
   unsigned long long gpu_sim_cycle;
   unsigned long long gpu_tot_sim_cycle;
-
+  std::map<uint64_t, std::pair<uint64_t, size_t> > &gpu_getManagedAllocations();
+  size_t gpu_getManagedAllocation(uint64_t cpuMemAddr, uint64_t *devMemAddr);
+  void gpu_mapManagedAllocations(uint64_t cpuMemAddr, uint64_t gpuMemAddr,
+                                 size_t size);
+  void gpu_copyManagedMemorytoHost();
+  void gpu_copyManagedMemorytoDevice();
   void *gpu_malloc(size_t size);
   void *gpu_mallocarray(size_t count);
   void gpu_memset(size_t dst_start_addr, int c, size_t count);
@@ -710,6 +715,7 @@ class gpgpu_t {
   class memory_space *m_surf_mem;
 
   unsigned long long m_dev_malloc;
+  std::map<uint64_t, std::pair<uint64_t, size_t> > managedAllocations;
   //  These maps contain the current texture mappings for the GPU at any given
   //  time.
   std::map<std::string, std::set<const struct textureReference *> >
