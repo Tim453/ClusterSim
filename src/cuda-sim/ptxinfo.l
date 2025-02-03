@@ -57,6 +57,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 "ptxas"	TC; 	return HEADER;
 "info"	TC; 	return INFO;
 "Compiling entry function"	TC; return FUNC;
+"Compile time =" TC; return COMPILE_TIME;
+"ms"		TC; return MILISECONDS;
 "Used"		TC; return USED;
 "used"		TC; return USED;
 "registers"	TC; return REGS;
@@ -76,6 +78,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 [_A-Za-z$%][_0-9A-Za-z$]*  TC; yylval->string_value = strdup(yytext); return IDENTIFIER;
 [-]{0,1}[0-9]+	 TC; yylval->int_value =  atoi(yytext); return INT_OPERAND;
+[0-9]+\.[0-9]+ 	 TC; sscanf(yytext,"%lf", &yylval->double_value); return DOUBLE_OPERAND;
 
 "+"	TC; return PLUS;
 ","     TC; return COMMA;

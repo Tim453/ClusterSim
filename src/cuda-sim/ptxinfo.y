@@ -39,14 +39,20 @@ typedef void * yyscan_t;
 %lex-param {ptxinfo_data* ptxinfo}
 
 %union {
+  float  float_value;
+  double double_value;
   int    int_value;
   char * string_value;
 }
 
 %token <int_value> INT_OPERAND
+%token <float_value> FLOAT_OPERAND
+%token  <double_value> DOUBLE_OPERAND
 %token HEADER
 %token INFO
 %token CUMULATIVE_STACK_SIZE
+%token COMPILE_TIME
+%token MILISECONDS
 %token FUNC
 %token USED
 %token REGS
@@ -107,6 +113,7 @@ line: 	HEADER INFO COLON line_info
 line_info: function_name
 	| function_info { ptxinfo->ptxinfo_addinfo(); }
 	| gmem_info
+	| COMPILE_TIME DOUBLE_OPERAND MILISECONDS
 	;
 
 function_name:	FUNC QUOTE IDENTIFIER QUOTE { ptxinfo_function($3); }
