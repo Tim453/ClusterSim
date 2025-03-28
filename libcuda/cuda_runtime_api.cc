@@ -1028,6 +1028,25 @@ cudaError_t cudaLaunchInternal(const char *hostFun,
   return g_last_cudaError = cudaSuccess;
 }
 
+cudaError_t cudaFuncSetAttributeInternal(const char *func,
+                                         enum cudaFuncAttribute attr, int value,
+                                         gpgpu_context *gpgpu_ctx = NULL) {
+  gpgpu_context *ctx;
+  if (gpgpu_ctx) {
+    ctx = gpgpu_ctx;
+  } else {
+    ctx = GPGPU_Context();
+  }
+  if (g_debug_execution >= 3) {
+    announce_call(__my_func__);
+  }
+  CUctx_st *context = GPGPUSim_Context(ctx);
+  auto kernel = context->get_kernel(func);
+  kernel->set_functionAttribute(attr, value);
+
+  return g_last_cudaError = cudaSuccess;
+}
+
 cudaError_t cudaMallocInternal(void **devPtr, size_t size,
                                gpgpu_context *gpgpu_ctx = NULL) {
   gpgpu_context *ctx;
@@ -3977,11 +3996,7 @@ cudaError_t CUDARTAPI cudaFuncSetAttribute(const void *func,
   if (g_debug_execution >= 3) {
     announce_call(__my_func__);
   }
-  printf(
-      "GPGPU-Sim PTX: Execution warning: ignoring call to \"%s ( func=%p, "
-      "attr=%d, value=%d )\"\n",
-      __my_func__, func, attr, value);
-  return g_last_cudaError = cudaSuccess;
+  return cudaFuncSetAttributeInternal((const char *)func, attr, value);
 }
 #endif
 

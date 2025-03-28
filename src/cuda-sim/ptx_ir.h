@@ -1398,6 +1398,11 @@ class function_info {
     m_cluster_dims.z = 1;
   }
 
+  void set_functionAttribute(cudaFuncAttribute attribute, int value) {
+    m_functionAttributes[attribute] = value;
+  }
+  cudaClusterSchedulingPolicy getClusterSchedulingPolicy() const;
+
   dim3 get_cluster_dims() const { return m_cluster_dims; };
   int get_max_cluster_rank() const { return m_max_cluster_rank; };
   // backward pointer
@@ -1433,6 +1438,8 @@ class function_info {
   std::list<std::pair<unsigned, unsigned> > m_back_edges;
   std::map<std::string, unsigned> labels;
   unsigned num_reconvergence_pairs;
+
+  std::map<cudaFuncAttribute, int> m_functionAttributes;
 
   // Registers/shmem/etc. used (from ptxas -v), loaded from ___.ptxinfo along
   // with ___.ptx

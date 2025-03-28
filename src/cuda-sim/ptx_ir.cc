@@ -796,6 +796,16 @@ void function_info::find_ipostdominators() {
   // should
 }
 
+cudaClusterSchedulingPolicy function_info::getClusterSchedulingPolicy() const {
+  if (m_functionAttributes.find(
+          cudaFuncAttributeClusterSchedulingPolicyPreference) ==
+      m_functionAttributes.end())
+    return cudaClusterSchedulingPolicyDefault;
+  else
+    return static_cast<cudaClusterSchedulingPolicy>(m_functionAttributes.at(
+        cudaFuncAttributeClusterSchedulingPolicyPreference));
+}
+
 void function_info::find_idominators() {
   // find immediate dominator blocks, using algorithm of
   // Muchnick's Adv. Compiler Design & Implemmntation Fig 7.15
