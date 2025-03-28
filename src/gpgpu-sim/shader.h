@@ -2598,6 +2598,7 @@ class shader_core_ctx : public core_t {
   // Jin: concurrent kernels on a sm
  public:
   bool can_issue_1block(kernel_info_t &kernel);
+  int can_issue_n_blocks(kernel_info_t &kernel);
   bool occupy_shader_resource_1block(kernel_info_t &kernel, bool occupy);
   void release_shader_resource_1block(unsigned hw_ctaid, kernel_info_t &kernel);
   int find_available_hwtid(unsigned int cta_size, bool occupy);
@@ -2666,6 +2667,10 @@ class gpu_processing_cluster {
   unsigned get_gpc_id() { return m_gpc_id; };
   unsigned get_shader_per_gpc() { return m_shader_per_gpc; };
   bool can_issue_cta_cluster();
+  unsigned issue_loadBalanced_cta_cluster();
+  unsigned issue_parallel_cta_cluster();
+  int get_free_parallel_cta_slots() const;
+  int get_total_free_cta_slots() const;
   unsigned issue_cta_cluster_to_gpc();
   std::vector<unsigned> m_gpc_status;
   cluster_barrier_set_t *get_cluster_barrier() { return &m_cluster_barrier; };

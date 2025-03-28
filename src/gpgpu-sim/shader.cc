@@ -4610,6 +4610,27 @@ bool simt_core_cluster::next_cores_can_issue_cluster(kernel_info_t *kernel,
   return true;
 }
 
+int gpu_processing_cluster::get_free_parallel_cta_slots() const {
+  int free_slots = 0;
+  for (const auto &cluster : m_clusters) {
+    for (const auto &core : cluster->m_core) {
+      if (core->can_issue_1block(*m_kernel)) free_slots++;
+    }
+  }
+  return free_slots;
+}
+
+int gpu_processing_cluster::get_total_free_cta_slots() const {
+  int free_slots = 0;
+
+  for (const auto &cluster : m_clusters) {
+    for (const auto &core : cluster->m_core) {
+      free_slots += core->can_issue_n_blocks(*m_kernel);
+    }
+  }
+  return free_slots;
+}
+
 bool gpu_processing_cluster::can_issue_cta_cluster() {
   const unsigned ctas_per_cluster = m_kernel->ctas_per_cluster();
 
@@ -4635,15 +4656,33 @@ bool gpu_processing_cluster::can_issue_cta_cluster() {
     return true;
 }
 
-unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {
-  unsigned num_blocks_issued = 0;
-  if (m_kernel == nullptr || m_kernel->is_finished())
-    m_kernel = m_gpu->select_kernel();
-  if (m_kernel == nullptr) return 0;
-  if (!m_gpu->kernel_more_cta_left(m_kernel)) return 0;
-  if (!can_issue_cta_cluster()) return 0;
-
+unsigned gpu_processing_cluster::issue_loadBalanced_cta_cluster() {
   unsigned ctas_to_issue = m_kernel->ctas_per_cluster();
+  if (get_total_free_cta_slots() < ctas_to_issue) return 0;
+
+  unsigned free_cluster_slot = (unsigned)-1;
+  for (unsigned i = 0; i < m_gpc_status.size(); i++) {
+    if (m_gpc_status[i] == 0) {
+      free_cluster_slot = i;
+      break;
+    }
+  }
+  assert(free_cluster_slot != (unsigned)-1);
+
+  for (auto &cluster : m_clusters) {
+    for (auto &core : cluster->m_core) {
+      while (core->can_issue_1block(*m_kernel) && ctas_to_issue > 0) {
+        ctas_to_issue--;
+        core->issue_block2core(*m_kernel, free_cluster_slot);
+      }
+      if (ctas_to_issue == 0) return m_kernel->ctas_per_cluster();
+    }
+  }
+}
+
+unsigned gpu_processing_cluster::issue_parallel_cta_cluster() {
+  unsigned ctas_to_issue = m_kernel->ctas_per_cluster();
+  if (get_free_parallel_cta_slots() < ctas_to_issue) return 0;
 
   unsigned free_cluster_slot = (unsigned)-1;
   for (unsigned i = 0; i < m_gpc_status.size(); i++) {
@@ -4681,6 +4720,28 @@ unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {
     }
   }
   assert(0);
+}
+
+unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {
+  if (m_kernel == nullptr || m_kernel->is_finished())
+    m_kernel = m_gpu->select_kernel();
+  if (m_kernel == nullptr) return 0;
+  if (!m_gpu->kernel_more_cta_left(m_kernel)) return 0;
+
+  auto SchedulingPreference = m_kernel->entry()->getClusterSchedulingPolicy();
+  const unsigned ctas_to_issue = m_kernel->ctas_per_cluster();
+
+  switch (SchedulingPreference) {
+    case cudaClusterSchedulingPolicyDefault:
+    case cudaClusterSchedulingPolicySpread:
+      return issue_parallel_cta_cluster();
+    case cudaClusterSchedulingPolicyLoadBalancing:
+      return issue_loadBalanced_cta_cluster();
+    default:
+      assert(0);
+      break;
+  }
+
   return 0;
 }
 

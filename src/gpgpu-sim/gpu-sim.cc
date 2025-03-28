@@ -1650,6 +1650,10 @@ bool shader_core_ctx::can_issue_1block(kernel_info_t &kernel) {
   }
 }
 
+int shader_core_ctx::can_issue_n_blocks(kernel_info_t &kernel) {
+  return m_config->max_cta(kernel) - get_n_active_cta();
+}
+
 int shader_core_ctx::find_available_hwtid(unsigned int cta_size, bool occupy) {
   unsigned int step;
   for (step = 0; step < m_config->n_thread_per_shader; step += cta_size) {
@@ -2065,7 +2069,7 @@ void gpgpu_sim::cycle() {
 
     if (g_interactive_debugger_enabled) gpgpu_debug();
 
-      // McPAT main cycle (interface with McPAT)
+    // McPAT main cycle (interface with McPAT)
 #ifdef GPGPUSIM_POWER_MODEL
     if (m_config.g_power_simulation_enabled) {
       if (m_config.g_power_simulation_mode == 0) {
