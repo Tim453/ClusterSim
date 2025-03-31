@@ -4678,6 +4678,8 @@ unsigned gpu_processing_cluster::issue_loadBalanced_cta_cluster() {
       if (ctas_to_issue == 0) return m_kernel->ctas_per_cluster();
     }
   }
+  assert(0);
+  return -1;
 }
 
 unsigned gpu_processing_cluster::issue_parallel_cta_cluster() {

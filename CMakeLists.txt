@@ -20,12 +20,12 @@ endif()
 
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(GPGPUSIM_POWER_MODEL    			"Enable GPU Sim Power model" OFF)
 option(TRACING_ON    			"Enable Tracing" OFF)
-option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)  
-option(BUILD_TEST "Build Tests" ON)   
+option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)
+option(BUILD_TEST "Build Tests" ON)
 
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -72,7 +72,7 @@ add_subdirectory(src)
 
 if(BUILD_TEST)
     enable_testing()
-    add_subdirectory(test)  
+    add_subdirectory(test)
 endif()
 
 if(OpenCL_FOUND)
@@ -80,8 +80,8 @@ if(OpenCL_FOUND)
     add_library(OpenCL SHARED
         $<TARGET_OBJECTS:opencl>
         $<TARGET_OBJECTS:gpgpusim>
-        $<TARGET_OBJECTS:gpu_uarch_sim> 
-        $<TARGET_OBJECTS:gpgpu_ptx_sim> 
+        $<TARGET_OBJECTS:gpu_uarch_sim>
+        $<TARGET_OBJECTS:gpgpu_ptx_sim>
         $<TARGET_OBJECTS:booksim>
         ${POWER_MODEL_OBJ}
     )
@@ -90,18 +90,18 @@ endif()
 # Create a library from the source files
 add_library(cudart SHARED
     $<TARGET_OBJECTS:gpgpusim>
-    $<TARGET_OBJECTS:gpu_uarch_sim> 
+    $<TARGET_OBJECTS:gpu_uarch_sim>
     $<TARGET_OBJECTS:cuda>
-    $<TARGET_OBJECTS:gpgpu_ptx_sim> 
+    $<TARGET_OBJECTS:gpgpu_ptx_sim>
     $<TARGET_OBJECTS:booksim>
     ${POWER_MODEL_OBJ}
 )
 
 add_library(cudart_static STATIC
     $<TARGET_OBJECTS:gpgpusim>
-    $<TARGET_OBJECTS:gpu_uarch_sim> 
+    $<TARGET_OBJECTS:gpu_uarch_sim>
     $<TARGET_OBJECTS:cuda>
-    $<TARGET_OBJECTS:gpgpu_ptx_sim> 
+    $<TARGET_OBJECTS:gpgpu_ptx_sim>
     $<TARGET_OBJECTS:booksim>
     ${POWER_MODEL_OBJ}
 )

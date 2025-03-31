@@ -39,7 +39,7 @@ class ptxinfo_data {
   yyscan_t scanner;
   char linebuf[PTXINFO_LINEBUF_SIZE];
   unsigned col;
-  const char* g_ptxinfo_filename;
+  std::string g_ptxinfo_filename;
   class gpgpu_context* gpgpu_ctx;
   bool g_keep_intermediate_files;
   bool m_ptx_save_converted_ptxplus;

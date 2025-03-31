@@ -102,7 +102,7 @@ int ptxinfo_error(yyscan_t yyscanner, ptxinfo_data* ptxinfo, const char* msg)
 	fflush(stdout);
 	printf("GPGPU-Sim: ERROR while parsing output of ptxas (used to capture resource usage information)\n");
 	if( msg != NULL )
-		printf("GPGPU-Sim:     %s (%s:%u) Syntax error:\n\n", ptxinfo->gpgpu_ctx->g_filename, ptxinfo->g_ptxinfo_filename, yylineno );
+		printf("GPGPU-Sim:     %s (%s:%u) Syntax error:\n\n", ptxinfo->gpgpu_ctx->g_filename, ptxinfo->g_ptxinfo_filename.c_str(), yylineno );
 	printf("   %s\n", ptxinfo->linebuf );
 	printf("   ");
 	for( i=0; i < ptxinfo->col-1; i++ ) {
