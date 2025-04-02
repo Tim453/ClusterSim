@@ -210,7 +210,7 @@ gpgpu_sim *gpgpu_context::gpgpu_ptx_sim_init_perf() {
 
   const char *custom_arg[3] = {
       "", "-config",
-      GPU_SIM_ROOT "/configs/tested-cfgs/SM90_H100/gpgpusim.config"};
+      GPU_SIM_ROOT "/configs/tested-cfgs/SM120_RTX5070/gpgpusim.config"};
   if (std::getenv("GPUSIM_CONFIG") != nullptr) {
     custom_arg[2] = std::getenv("GPUSIM_CONFIG");
   } else if (FILE *file = fopen("gpgpusim.config", "r")) {

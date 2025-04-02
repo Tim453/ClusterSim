@@ -46,7 +46,7 @@ target_link_libraries(hello_cuda cudart ZLIB::ZLIB)
 
 ### Run
 
-By default the simulator uses `configs/tested-cfgs/SM90_H100/gpgpusim.config`. It can be changed by setting an enviorment variable.
+By default the simulator uses `configs/tested-cfgs/SM120_RTX5070/gpgpusim.config`. It can be changed by setting an enviorment variable.
 
 ```bash
 # If the simulator is already in the rpath this step is not needed
