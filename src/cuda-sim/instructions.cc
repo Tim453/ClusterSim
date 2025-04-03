@@ -2096,10 +2096,20 @@ void bar_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
     }
   } else {
     pI->set_cluster();
+
     switch (bar_op) {
       case WAIT_OPTION:
+        if (thread->m_has_to_wait) {
+          pI->waiting_at_cluster_bar = true;
+          if (thread->m_cluster_info->all_threads_arrived()) {
+            thread->m_cluster_info->reset_arrive_status();
+            pI->waiting_at_cluster_bar = false;
+          }
+        }
         break;
       case ARRIVE_OPTION:
+        thread->m_arrived = true;
+        thread->m_has_to_wait = true;
         break;
     }
   }

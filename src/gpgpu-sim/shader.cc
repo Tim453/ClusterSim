@@ -3702,7 +3702,6 @@ barrier_set_t::barrier_set_t(shader_core_ctx *shader,
   m_warp_size = warp_size;
   m_shader = shader;
 
-  m_cluster_barrier = cluster->m_gpc->get_cluster_barrier();
   if (max_warps_per_core > WARP_PER_CTA_MAX) {
     printf(
         "ERROR ** increase WARP_PER_CTA_MAX in shader.h from %u to >= %u or "
@@ -3740,14 +3739,6 @@ void barrier_set_t::allocate_barrier(unsigned cta_id, unsigned cluster_id,
   for (unsigned i = 0; i < m_max_barriers_per_cta; i++) {
     m_bar_id_to_warps[i] &= ~warps;
   }
-  auto test = m_shader->get_simt_core_cluster()->m_gpc;
-  const unsigned cid =
-      m_shader->get_sid() %
-      m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
-  unsigned cta_id_in_cluster =
-      m_shader->get_config()->max_cta_per_core * cid + cta_id;
-  m_cluster_barrier->m_cluster_to_cta[cluster_id].set(cta_id_in_cluster);
-  m_cluster_barrier->m_cta_active.set(cta_id_in_cluster);
 }
 
 // during cta deallocation
@@ -3768,30 +3759,6 @@ void barrier_set_t::deallocate_barrier(unsigned cluster_slot, unsigned cta_id) {
     m_bar_id_to_warps[i] &= ~warps;
   }
   m_cta_to_warps.erase(w);
-
-  // deallocate cluster_barrier
-  unsigned cid = m_shader->get_sid() %
-                 m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
-  unsigned cta_id_in_cluster =
-      m_shader->get_config()->max_cta_per_core * cid + cta_id;
-  assert(!m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster));
-  assert(m_cluster_barrier->m_cta_active.test(cta_id_in_cluster));
-  m_cluster_barrier->m_cta_active.reset(cta_id_in_cluster);
-  cta_set_t active_cta_in_cluster =
-      m_cluster_barrier->m_cta_active &
-      m_cluster_barrier->m_cluster_to_cta[cluster_slot];
-  m_cluster_barrier->m_cluster_to_cta[cluster_slot].reset(cta_id_in_cluster);
-  auto test = m_shader->get_simt_core_cluster()->m_gpc;
-  m_shader->get_simt_core_cluster()->m_gpc->m_gpc_status[cluster_slot]--;
-
-  if (!active_cta_in_cluster.any()) {
-    m_cluster_barrier->m_cta_active &
-        ~m_cluster_barrier->m_cluster_to_cta[cluster_slot];
-    m_cluster_barrier->m_cluster_to_cta[cluster_slot].reset();
-    assert(
-        m_shader->get_simt_core_cluster()->m_gpc->m_gpc_status[cluster_slot] ==
-        0);
-  }
 }
 
 // individual warp hits barrier
@@ -3864,49 +3831,24 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
     }
     assert(w->second.test(warp_id) == true);  // warp is in cta
 
-    warp_set_t warps_in_cta;
-    warp_set_t at_barrier;
-    warp_set_t active;
-    cta_set_t ctas_in_cluster;
-    cta_set_t ctas_at_barrier;
-    cta_set_t ctas_active;
     switch (bar_type) {
       case WAIT:
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
         m_shader->m_warp[warp_id]->m_sync_latency =
             m_shader->get_config()->cluster_wait_latency;
-        m_cluster_barrier->m_cta_at_barrier.set(cta_id_in_cluster);
-        ctas_in_cluster = m_cluster_barrier->m_cluster_to_cta[cluster_slot];
-        ctas_at_barrier = ctas_in_cluster & m_cluster_barrier->m_cta_arrived;
-        ctas_active = ctas_in_cluster & m_cluster_barrier->m_cta_active;
-        if (ctas_at_barrier == ctas_active) {
-          m_cluster_barrier->m_cta_arrived &= ~ctas_at_barrier;
-          m_cluster_barrier->m_cta_at_barrier &= ~ctas_at_barrier;
-        } else if (m_cluster_barrier->m_cta_arrived.test(cta_id_in_cluster) ==
-                   0) {
-          m_cluster_barrier->m_cta_at_barrier.reset(cta_id_in_cluster);
-        }
+
+        m_waiting_at_cluster_bar = &inst->waiting_at_cluster_bar;
+
         break;
+
       case ARRIVE:
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
         m_shader->m_warp[warp_id]->m_sync_latency =
             m_shader->get_config()->cluster_arrive_latency;
-        m_cluster_bar.set(warp_id);
-        warps_in_cta = w->second;
-        at_barrier = warps_in_cta & m_cluster_bar;
-        active = warps_in_cta & m_warp_active;
-        m_warp_at_barrier.set(warp_id);
-        // When all warps in the CTA arrived set Cluster arrived bit
-        // for that CTA
-        if (at_barrier == active) {
-          m_cluster_bar &= ~at_barrier;
-          m_warp_at_barrier &= ~at_barrier;
-          m_cluster_barrier->m_cta_arrived.set(cta_id_in_cluster);
-        }
         break;
       default:
         printf("Cluster barrier only has WAIT or ARRIVE option");
-        assert(0);
+        abort();
     }
   }
 }
@@ -3939,12 +3881,14 @@ void barrier_set_t::warp_exit(unsigned warp_id) {
 bool barrier_set_t::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_warp_at_barrier.test(warp_id);
 }
-bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id) const {
-  unsigned cid = m_shader->get_sid() %
-                 m_shader->get_simt_core_cluster()->m_gpc->get_shader_per_gpc();
-  unsigned cta_id_in_cluster =
-      m_shader->get_config()->max_cta_per_core * cid + cta_id;
-  return m_cluster_barrier->m_cta_at_barrier.test(cta_id_in_cluster);
+bool barrier_set_t::warp_waiting_at_cluster_barrier() {
+  if (m_waiting_at_cluster_bar == nullptr) return false;
+  if (*m_waiting_at_cluster_bar) {
+    return true;
+  } else {
+    m_waiting_at_cluster_bar = nullptr;
+    return false;
+  }
 }
 
 void barrier_set_t::dump() {
@@ -4004,8 +3948,8 @@ bool shader_core_ctx::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_barriers.warp_waiting_at_barrier(warp_id);
 }
 
-bool shader_core_ctx::warp_waiting_at_cluster_barrier(unsigned cta_id) const {
-  return m_barriers.warp_waiting_at_cluster_barrier(cta_id);
+bool shader_core_ctx::warp_waiting_at_cluster_barrier() {
+  return m_barriers.warp_waiting_at_cluster_barrier();
 }
 
 bool shader_core_ctx::warp_waiting_at_mem_barrier(unsigned warp_id) {
@@ -4122,7 +4066,7 @@ bool shd_warp_t::waiting() {
   } else if (m_shader->warp_waiting_at_barrier(m_warp_id)) {
     // waiting for other warps in CTA to reach barrier
     return true;
-  } else if (m_shader->warp_waiting_at_cluster_barrier(m_cta_id)) {
+  } else if (m_shader->warp_waiting_at_cluster_barrier()) {
     return true;
   } else if (m_shader->warp_waiting_at_mem_barrier(m_warp_id)) {
     // waiting for memory barrier

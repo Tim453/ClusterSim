@@ -457,6 +457,7 @@ class core_config {
   bool adaptive_cache_config;
   char *sm_2_sm_network_type;
   bool sm_2_sm_network_log;
+  uint32_t dsmem_latency;
   uint32_t cluster_arrive_latency;
   uint32_t cluster_wait_latency;
 };
@@ -1042,6 +1043,7 @@ class inst_t {
   op_type op;       // opcode (uarch visible)
 
   barrier_type bar_type;
+  bool waiting_at_cluster_bar = false;
   bool cluster_barrier;
   reduction_type red_type;
   unsigned bar_id;

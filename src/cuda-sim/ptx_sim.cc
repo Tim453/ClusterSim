@@ -42,6 +42,8 @@ ptx_cluster_info::ptx_cluster_info(gpgpu_context *ctx) { gpgpu_ctx = ctx; }
 
 void ptx_cluster_info::add_cta(ptx_cta_info *cta, unsigned cluster_ctarank) {
   m_ctas_in_cluster[cluster_ctarank] = cta;
+  cta->add_cluster_info(this);
+  cta->set_cluster_cta_rank(cluster_ctarank);
 }
 
 void ptx_cluster_info::clear() { m_ctas_in_cluster.clear(); }
@@ -52,6 +54,26 @@ unsigned ptx_cluster_info::get_cta_rank_of_shared_memory_region(addr_t addr) {
   }
   assert(0);
   return (UINT32_MAX - 1);
+}
+
+void ptx_cluster_info::reset_arrive_status() {
+  for (auto &cta : m_ctas_in_cluster) {
+    for (auto &thread : cta.second->m_threads_in_cta) {
+      thread->m_arrived = false;
+      thread->m_has_to_wait = false;
+    }
+  }
+}
+
+bool ptx_cluster_info::all_threads_arrived() const {
+  for (const auto &cta : m_ctas_in_cluster) {
+    for (const auto &thread : cta.second->m_threads_in_cta) {
+      if (thread->m_arrived != true) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 ptx_cta_info::ptx_cta_info(unsigned sm_idx, gpgpu_context *ctx) {
@@ -67,6 +89,7 @@ ptx_cta_info::ptx_cta_info(unsigned sm_idx, gpgpu_context *ctx) {
 
 void ptx_cta_info::add_thread(ptx_thread_info *thd) {
   m_threads_in_cta.insert(thd);
+  m_warps_in_cta.insert(thd->m_warp_info);
 }
 
 bool ptx_cta_info::is_in_generic_shared_memory(addr_t addr) {

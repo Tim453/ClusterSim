@@ -167,6 +167,9 @@ class ptx_cluster_info {
     return m_ctas_in_cluster[cta_rank];
   }
 
+  void reset_arrive_status();
+  bool all_threads_arrived() const;
+
  private:
   class gpgpu_context *gpgpu_ctx;
   std::map<unsigned, ptx_cta_info *> m_ctas_in_cluster;
@@ -191,6 +194,8 @@ class ptx_cta_info {
   bool is_in_generic_shared_memory(addr_t addr);
   void set_shader_id(int shader_id) { m_shader_id = shader_id; }
   int get_shader_id() { return m_shader_id; }
+  void add_cluster_info(ptx_cluster_info *cluster) { m_cluster_info = cluster; }
+  void set_cluster_cta_rank(unsigned rank) { m_cluster_cta_rank = rank; }
 
  private:
   // backward pointer
@@ -200,9 +205,14 @@ class ptx_cta_info {
   unsigned m_sm_idx;
   memory_space *m_shared_mem;
   int m_shader_id;
+  // Rank of the cta in the cluster
+  unsigned m_cluster_cta_rank;
+  ptx_cluster_info *m_cluster_info;
+  std::set<class ptx_warp_info *> m_warps_in_cta;
   std::set<ptx_thread_info *> m_threads_in_cta;
   std::set<ptx_thread_info *> m_threads_that_have_exited;
   std::set<ptx_thread_info *> m_dangling_pointers;
+  friend ptx_cluster_info;
 };
 
 class ptx_warp_info {
@@ -212,8 +222,14 @@ class ptx_warp_info {
   void inc_done_threads();
   void reset_done_threads();
 
+  /// @brief warp arived at cluster barrier
+  void warp_cluster_arrive() { m_cluster_arrived = true; }
+  void cluster_bar_reset() { m_cluster_arrived = false; }
+  bool at_cluster_bar() const { return m_cluster_arrived; }
+
  private:
   unsigned m_done_threads;
+  bool m_cluster_arrived = false;
 };
 
 class symbol;
@@ -517,6 +533,9 @@ class ptx_thread_info {
   ptx_cta_info *m_cta_info;
   ptx_cluster_info *m_cluster_info;
   ptx_reg_t m_last_set_operand_value;
+
+  bool m_arrived = false;
+  bool m_has_to_wait = false;
 
  private:
   bool m_functionalSimulationMode;

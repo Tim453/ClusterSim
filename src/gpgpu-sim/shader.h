@@ -1055,20 +1055,6 @@ class opndcoll_rfu_t {  // operand collector based register file unit
   shader_core_ctx *m_shader;
 };
 
-class cluster_barrier_set_t {
- public:
-  typedef std::map<unsigned, cta_set_t> cluster_to_cta_t;
-
- private:
-  unsigned m_max_cta_per_cluster;
-  cluster_to_cta_t m_cluster_to_cta;
-  cta_set_t m_cta_arrived;
-  cta_set_t m_cta_active;
-  cta_set_t m_cta_at_barrier;
-
-  friend class barrier_set_t;
-};
-
 class barrier_set_t {
  public:
   barrier_set_t(shader_core_ctx *shader, class simt_core_cluster *cluster,
@@ -1094,7 +1080,7 @@ class barrier_set_t {
 
   // assertions
   bool warp_waiting_at_barrier(unsigned warp_id) const;
-  bool warp_waiting_at_cluster_barrier(unsigned cta_id) const;
+  bool warp_waiting_at_cluster_barrier();
 
   // debug
   void dump();
@@ -1113,7 +1099,8 @@ class barrier_set_t {
   warp_set_t m_warp_active;
   warp_set_t m_warp_at_barrier;
   shader_core_ctx *m_shader;
-  cluster_barrier_set_t *m_cluster_barrier;
+
+  bool *m_waiting_at_cluster_bar;
 };
 
 struct insn_latency_info {
@@ -2137,7 +2124,7 @@ class shader_core_ctx : public core_t {
 
   // accessors
   virtual bool warp_waiting_at_barrier(unsigned warp_id) const;
-  virtual bool warp_waiting_at_cluster_barrier(unsigned cta_id) const;
+  virtual bool warp_waiting_at_cluster_barrier();
   void get_pdom_stack_top_info(unsigned tid, unsigned *pc, unsigned *rpc) const;
   float get_current_occupancy(unsigned long long &active,
                               unsigned long long &total) const;
@@ -2650,7 +2637,6 @@ class gpu_processing_cluster {
   unsigned m_gpc_id;
   gpgpu_sim *m_gpu;
   const shader_core_config *m_config;
-  cluster_barrier_set_t m_cluster_barrier;
   unsigned m_cta_issue_next_cluster;
   kernel_info_t *m_kernel = nullptr;
 
@@ -2673,7 +2659,6 @@ class gpu_processing_cluster {
   int get_total_free_cta_slots() const;
   unsigned issue_cta_cluster_to_gpc();
   std::vector<unsigned> m_gpc_status;
-  cluster_barrier_set_t *get_cluster_barrier() { return &m_cluster_barrier; };
   void cycle();
 };
 
