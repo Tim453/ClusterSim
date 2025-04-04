@@ -1338,7 +1338,6 @@ class core_t {
       : m_gpu(gpu),
         m_kernel(kernel),
         m_simt_stack(NULL),
-        m_thread(NULL),
         m_warp_size(warp_size) {
     m_warp_count = threads_per_shader / m_warp_size;
     // Handle the case where the number of threads is not a
@@ -1347,8 +1346,7 @@ class core_t {
       m_warp_count += 1;
     }
     assert(m_warp_count * m_warp_size > 0);
-    m_thread = (ptx_thread_info **)calloc(m_warp_count * m_warp_size,
-                                          sizeof(ptx_thread_info *));
+    m_thread.resize(m_warp_count * m_warp_size);
     initilizeSIMTStack(m_warp_count, m_warp_size);
 
     for (unsigned i = 0; i < MAX_CTA_PER_SHADER; i++) {
@@ -1357,7 +1355,7 @@ class core_t {
       }
     }
   }
-  virtual ~core_t() { free(m_thread); }
+  virtual ~core_t() {}
   virtual void warp_exit(unsigned warp_id) = 0;
   virtual bool warp_waiting_at_barrier(unsigned warp_id) const = 0;
   virtual void checkExecutionStatusAndUpdate(warp_inst_t &inst, unsigned t,
@@ -1372,7 +1370,7 @@ class core_t {
   void get_pdom_stack_top_info(unsigned warpId, unsigned *pc,
                                unsigned *rpc) const;
   kernel_info_t *get_kernel_info() { return m_kernel; }
-  class ptx_thread_info **get_thread_info() { return m_thread; }
+  std::vector<class ptx_thread_info *> get_thread_info() { return m_thread; }
   unsigned get_warp_size() const { return m_warp_size; }
   void and_reduction(unsigned ctaid, unsigned barid, bool value) {
     reduction_storage[ctaid][barid] &= value;
@@ -1391,7 +1389,7 @@ class core_t {
   class gpgpu_sim *m_gpu;
   kernel_info_t *m_kernel;
   simt_stack **m_simt_stack;  // pdom based reconvergence context for each warp
-  class ptx_thread_info **m_thread;
+  std::vector<class ptx_thread_info *> m_thread;
   unsigned m_warp_size;
   unsigned m_warp_count;
   unsigned reduction_storage[MAX_CTA_PER_SHADER][MAX_BARRIERS_PER_CTA];

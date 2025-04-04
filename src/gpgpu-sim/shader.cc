@@ -562,7 +562,7 @@ void shader_core_ctx::init_warps(unsigned cluster_id, unsigned cta_id,
         m_simt_stack[i]->resume(fname);
         m_simt_stack[i]->get_pdom_stack_top_info(&pc, &rpc);
         for (unsigned t = 0; t < m_config->warp_size; t++) {
-          if (m_thread != NULL) {
+          if (m_thread.size() != 0) {
             m_thread[i * m_config->warp_size + t]->set_npc(pc);
             m_thread[i * m_config->warp_size + t]->update_pc();
           }
@@ -3832,15 +3832,16 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
     assert(w->second.test(warp_id) == true);  // warp is in cta
 
     switch (bar_type) {
-      case WAIT:
+      case WAIT: {
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
         m_shader->m_warp[warp_id]->m_sync_latency =
             m_shader->get_config()->cluster_wait_latency;
-
-        m_waiting_at_cluster_bar = &inst->waiting_at_cluster_bar;
-
+        m_ptx_cluster_info =
+            m_shader->get_thread_info().at(warp_id * 32)->m_cluster_info;
+        m_waiting_at_cluster_bar = &m_ptx_cluster_info->waiting_at_cluster_bar;
+        m_cluster_bar.set(warp_id);
         break;
-
+      }
       case ARRIVE:
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
         m_shader->m_warp[warp_id]->m_sync_latency =
@@ -3881,12 +3882,21 @@ void barrier_set_t::warp_exit(unsigned warp_id) {
 bool barrier_set_t::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_warp_at_barrier.test(warp_id);
 }
-bool barrier_set_t::warp_waiting_at_cluster_barrier() {
-  if (m_waiting_at_cluster_bar == nullptr) return false;
-  if (*m_waiting_at_cluster_bar) {
+bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id,
+                                                    unsigned warp_id) {
+  if (m_waiting_at_cluster_bar == nullptr) {
+    return false;
+  } else if (!*m_waiting_at_cluster_bar) {
+    cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
+    assert(w->second.test(warp_id) == true);
+    warp_set_t warps_in_cta = w->second;
+    warp_set_t active = warps_in_cta & m_warp_active;
+    m_cluster_bar &= ~warps_in_cta;
+    m_waiting_at_cluster_bar = nullptr;
+    return false;
+  } else if (m_cluster_bar.test(warp_id)) {
     return true;
   } else {
-    m_waiting_at_cluster_bar = nullptr;
     return false;
   }
 }
@@ -3948,8 +3958,9 @@ bool shader_core_ctx::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_barriers.warp_waiting_at_barrier(warp_id);
 }
 
-bool shader_core_ctx::warp_waiting_at_cluster_barrier() {
-  return m_barriers.warp_waiting_at_cluster_barrier();
+bool shader_core_ctx::warp_waiting_at_cluster_barrier(unsigned cta_id,
+                                                      unsigned warp_id) {
+  return m_barriers.warp_waiting_at_cluster_barrier(cta_id, warp_id);
 }
 
 bool shader_core_ctx::warp_waiting_at_mem_barrier(unsigned warp_id) {
@@ -4066,7 +4077,7 @@ bool shd_warp_t::waiting() {
   } else if (m_shader->warp_waiting_at_barrier(m_warp_id)) {
     // waiting for other warps in CTA to reach barrier
     return true;
-  } else if (m_shader->warp_waiting_at_cluster_barrier()) {
+  } else if (m_shader->warp_waiting_at_cluster_barrier(m_cta_id, m_warp_id)) {
     return true;
   } else if (m_shader->warp_waiting_at_mem_barrier(m_warp_id)) {
     // waiting for memory barrier

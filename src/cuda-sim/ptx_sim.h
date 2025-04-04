@@ -170,6 +170,9 @@ class ptx_cluster_info {
   void reset_arrive_status();
   bool all_threads_arrived() const;
 
+  bool waiting_at_cluster_bar = false;
+  int threads_arrived = 0;
+
  private:
   class gpgpu_context *gpgpu_ctx;
   std::map<unsigned, ptx_cta_info *> m_ctas_in_cluster;
