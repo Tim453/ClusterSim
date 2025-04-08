@@ -66,4 +66,5 @@ class ptx_stats {
   void ptx_file_line_stats_sub_inflight_memory_insn(int sc_id, unsigned pc);
   void ptx_file_line_stats_add_warp_divergence(unsigned pc,
                                                unsigned n_way_divergence);
+  void ptx_file_line_stats_add_dsmem_latency(unsigned pc, unsigned latency);
 };

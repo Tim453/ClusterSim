@@ -464,10 +464,14 @@ void warp_inst_t::generate_mem_accesses() {
       cycles = total_accesses;  // shared memory conflicts modeled as larger
                                 // initiation interval
 
-      if (ignore_request) cycles += m_config->dsmem_latency;
-
-      m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
-          pc, total_accesses);
+      if (ignore_request) {
+        cycles += m_config->dsmem_latency;
+        m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
+            pc, cycles);
+      } else {
+        m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
+            pc, total_accesses);
+      }
 
       m_outstanding_cluster_requests = m_pending_cluster_memory_requests.size();
 

@@ -88,8 +88,10 @@ class ptx_file_line_stats {
         gmem_n_access_total(0),
         gmem_warp_count(0),
         exposed_latency(0),
-        warp_divergence(0) {}
+        warp_divergence(0),
+        dsmem_latency(0) {}
 
+  unsigned long dsmem_latency;
   unsigned long exec_count;
   unsigned long long latency;
   unsigned long long dram_traffic;
@@ -135,7 +137,8 @@ void ptx_stats::ptx_file_line_stats_write_file() {
   fprintf(
       pfile,
       "kernel line : count latency dram_traffic smem_bk_conflicts smem_warp "
-      "gmem_access_generated gmem_warp exposed_latency warp_divergence\n");
+      "gmem_access_generated gmem_warp exposed_latency warp_divergence "
+      "dsmem_latency\n");
   for (it = ptx_file_line_stats_tracker.begin();
        it != ptx_file_line_stats_tracker.end(); it++) {
     fprintf(pfile, "%s %i : ", it->first.st.c_str(), it->first.line);
@@ -148,6 +151,7 @@ void ptx_stats::ptx_file_line_stats_write_file() {
     fprintf(pfile, "%lu ", it->second.gmem_warp_count);
     fprintf(pfile, "%llu ", it->second.exposed_latency);
     fprintf(pfile, "%llu ", it->second.warp_divergence);
+    fprintf(pfile, "%llu ", it->second.dsmem_latency);
     fprintf(pfile, "\n");
   }
   fflush(pfile);
@@ -184,6 +188,17 @@ void ptx_stats::ptx_file_line_stats_add_dram_traffic(unsigned pc,
     ptx_file_line_stats_tracker[ptx_file_line(pInsn->source_file(),
                                               pInsn->source_line())]
         .dram_traffic += dram_traffic;
+}
+
+void ptx_stats::ptx_file_line_stats_add_dsmem_latency(unsigned pc,
+                                                      unsigned latency) {
+  const ptx_instruction *pInsn = gpgpu_ctx->pc_to_instruction(pc);
+  if (pInsn != NULL) {
+    ptx_file_line_stats &line_stats = ptx_file_line_stats_tracker[ptx_file_line(
+        pInsn->source_file(), pInsn->source_line())];
+    line_stats.dsmem_latency += latency;
+    line_stats.smem_warp_count += 1;
+  }
 }
 
 // attribute the number of shared memory access cycles to a ptx instruction
