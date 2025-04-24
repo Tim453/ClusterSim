@@ -108,6 +108,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -454,6 +455,43 @@ char *get_app_binary_name(std::string abs_path) {
   return self_exe_path;
 }
 
+/// @brief Split a string
+/// @param s
+/// @param delimiter
+/// @return vector of strings split by delimiter
+static std::vector<std::string> split(std::string s, std::string delimiter) {
+  size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+  std::string token;
+  std::vector<std::string> res;
+
+  while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+    token = s.substr(pos_start, pos_end - pos_start);
+    pos_start = pos_end + delim_len;
+    res.push_back(token);
+  }
+
+  res.push_back(s.substr(pos_start));
+  return res;
+}
+
+/// @brief Run a command on the os and return stdout as string
+/// @param cmd
+/// @return stdout of cmd
+static std::string exec(const char *cmd) {
+  std::array<char, 128> buffer;
+  std::string result;
+  std::unique_ptr<FILE, void (*)(FILE *)> pipe(
+      popen(cmd, "r"), [](FILE *f) -> void { std::ignore = pclose(f); });
+  if (!pipe) {
+    throw std::runtime_error("popen() failed!");
+  }
+  while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get()) !=
+         nullptr) {
+    result += buffer.data();
+  }
+  return result;
+}
+
 static int get_app_cuda_version() {
   int app_cuda_version = 0;
   char fname[1024];
@@ -462,19 +500,14 @@ static int get_app_cuda_version() {
   close(fd);
   std::string app_cuda_version_command =
       "ldd " + get_app_binary() +
-      " | grep libcudart.so | sed  's/.*libcudart.so.\\(.*\\) =>.*/\\1/' > " +
-      fname;
-  system(app_cuda_version_command.c_str());
-  FILE *cmd = fopen(fname, "r");
-  char buf[256];
-  while (fgets(buf, sizeof(buf), cmd) != 0) {
-    std::cout << buf;
-    app_cuda_version = atoi(buf);
-  }
-  fclose(cmd);
-  if (app_cuda_version == 0) {
-    printf("Error - Cannot detect the app's CUDA version.\n");
-    exit(1);
+      " | grep libcudart.so | sed  's/.*libcudart.so.\\(.*\\) =>.*/\\1/'";
+  auto result = exec(app_cuda_version_command.c_str());
+
+  // remove the \n at the end
+  result.pop_back();
+  app_cuda_version = std::stoi(result);
+  if (app_cuda_version <= 0) {
+    assert(0);
   }
   return app_cuda_version;
 }
@@ -3089,42 +3122,32 @@ __host__ cudaError_t CUDARTAPI cudaGetExportTable(
 // extracts all ptx files from binary and dumps into
 // prog_name.unique_no.sm_<>.ptx files
 void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
-  char command[1200];
+  std::string command;
   char *pytorch_bin = getenv("PYTORCH_BIN");
   std::string app_binary = get_app_binary();
-
-  char ptx_list_file_name[1024];
-  snprintf(ptx_list_file_name, 1024, "_cuobjdump_list_ptx_XXXXXX");
-  int fd2 = mkstemp(ptx_list_file_name);
-  close(fd2);
 
   if (pytorch_bin != NULL && strlen(pytorch_bin) != 0) {
     app_binary = std::string(pytorch_bin);
   }
 
+  command = std::format("cuobjdump -lptx {} ", app_binary);
+  command += " | cut -d \":\" -f 2 | awk '{$1=$1}1'";
+
   // only want file names
-  snprintf(command, 1200,
-           "cuobjdump -lptx %s  | cut -d \":\" -f 2 | "
-           "awk '{$1=$1}1' > %s",
-           app_binary.c_str(), ptx_list_file_name);
-  if (system(command) != 0) {
-    printf("WARNING: Failed to execute cuobjdump to get list of ptx files \n");
-    exit(0);
-  }
+  auto result = exec(command.c_str());
+  result.pop_back();
+  auto ptx_versions = split(result, "\n");
+
   if (!gpgpu_ctx->device_runtime->g_cdp_enabled) {
     // based on the list above, dump ptx files individually. Format of dumped
     // ptx file is prog_name.unique_no.sm_<>.ptx
 
-    std::ifstream infile(ptx_list_file_name);
-    std::string line;
-    while (std::getline(infile, line)) {
-      // int pos = line.find(std::string(get_app_binary_name(app_binary)));
-      const char *ptx_file = line.c_str();
-      printf("Extracting specific PTX file named %s \n", ptx_file);
-      snprintf(command, 1200, "cuobjdump -xptx %s %s", ptx_file,
-               app_binary.c_str());
-      if (system(command) != 0) {
-        printf("ERROR: command: %s failed \n", command);
+    for (auto ptx_file : ptx_versions) {
+      printf("Extracting specific PTX file named %s \n", ptx_file.c_str());
+
+      command = std::format("cuobjdump -xptx {} {}", ptx_file, app_binary);
+      if (system(command.c_str()) != 0) {
+        printf("ERROR: command: %s failed \n", command.c_str());
         exit(0);
       }
       context->no_of_ptx++;
@@ -3139,22 +3162,20 @@ void cuda_runtime_api::extract_ptx_files_using_cuobjdump(CUctx_st *context) {
     printf("\t2. When using PyTorch, PYTORCH_BIN is not set correctly\n");
   }
 
-  std::ifstream infile(ptx_list_file_name);
-  std::string line;
-  while (std::getline(infile, line)) {
+  for (auto ptx_file : ptx_versions) {
     // int pos = line.find(std::string(get_app_binary_name(app_binary)));
-    int pos1 = line.find("sm_");
-    int pos2 = line.find_last_of(".");
+    int pos1 = ptx_file.find("sm_");
+    int pos2 = ptx_file.find_last_of(".");
     if (pos1 == std::string::npos && pos2 == std::string::npos) {
       printf("ERROR: PTX list is not in correct format");
       exit(0);
     }
-    std::string vstr = line.substr(pos1 + 3, pos2 - pos1 - 3);
+    std::string vstr = ptx_file.substr(pos1 + 3, pos2 - pos1 - 3);
     int version = atoi(vstr.c_str());
     if (version_filename.find(version) == version_filename.end()) {
       version_filename[version] = std::set<std::string>();
     }
-    version_filename[version].insert(line);
+    version_filename[version].insert(ptx_file);
   }
 }
 
