@@ -494,10 +494,6 @@ static std::string exec(const char *cmd) {
 
 static int get_app_cuda_version() {
   int app_cuda_version = 0;
-  char fname[1024];
-  snprintf(fname, 1024, "_app_cuda_version_XXXXXX");
-  int fd = mkstemp(fname);
-  close(fd);
   std::string app_cuda_version_command =
       "ldd " + get_app_binary() +
       " | grep libcudart.so | sed  's/.*libcudart.so.\\(.*\\) =>.*/\\1/'";
