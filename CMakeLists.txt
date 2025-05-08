@@ -62,7 +62,6 @@ endif()
 
 add_compile_definitions(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}00)
 add_compile_definitions(GPU_SIM_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-message(CUDART_VERSION=${CUDAToolkit_VERSION_MAJOR}${CUDAToolkit_VERSION_MINOR}00)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
@@ -109,13 +108,12 @@ add_library(cudart_static STATIC
 target_link_libraries(cudart_static ZLIB::ZLIB)
 
 set_target_properties(cudart PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    VERSION 12.0
+    VERSION 12
 )
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux-so-version.txt")
 
-ADD_CUSTOM_TARGET(cudart12 ALL
-                  COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12)
-ADD_CUSTOM_TARGET(cudart11 ALL
-                  COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.11.0)
+# ADD_CUSTOM_TARGET(cudart12 ALL
+#                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12)
+# ADD_CUSTOM_TARGET(cudart11 ALL
+#                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.11.0)
