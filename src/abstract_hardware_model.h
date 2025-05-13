@@ -457,7 +457,9 @@ class core_config {
   bool adaptive_cache_config;
   char *sm_2_sm_network_type;
   bool sm_2_sm_network_log;
-  uint32_t dsmem_latency;
+  uint32_t dsmem_st_latency;
+  uint32_t dsmem_ld_latency;
+  uint32_t dsmem_atomic_latency;
   uint32_t cluster_arrive_latency;
   uint32_t cluster_wait_latency;
 };

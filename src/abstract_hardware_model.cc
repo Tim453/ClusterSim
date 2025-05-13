@@ -465,7 +465,22 @@ void warp_inst_t::generate_mem_accesses() {
                                 // initiation interval
 
       if (ignore_request) {
-        cycles += m_config->dsmem_latency;
+        // Shared memory latency is already included substract it from user
+        // input
+        const auto smem_latency =
+            m_config->gpgpu_ctx->the_gpgpusim->g_the_gpu->getShaderCoreConfig()
+                ->smem_latency;
+        uint32_t dsmem_latency;
+        if (isatomic()) {
+          dsmem_latency = m_config->dsmem_atomic_latency;
+        } else if (is_load()) {
+          dsmem_latency = m_config->dsmem_ld_latency;
+        } else {
+          dsmem_latency = m_config->dsmem_st_latency;
+        }
+
+        const auto latency = std::max(dsmem_latency - smem_latency, 1u);
+        cycles += latency;
         m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
             pc, cycles);
       } else {
