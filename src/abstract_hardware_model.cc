@@ -470,7 +470,7 @@ void warp_inst_t::generate_mem_accesses() {
         const auto smem_latency =
             m_config->gpgpu_ctx->the_gpgpusim->g_the_gpu->getShaderCoreConfig()
                 ->smem_latency;
-        uint32_t dsmem_latency;
+        int dsmem_latency;
         if (isatomic()) {
           dsmem_latency = m_config->dsmem_atomic_latency;
         } else if (is_load()) {
@@ -479,7 +479,8 @@ void warp_inst_t::generate_mem_accesses() {
           dsmem_latency = m_config->dsmem_st_latency;
         }
 
-        const auto latency = std::max(dsmem_latency - smem_latency, 1u);
+        const auto latency =
+            std::max(dsmem_latency - static_cast<int>(smem_latency), 1);
         cycles += latency;
         m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
             pc, cycles);
