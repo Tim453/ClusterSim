@@ -543,6 +543,8 @@ const unsigned long long LOCAL_GENERIC_START =
 const unsigned long long STATIC_ALLOC_LIMIT =
     GLOBAL_HEAP_START - (TOTAL_LOCAL_MEM + TOTAL_SHARED_MEM);
 
+static_assert(GLOBAL_HEAP_START > (TOTAL_LOCAL_MEM + TOTAL_SHARED_MEM));
+
 #if !defined(__CUDA_RUNTIME_API_H__)
 
 #include "builtin_types.h"
