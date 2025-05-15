@@ -3800,7 +3800,7 @@ void isspacep_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   memory_space_t space = pI->get_space();
 
   a = thread->get_reg(src1.get_symbol());
-  addr_t addr = (addr_t)a.u64;
+  addr_t addr = a.u64;
   unsigned smid = thread->get_hw_sid();
   unsigned hwtid = thread->get_hw_tid();
 
@@ -3930,7 +3930,7 @@ void ld_exec(const ptx_instruction *pI, ptx_thread_info *thread) {
   unsigned vector_spec = pI->get_vector();
 
   memory_space *mem = NULL;
-  addr_t addr = src1_data.u32;
+  addr_t addr = src1_data.u64;
 
   decode_space(space, thread, src1, mem, addr);
 
@@ -4003,7 +4003,7 @@ void mma_st_impl(const ptx_instruction *pI, core_t *core, warp_inst_t &inst) {
     memory_space_t space = pI->get_space();
 
     memory_space *mem = NULL;
-    addr_t addr = addr_reg.u32;
+    addr_t addr = addr_reg.u64;
 
     new_addr_type mem_txn_addr[MAX_ACCESSES_PER_INSN_PER_THREAD];
     int num_mem_txn = 0;
@@ -4123,7 +4123,7 @@ void mma_ld_impl(const ptx_instruction *pI, core_t *core, warp_inst_t &inst) {
     memory_space_t space = pI->get_space();
 
     memory_space *mem = NULL;
-    addr_t addr = src1_data.u32;
+    addr_t addr = src1_data.u64;
     smid = thread->get_hw_sid();
     if (whichspace(addr) == shared_space) {
       addr = generic_to_shared(smid, addr);
@@ -4594,8 +4594,8 @@ void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   int shader_id = thread->get_hw_sid();
   int target_shader_id =
       thread->m_cluster_info->get_cta(b.u32)->get_shader_id();
-  assert(a.u32 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX > 0);
-  addr_t addr = a.u32 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX;
+  assert(a.u64 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX > 0);
+  addr_t addr = a.u64 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX;
 
   switch (i_type) {
     case U64_TYPE:
@@ -6327,7 +6327,7 @@ void sst_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   memory_space_t space = pI->get_space();
   memory_space *mem = NULL;
   addr_t addr =
-      src2_data.u32 * 4;  // this assumes sstarr memory starts at address 0
+      src2_data.u64 * 4;  // this assumes sstarr memory starts at address 0
   ptx_cta_info *cta_info = thread->m_cta_info;
 
   decode_space(space, thread, src1, mem, addr);
@@ -6414,7 +6414,7 @@ void st_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   unsigned vector_spec = pI->get_vector();
 
   memory_space *mem = NULL;
-  addr_t addr = addr_reg.u32;
+  addr_t addr = addr_reg.u64;
 
   decode_space(space, thread, dst, mem, addr);
 

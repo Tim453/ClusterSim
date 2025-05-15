@@ -519,13 +519,13 @@ class simt_stack {
 // Let's just upgrade to C++11 so we can use constexpr here...
 // start allocating from this address (lower values used for allocating globals
 // in .ptx file)
-const unsigned long long GLOBAL_HEAP_START = 0xF0000000;
+const unsigned long long GLOBAL_HEAP_START = 0xF00000000;
 // Volta max shmem size is 96kB
 const unsigned long long SHARED_MEM_SIZE_MAX = 228 * (1 << 10);
 // Volta max local mem is 16kB
 const unsigned long long LOCAL_MEM_SIZE_MAX = 1 << 14;
-// Volta Titan V has 80 SMs
-const unsigned MAX_STREAMING_MULTIPROCESSORS = 114;
+// Hopper can have up to 144 SMs
+const unsigned MAX_STREAMING_MULTIPROCESSORS = 144;
 // Max 2048 threads / SM
 const unsigned MAX_THREAD_PER_SM = 1 << 11;
 // MAX 64 warps / SM
