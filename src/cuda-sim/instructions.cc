@@ -3156,23 +3156,42 @@ ptx_reg_t s2f(ptx_reg_t x, unsigned from_width, unsigned to_width, int to_sign,
       case 32:
         switch (rounding_mode) {
           case RZ_OPTION:
-            y.f32 = cuda_math::__ll2float_rz(y.s64);
+            y.f32 = cuda_math::__ll2float_rz(x.s64);
             break;
           case RN_OPTION:
-            y.f32 = cuda_math::__ll2float_rn(y.s64);
+            y.f32 = cuda_math::__ll2float_rn(x.s64);
             break;
           case RM_OPTION:
-            y.f32 = cuda_math::__ll2float_rd(y.s64);
+            y.f32 = cuda_math::__ll2float_rd(x.s64);
             break;
           case RP_OPTION:
-            y.f32 = cuda_math::__ll2float_ru(y.s64);
+            y.f32 = cuda_math::__ll2float_ru(x.s64);
             break;
           default:
+            assert(0);
             break;
         }
         break;
       case 64:
-        y.f64 = y.s64;
+        switch (rounding_mode) {
+          case RZ_OPTION:
+            y.f64 = cuda_math::__ll2float_rz(x.s64);
+            break;
+          case RN_OPTION:
+            y.f64 = cuda_math::__ll2float_rn(x.s64);
+            break;
+          case RM_OPTION:
+            y.f64 = cuda_math::__ll2float_rd(x.s64);
+            break;
+          case RP_OPTION:
+            y.f64 = cuda_math::__ll2float_ru(x.s64);
+            break;
+
+          default:
+            assert(0);
+            break;
+        }
+
         break;  // no internal implementation found
       default:
         assert(0);
