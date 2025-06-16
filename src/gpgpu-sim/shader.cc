@@ -1878,46 +1878,54 @@ void shader_core_ctx::writeback() {
 void ldst_unit::process_cluster_request() {
   // Handle Reply
 
-  if (m_cluster_reply == nullptr)
-    m_cluster_reply =
-        (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
-
-  if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == false) {
-    assert(m_cluster_reply->is_response);
+  m_cluster_reply =
+      (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
+  if (m_cluster_reply != nullptr) {
     m_cluster_reply->get_warp()->response_arrived(m_cluster_reply);
     m_cluster_reply = nullptr;
-    // The atomic instructions need to be resend
-  } else if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == true) {
-    if (m_cluster_request == nullptr) {
-      assert(m_cluster_request_latency == 0);
-      m_cluster_reply->atomic_sendback();
-      m_cluster_request = m_cluster_reply;
-      // ToDo Here we need to use the number of cycles it takes to do the
-      // calculation
-      m_cluster_request_latency = m_cluster_request->latency;
-      m_cluster_reply = nullptr;
-    }
   }
 
-  // Handle Request
-  if (m_cluster_request == nullptr && m_cluster_request_latency == 0) {
-    m_cluster_request =
-        (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REQ_NET);
-    if (m_cluster_request == nullptr) return;
-    m_cluster_request_latency = m_cluster_request->latency;
-  }
+  // if (m_cluster_reply == nullptr)
+  //   m_cluster_reply =
+  //       (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
 
-  if (m_cluster_request_latency > 0) m_cluster_request_latency--;
+  // if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == false) {
+  //   assert(m_cluster_reply->is_response);
+  //   m_cluster_reply->get_warp()->response_arrived(m_cluster_reply);
+  //   m_cluster_reply = nullptr;
+  //   // The atomic instructions need to be resend
+  // } else if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic ==
+  // true) {
+  //   if (m_cluster_request == nullptr) {
+  //     assert(m_cluster_request_latency == 0);
+  //     m_cluster_reply->atomic_sendback();
+  //     m_cluster_request = m_cluster_reply;
+  //     // ToDo Here we need to use the number of cycles it takes to do the
+  //     // calculation
+  //     m_cluster_request_latency = m_cluster_request->latency;
+  //     m_cluster_reply = nullptr;
+  //   }
+  // }
 
-  assert(!m_cluster_request->is_response);
-  if (m_sm_2_sm_network->HasBuffer(m_sid, 256, REPLY_NET) &&
-      m_cluster_request_latency == 0) {
-    m_cluster_request->send_response();
-    // ToDo use correct message size
-    m_sm_2_sm_network->Push(m_sid, m_cluster_request->origin_shader_id,
-                            m_cluster_request, 256, REPLY_NET);
-    m_cluster_request = nullptr;
-  }
+  // // Handle Request
+  // if (m_cluster_request == nullptr && m_cluster_request_latency == 0) {
+  //   m_cluster_request =
+  //       (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REQ_NET);
+  //   if (m_cluster_request == nullptr) return;
+  //   m_cluster_request_latency = m_cluster_request->latency;
+  // }
+
+  // if (m_cluster_request_latency > 0) m_cluster_request_latency--;
+
+  // assert(!m_cluster_request->is_response);
+  // if (m_sm_2_sm_network->HasBuffer(m_sid, 256, REPLY_NET) &&
+  //     m_cluster_request_latency == 0) {
+  //   m_cluster_request->send_response();
+  //   // ToDo use correct message size
+  //   m_sm_2_sm_network->Push(m_sid, m_cluster_request->origin_shader_id,
+  //                           m_cluster_request, 256, REPLY_NET);
+  //   m_cluster_request = nullptr;
+  // }
 }
 
 bool ldst_unit::shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
@@ -1931,7 +1939,6 @@ bool ldst_unit::shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
   }
 
   bool stall = inst.dispatch_delay();
-  stall |= !inst.cluster_request_complete();
   if (stall) {
     fail_type = S_MEM;
     rc_fail = BK_CONF;
@@ -2448,7 +2455,7 @@ pipelined_simd_unit::pipelined_simd_unit(register_set *result_port,
     : simd_function_unit(config) {
   m_result_port = result_port;
   m_pipeline_depth = max_latency;
-  m_pipeline_reg = new warp_inst_t *[m_pipeline_depth];
+  m_pipeline_reg.resize(m_pipeline_depth);
   for (unsigned i = 0; i < m_pipeline_depth; i++)
     m_pipeline_reg[i] = new warp_inst_t(config);
   m_core = core;
@@ -2639,7 +2646,8 @@ void ldst_unit::writeback() {
     unsigned next_client = (c + m_writeback_arb) % m_num_writeback_clients;
     switch (next_client) {
       case 0:  // shared memory
-        if (!m_pipeline_reg[0]->empty()) {
+        if (!m_pipeline_reg[0]->empty() &&
+            m_pipeline_reg[0]->cluster_request_complete()) {
           m_next_wb = *m_pipeline_reg[0];
           if (m_next_wb.isatomic()) {
             m_next_wb.do_atomic();
@@ -4959,13 +4967,11 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
   m_gpc_status.resize(maximum_thread_block_cluster);
 
   if ((strcmp(m_config->sm_2_sm_network_type, "crossbar") == 0))
-    m_sm_2_sm_network = new local_crossbar(m_shader_per_gpc, config, m_gpu);
+    m_sm_2_sm_network = new Crossbar(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "ideal") == 0))
     m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "ringbus") == 0))
     m_sm_2_sm_network = new ringbus(m_shader_per_gpc, config, m_gpu);
-  else if ((strcmp(m_config->sm_2_sm_network_type, "booksim") == 0))
-    m_sm_2_sm_network = new booksim(m_shader_per_gpc, config, m_gpu);
   else if ((strcmp(m_config->sm_2_sm_network_type, "h100") == 0))
     m_sm_2_sm_network = new H100Model(m_shader_per_gpc, config, m_gpu);
   // Network needs to be there, although it will not be used

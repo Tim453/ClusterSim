@@ -38,7 +38,8 @@ cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
                                              bool is_write, bool is_atomic,
                                              unsigned origin_shader_id,
                                              unsigned target_shader_id,
-                                             unsigned tid, unsigned latency)
+                                             unsigned tid, unsigned latency,
+                                             unsigned size)
     : m_warp(warp), m_address(address) {
   m_is_write = is_write;
   m_is_atomic = is_atomic;
@@ -49,6 +50,7 @@ cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
   m_is_response = false;
   m_is_complete = false;
   m_latency = latency;
+  m_size = size;
 }
 
 sm_2_sm_network::sm_2_sm_network(unsigned n_shader,
@@ -151,6 +153,108 @@ bool local_crossbar::HasBuffer(unsigned deviceID, unsigned int size,
   return m_localicnt_interface->HasBuffer(deviceID, size, network);
 }
 
+Crossbar::Crossbar(unsigned n_shader, const class shader_core_config* config,
+                   const class gpgpu_sim* gpu)
+    : sm_2_sm_network(n_shader, config, gpu),
+      rr_pointers(n_shader, 0),
+      input_queues(n_shader),
+      output_queues(n_shader) {}
+
+void Crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
+                    void* data, unsigned int size, Interconnect_type network) {
+  cluster_shmem_request* request = (cluster_shmem_request*)(data);
+  output_deviceID = sid_to_gid(output_deviceID);
+  input_deviceID = sid_to_gid(input_deviceID);
+  size = request->size * 8;
+  input_queues[input_deviceID].emplace(input_deviceID, output_deviceID, size,
+                                       m_time, data);
+}
+
+void* Crossbar::Pop(unsigned ouput_deviceID, Interconnect_type network) {
+  ouput_deviceID = sid_to_gid(ouput_deviceID);
+  if (!output_queues[ouput_deviceID].empty()) {
+    auto result = output_queues[ouput_deviceID].front();
+    output_queues[ouput_deviceID].pop();
+    return result;
+  }
+  return nullptr;
+}
+
+void Crossbar::Advance() {
+  // Quit early if no messages
+  bool empty = true;
+  for (const auto& node : input_queues) {
+    if (!node.empty()) {
+      empty = false;
+      break;
+    }
+  }
+  if (in_flight.empty() && empty) return;
+
+  const int num_ports = m_n_shader;
+  // std::cout << "Time step: " << m_time << "\n";
+
+  // Check in-flight messages
+  std::vector<size_t> completed;
+  for (size_t i = 0; i < in_flight.size(); ++i) {
+    if (m_time - in_flight[i].second >= m_latency) {
+      // std::cout << "Delivered message from " << in_flight[i].first.src << "
+      // to "
+      //           << in_flight[i].first.dst << "\n";
+      completed.push_back(i);
+    }
+  }
+
+  // Remove completed
+  for (int i = completed.size() - 1; i >= 0; --i) {
+    const auto data = in_flight[i].first.data;
+    const auto dst = in_flight[i].first.dst;
+    output_queues[dst].push(data);
+    in_flight.erase(in_flight.begin() + completed[i]);
+  }
+
+  // Build request lists for each output
+  std::vector<std::vector<int>> requests(num_ports);
+  for (int i = 0; i < num_ports; ++i) {
+    if (!input_queues[i].empty()) {
+      int dst = input_queues[i].front().dst;
+      requests[dst].push_back(i);
+    }
+  }
+
+  // 3. Perform round-robin arbitration per output port
+  for (int out = 0; out < num_ports; ++out) {
+    if (!requests[out].empty()) {
+      int chosen = -1;
+      int start = rr_pointers[out];
+
+      for (int i = 0; i < num_ports; ++i) {
+        int idx = (start + i) % num_ports;
+        for (int requester : requests[out]) {
+          if (requester == idx) {
+            chosen = idx;
+            rr_pointers[out] = (idx + 1) % num_ports;
+            break;
+          }
+        }
+        if (chosen != -1) break;
+      }
+
+      if (chosen != -1) {
+        Message& msg = input_queues[chosen].front();
+        int send_amount = std::min(m_bandwidth, msg.size - msg.sent_bits);
+        msg.sent_bits += send_amount;
+
+        if (msg.sent_bits >= msg.size) {
+          in_flight.push_back({msg, m_time});
+          input_queues[chosen].pop();
+        }
+      }
+    }
+  }
+  ++m_time;
+}
+
 void ideal_network::Push(unsigned input_deviceID, unsigned output_deviceID,
                          void* data, unsigned int size,
                          Interconnect_type network) {
@@ -160,45 +264,6 @@ void ideal_network::Push(unsigned input_deviceID, unsigned output_deviceID,
   } else if (network == REPLY_NET) {
     in_response[output_deviceID].push(data);
   }
-}
-
-booksim::booksim(unsigned n_shader, const class shader_core_config* config,
-                 const class gpgpu_sim* gpu)
-    : sm_2_sm_network(n_shader, config, gpu) {
-  interface = InterconnectInterface::New(sm2sm_intersim_config);
-  interface->CreateInterconnect(n_shader, 0);
-}
-
-void booksim::Push(unsigned input_deviceID, unsigned output_deviceID,
-                   void* data, unsigned int size, Interconnect_type network) {
-  output_deviceID = sid_to_gid(output_deviceID);
-  input_deviceID = sid_to_gid(input_deviceID);
-  mf_type type;
-  cluster_shmem_request* request = (cluster_shmem_request*)(data);
-  assert(request);
-  if (network == REQ_NET) {
-    if (request->is_write)
-      type = WRITE_REQUEST;
-    else
-      type = READ_REQUEST;
-  } else {
-    if (request->is_write)
-      type = WRITE_ACK;
-    else
-      type = READ_REPLY;
-  }
-
-  interface->Push(input_deviceID, output_deviceID, data, size, network, type);
-}
-
-void* booksim::Pop(unsigned ouput_deviceID, Interconnect_type network) {
-  return interface->Pop(ouput_deviceID, network);
-}
-
-void booksim::Advance() { interface->Advance(); }
-bool booksim::HasBuffer(unsigned deviceID, unsigned int size,
-                        Interconnect_type network) const {
-  return interface->HasBuffer(deviceID, size);
 }
 
 void* ideal_network::Pop(unsigned ouput_deviceID, Interconnect_type network) {

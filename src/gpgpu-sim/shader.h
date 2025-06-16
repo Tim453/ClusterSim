@@ -1198,7 +1198,7 @@ class pipelined_simd_unit : public simd_function_unit {
 
  protected:
   unsigned m_pipeline_depth;
-  warp_inst_t **m_pipeline_reg;
+  std::vector<warp_inst_t *> m_pipeline_reg;
   register_set *m_result_port;
   class shader_core_ctx *m_core;
   unsigned m_issue_reg_id;  // if sub_core_model is enabled we can only issue

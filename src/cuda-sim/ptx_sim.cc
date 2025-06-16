@@ -258,7 +258,7 @@ unsigned long long ptx_thread_info::get_builtin(int builtin_id,
       return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle) * 2;
       // ToDo: Is this the right value
     case GLOBALTIMER_REG:
-      return (unsigned)(m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
+      return (m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
     case CLUSTER_CTAID_REG:
       assert(dim_mod < 3);
       if (dim_mod == 0) return m_cluster_ctaid.x;

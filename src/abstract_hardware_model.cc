@@ -384,15 +384,19 @@ void warp_inst_t::generate_mem_accesses() {
           // look for the bank with the maximum number of access to
           // different words
           unsigned max_bank_accesses = 0;
+          unsigned requestSize = 0;
           std::map<unsigned, std::map<new_addr_type, unsigned>>::iterator b;
           for (auto &bank : target.second) {
             max_bank_accesses =
                 std::max(max_bank_accesses, (unsigned)bank.second.size());
+
+            for (auto &word : bank.second) requestSize += word.second;
           }
+          requestSize *= m_config->WORD_SIZE;
           // For now we don't store the address and thread in the message
-          class cluster_shmem_request *request =
-              new cluster_shmem_request(this, 0, is_write, m_isatomic, m_sid,
-                                        target.first, 0, max_bank_accesses);
+          class cluster_shmem_request *request = new cluster_shmem_request(
+              this, 0, is_write, m_isatomic, m_sid, target.first, 0,
+              max_bank_accesses, requestSize);
           m_pending_cluster_memory_requests.push(request);
         }
 

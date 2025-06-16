@@ -14,7 +14,7 @@ class cluster_shmem_request {
   cluster_shmem_request(warp_inst_t* warp, addr_t address, bool is_write,
                         bool is_atomic, unsigned origin_shader_id,
                         unsigned target_shader_id, unsigned tid,
-                        unsigned latency);
+                        unsigned latency, unsigned size);
   void send_response() { m_is_response = true; }
   // Called when data came from the target SM, then the request can be treated
   // as a normal request
@@ -48,6 +48,7 @@ class cluster_shmem_request {
   const bool& is_send = m_is_send;
   const unsigned& origin_shader_id = m_origin_shader_id;
   const unsigned& target_shader_id = m_target_shader_id;
+  const unsigned& size = m_size;
   const unsigned& tid = m_tid;
   const addr_t address = m_address;
   const unsigned& latency = m_latency;
@@ -110,28 +111,41 @@ class local_crossbar : public sm_2_sm_network {
   std::ofstream m_reply_net_out_log;
 };
 
-class booksim : public sm_2_sm_network {
+class Crossbar : public sm_2_sm_network {
  public:
-  booksim(unsigned n_shader, const class shader_core_config* config,
-          const class gpgpu_sim* gpu);
-
-  void Init();
+  Crossbar(unsigned n_shader, const class shader_core_config* config,
+           const class gpgpu_sim* gpu);
+  ~Crossbar();
+  void Init() {};
   void Push(unsigned input_deviceID, unsigned output_deviceID, void* data,
             unsigned int size, Interconnect_type network);
   void* Pop(unsigned ouput_deviceID, Interconnect_type network);
-
   void Advance();
-  bool Busy() const { return false; };
+  bool Busy() const { return false; }
   bool HasBuffer(unsigned deviceID, unsigned int size,
-                 Interconnect_type network) const;
-  void DisplayStats() const { ; };
-  void DisplayOverallStats() const { ; };
-  unsigned GetFlitSize() const { return 1; };
+                 Interconnect_type network) const {
+    return true;
+  };
 
-  void DisplayState(FILE* fp) const { ; };
+  struct Message {
+    int src;
+    int dst;
+    int size;  // in bits
+    int sent_bits = 0;
+    uint64_t time_injected;
+    void* data;
+    Message(int s, int d, int sz, uint64_t t, void* data)
+        : src(s), dst(d), size(sz), time_injected(t), data(data) {}
+  };
 
  private:
-  InterconnectInterface* interface;
+  std::vector<std::queue<Message>> input_queues;
+  std::vector<std::queue<void*>> output_queues;
+  std::vector<std::pair<Message, uint64_t>> in_flight;
+  std::vector<int> rr_pointers;
+  uint64_t m_time;
+  const int m_latency = 180;
+  const int m_bandwidth = 11 * 8;
 };
 
 class ideal_network : public sm_2_sm_network {
