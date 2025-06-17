@@ -1100,7 +1100,7 @@ class barrier_set_t {
   warp_set_t m_warp_at_barrier;
   shader_core_ctx *m_shader;
 
-  class ptx_cluster_info *m_ptx_cluster_info;
+  std::array<class ptx_cluster_info *, 64> m_ptx_cluster_info;
   bool *m_waiting_at_cluster_bar;
 };
 

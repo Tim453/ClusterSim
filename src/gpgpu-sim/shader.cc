@@ -3844,9 +3844,10 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
         assert(m_shader->m_warp[warp_id]->m_sync_latency == 0);
         m_shader->m_warp[warp_id]->m_sync_latency =
             m_shader->get_config()->cluster_wait_latency;
-        m_ptx_cluster_info =
+        m_ptx_cluster_info.at(warp_id) =
             m_shader->get_thread_info().at(warp_id * 32)->m_cluster_info;
-        m_waiting_at_cluster_bar = &m_ptx_cluster_info->waiting_at_cluster_bar;
+        // m_waiting_at_cluster_bar =
+        // &m_ptx_cluster_info->waiting_at_cluster_bar;
         m_cluster_bar.set(warp_id);
         break;
       }
@@ -3892,19 +3893,17 @@ bool barrier_set_t::warp_waiting_at_barrier(unsigned warp_id) const {
 }
 bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id,
                                                     unsigned warp_id) {
-  if (m_waiting_at_cluster_bar == nullptr) {
-    return false;
-  } else if (!*m_waiting_at_cluster_bar) {
+  if (m_ptx_cluster_info[warp_id] == nullptr) return false;
+
+  if (m_ptx_cluster_info[warp_id]->waiting_at_cluster_bar)
+    return true;
+  else {
     cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
     assert(w->second.test(warp_id) == true);
     warp_set_t warps_in_cta = w->second;
     warp_set_t active = warps_in_cta & m_warp_active;
     m_cluster_bar &= ~warps_in_cta;
-    m_waiting_at_cluster_bar = nullptr;
-    return false;
-  } else if (m_cluster_bar.test(warp_id)) {
-    return true;
-  } else {
+    m_ptx_cluster_info[warp_id] = nullptr;
     return false;
   }
 }
