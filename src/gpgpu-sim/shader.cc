@@ -2897,6 +2897,9 @@ void shader_core_ctx::register_cta_thread_exit(unsigned cluster_slot,
     m_barriers.deallocate_barrier(cluster_slot, cta_num);
     shader_CTA_count_unlog(m_sid, 1);
 
+    assert(m_cluster->m_gpc->m_gpc_status.at(cluster_slot) > 0);
+    m_cluster->m_gpc->m_gpc_status.at(cluster_slot)--;
+
     SHADER_DPRINTF(
         LIVENESS,
         "GPGPU-Sim uArch: Finished CTA #%u (%lld,%lld), %u CTAs running\n",
