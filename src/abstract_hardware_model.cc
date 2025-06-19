@@ -280,16 +280,40 @@ void warp_inst_t::broadcast_barrier_reduction(
   }
 }
 
+bool warp_inst_t::has_pending_cluster_request() {
+  for (const auto &request : m_pending_cluster_memory_requests) {
+    if (request.second == NOT_SEND) {
+      return true;
+    }
+  }
+  return false;
+}
+
 cluster_shmem_request *warp_inst_t::get_next_open_cluster_request() {
   if (m_pending_cluster_memory_requests.empty()) return nullptr;
-  cluster_shmem_request *request = m_pending_cluster_memory_requests.front();
-  m_pending_cluster_memory_requests.pop();
-  return request;
+
+  for (auto &request : m_pending_cluster_memory_requests) {
+    if (request.second == NOT_SEND) {
+      request.second = IN_PROGRESS;
+      return request.first;
+    }
+  }
+  return nullptr;
 }
 
 void warp_inst_t::response_arrived(class cluster_shmem_request *request) {
+  for (auto &request_it : m_pending_cluster_memory_requests) {
+    if (request_it.first == request) {
+      request_it.second = COMPLETE;
+      request_it.first = nullptr;
+      break;
+    }
+  }
+
   delete request;
   m_outstanding_cluster_requests--;
+
+  if (m_outstanding_cluster_requests < 0) m_outstanding_cluster_requests = 0;
   assert(m_outstanding_cluster_requests >= 0);
 }
 
@@ -379,6 +403,7 @@ void warp_inst_t::generate_mem_accesses() {
           }
         }
 
+        assert(m_pending_cluster_memory_requests.empty());
         // Calculate Bank Conflicts for Cluster requests
         for (auto &target : cluster_requests) {
           // look for the bank with the maximum number of access to
@@ -397,7 +422,7 @@ void warp_inst_t::generate_mem_accesses() {
           class cluster_shmem_request *request = new cluster_shmem_request(
               this, 0, is_write, m_isatomic, m_sid, target.first, 0,
               max_bank_accesses, requestSize);
-          m_pending_cluster_memory_requests.push(request);
+          m_pending_cluster_memory_requests.push_back({request, NOT_SEND});
         }
 
         if (m_config->shmem_limited_broadcast) {
@@ -492,7 +517,7 @@ void warp_inst_t::generate_mem_accesses() {
         m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
             pc, total_accesses);
       }
-
+      assert(m_outstanding_cluster_requests == 0);
       m_outstanding_cluster_requests = m_pending_cluster_memory_requests.size();
 
       break;

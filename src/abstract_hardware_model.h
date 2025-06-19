@@ -639,7 +639,7 @@ class gpgpu_t {
   // Move some cycle core stats here instead of being global
   unsigned long long gpu_sim_cycle;
   unsigned long long gpu_tot_sim_cycle;
-  std::map<uint64_t, std::pair<uint64_t, size_t> > &gpu_getManagedAllocations();
+  std::map<uint64_t, std::pair<uint64_t, size_t>> &gpu_getManagedAllocations();
   size_t gpu_getManagedAllocation(uint64_t cpuMemAddr, uint64_t *devMemAddr);
   void gpu_mapManagedAllocations(uint64_t cpuMemAddr, uint64_t gpuMemAddr,
                                  size_t size);
@@ -667,7 +667,7 @@ class gpgpu_t {
 
   const struct textureReference *get_texref(const std::string &texname) const {
     std::map<std::string,
-             std::set<const struct textureReference *> >::const_iterator t =
+             std::set<const struct textureReference *>>::const_iterator t =
         m_NameToTextureRef.find(texname);
     assert(t != m_NameToTextureRef.end());
     return *(t->second.begin());
@@ -720,10 +720,10 @@ class gpgpu_t {
   class memory_space *m_surf_mem;
 
   unsigned long long m_dev_malloc;
-  std::map<uint64_t, std::pair<uint64_t, size_t> > managedAllocations;
+  std::map<uint64_t, std::pair<uint64_t, size_t>> managedAllocations;
   //  These maps contain the current texture mappings for the GPU at any given
   //  time.
-  std::map<std::string, std::set<const struct textureReference *> >
+  std::map<std::string, std::set<const struct textureReference *>>
       m_NameToTextureRef;
   std::map<const struct textureReference *, std::string> m_TextureRefToName;
   std::map<std::string, const struct cudaArray *> m_NameToCudaArray;
@@ -1260,9 +1260,7 @@ class warp_inst_t : public inst_t {
     return m_outstanding_cluster_requests == 0;
   }
   class cluster_shmem_request *get_next_open_cluster_request();
-  bool has_pending_cluster_request() {
-    return !m_pending_cluster_memory_requests.empty();
-  }
+  bool has_pending_cluster_request();
   bool has_dispatch_delay() { return cycles > 0; }
 
   void print(FILE *fout) const;
@@ -1287,8 +1285,11 @@ class warp_inst_t : public inst_t {
   active_mask_t
       m_warp_issued_mask;  // active mask at issue (prior to predication test)
                            // -- for instruction counting
-  std::queue<class cluster_shmem_request *> m_pending_cluster_memory_requests;
-  unsigned m_outstanding_cluster_requests;
+
+  enum DSMEM_STATUS { NOT_SEND, IN_PROGRESS, COMPLETE };
+  std::vector<std::pair<class cluster_shmem_request *, DSMEM_STATUS>>
+      m_pending_cluster_memory_requests;
+  int m_outstanding_cluster_requests;
 
   struct per_thread_info {
     per_thread_info() {

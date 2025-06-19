@@ -1878,11 +1878,13 @@ void shader_core_ctx::writeback() {
 void ldst_unit::process_cluster_request() {
   // Handle Reply
 
-  m_cluster_reply =
+  cluster_shmem_request *reply =
       (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
-  if (m_cluster_reply != nullptr) {
-    m_cluster_reply->get_warp()->response_arrived(m_cluster_reply);
-    m_cluster_reply = nullptr;
+  if (reply != nullptr) {
+    assert(m_sid == reply->target_shader_id);
+    assert(!reply->complete);
+    reply->complete = true;
+    reply->get_warp()->response_arrived(reply);
   }
 
   // if (m_cluster_reply == nullptr)
@@ -2807,12 +2809,15 @@ void ldst_unit::cycle() {
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
-  if (m_sm_2_sm_network->HasBuffer(m_sid, 256, REQ_NET) &&
-      pipe_reg.has_pending_cluster_request()) {
+  if (pipe_reg.has_pending_cluster_request()) {
     cluster_shmem_request *request = pipe_reg.get_next_open_cluster_request();
-    m_sm_2_sm_network->Push(m_sid, request->target_shader_id, request, 256,
-                            REQ_NET);
-    request->send_request();
+    while (request != nullptr) {
+      m_sm_2_sm_network->Push(m_sid, request->target_shader_id, request, 256,
+                              REQ_NET);
+      assert(!request->is_send);
+      request->send_request();
+      request = pipe_reg.get_next_open_cluster_request();
+    }
   }
 
   // Only process incomming requests when the local shared memory is not
@@ -4658,6 +4663,7 @@ unsigned gpu_processing_cluster::issue_parallel_cta_cluster() {
       break;
     }
   }
+
   assert(free_cluster_slot != (unsigned)-1);
 
   for (unsigned i = 0; i < m_clusters.size(); i++) {

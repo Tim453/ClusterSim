@@ -168,6 +168,8 @@ void Crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
   size = request->size * 8;
   input_queues[input_deviceID].emplace(input_deviceID, output_deviceID, size,
                                        m_time, data);
+
+  // output_queues[output_deviceID].emplace(data);
 }
 
 void* Crossbar::Pop(unsigned ouput_deviceID, Interconnect_type network) {
@@ -206,11 +208,14 @@ void Crossbar::Advance() {
   }
 
   // Remove completed
-  for (int i = completed.size() - 1; i >= 0; --i) {
-    const auto data = in_flight[i].first.data;
-    const auto dst = in_flight[i].first.dst;
+  for (int i = 0; i < completed.size(); i++) {
+    const auto msgid = completed[i];
+    const auto data = in_flight[msgid].first.data;
+    const auto dst = in_flight[msgid].first.dst;
+    cluster_shmem_request* request = (cluster_shmem_request*)(data);
+    assert(sid_to_gid(request->target_shader_id) == dst);
     output_queues[dst].push(data);
-    in_flight.erase(in_flight.begin() + completed[i]);
+    in_flight.erase(in_flight.begin() + msgid);
   }
 
   // Build request lists for each output

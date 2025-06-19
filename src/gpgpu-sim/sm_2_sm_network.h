@@ -52,6 +52,7 @@ class cluster_shmem_request {
   const unsigned& tid = m_tid;
   const addr_t address = m_address;
   const unsigned& latency = m_latency;
+  bool complete = false;
 };
 
 class sm_2_sm_network {
@@ -144,7 +145,7 @@ class Crossbar : public sm_2_sm_network {
   std::vector<std::pair<Message, uint64_t>> in_flight;
   std::vector<int> rr_pointers;
   uint64_t m_time;
-  const int m_latency = 180;
+  const int m_latency = 171;
   const int m_bandwidth = 11 * 8;
 };
 
