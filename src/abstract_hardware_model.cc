@@ -310,7 +310,6 @@ void warp_inst_t::response_arrived(class cluster_shmem_request *request) {
     }
   }
 
-  delete request;
   m_outstanding_cluster_requests--;
 
   if (m_outstanding_cluster_requests < 0) m_outstanding_cluster_requests = 0;

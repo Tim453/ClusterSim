@@ -214,8 +214,13 @@ void Crossbar::Advance() {
     const auto dst = in_flight[msgid].first.dst;
     cluster_shmem_request* request = (cluster_shmem_request*)(data);
     assert(sid_to_gid(request->target_shader_id) == dst);
-    output_queues[dst].push(data);
     in_flight.erase(in_flight.begin() + msgid);
+
+    // output_queues[dst].push(data);
+    assert(!request->complete);
+    request->complete = true;
+    request->get_warp()->response_arrived(request);
+    delete request;
   }
 
   // Build request lists for each output

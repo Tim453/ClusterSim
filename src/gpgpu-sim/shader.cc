@@ -2824,7 +2824,7 @@ void ldst_unit::cycle() {
   // accessed
   // if (pipe_reg.space.get_type() != shared_space ||
   // !pipe_reg.has_dispatch_delay())
-  process_cluster_request();
+  // process_cluster_request();
 
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
   mem_stage_access_type type;
@@ -3854,9 +3854,6 @@ void barrier_set_t::warp_reaches_barrier(unsigned cluster_slot, unsigned cta_id,
             m_shader->get_config()->cluster_wait_latency;
         m_ptx_cluster_info.at(warp_id) =
             m_shader->get_thread_info().at(warp_id * 32)->m_cluster_info;
-        // m_waiting_at_cluster_bar =
-        // &m_ptx_cluster_info->waiting_at_cluster_bar;
-        m_cluster_bar.set(warp_id);
         break;
       }
       case ARRIVE:
@@ -3906,11 +3903,6 @@ bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id,
   if (m_ptx_cluster_info[warp_id]->waiting_at_cluster_bar)
     return true;
   else {
-    cta_to_warp_t::iterator w = m_cta_to_warps.find(cta_id);
-    assert(w->second.test(warp_id) == true);
-    warp_set_t warps_in_cta = w->second;
-    warp_set_t active = warps_in_cta & m_warp_active;
-    m_cluster_bar &= ~warps_in_cta;
     m_ptx_cluster_info[warp_id] = nullptr;
     return false;
   }

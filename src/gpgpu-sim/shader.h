@@ -1093,9 +1093,6 @@ class barrier_set_t {
   cta_to_warp_t m_cta_to_warps;
   bar_id_to_warp_t m_bar_id_to_warps;
 
-  // Barrier used to synchronize the warps in a CTA before a cluster.arrive
-  warp_set_t m_cluster_bar;
-
   warp_set_t m_warp_active;
   warp_set_t m_warp_at_barrier;
   shader_core_ctx *m_shader;
