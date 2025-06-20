@@ -443,7 +443,7 @@ void shader_core_ctx::create_exec_pipeline() {
       m_issue_port.push_back(m_config->m_specialized_unit[j].OC_EX_SPEC_ID);
     }
   }
-  sm_2_sm_network *network = m_cluster->get_sm_2_sm_network();
+  SM_2_SM_network *network = m_cluster->get_sm_2_sm_network();
   m_ldst_unit = new ldst_unit(network, m_icnt, m_mem_fetch_allocator, this,
                               &m_operand_collector, m_scoreboard, m_config,
                               m_memory_config, m_stats, m_sid, m_tpc);
@@ -1878,8 +1878,7 @@ void shader_core_ctx::writeback() {
 void ldst_unit::process_cluster_request() {
   // Handle Reply
 
-  cluster_shmem_request *reply =
-      (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
+  auto reply = m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
   if (reply != nullptr) {
     assert(m_sid == reply->target_shader_id);
     assert(!reply->complete);
@@ -2543,7 +2542,7 @@ void ldst_unit::init(mem_fetch_interface *icnt,
   m_cid = m_config->sid_to_cid(m_core->get_sid());
 }
 
-ldst_unit::ldst_unit(sm_2_sm_network *network, mem_fetch_interface *icnt,
+ldst_unit::ldst_unit(SM_2_SM_network *network, mem_fetch_interface *icnt,
                      shader_core_mem_fetch_allocator *mf_allocator,
                      shader_core_ctx *core, opndcoll_rfu_t *operand_collector,
                      Scoreboard *scoreboard, const shader_core_config *config,
@@ -2810,12 +2809,14 @@ void ldst_unit::cycle() {
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
   if (pipe_reg.has_pending_cluster_request()) {
-    cluster_shmem_request *request = pipe_reg.get_next_open_cluster_request();
-    while (request != nullptr) {
+    auto request = pipe_reg.get_next_open_cluster_request();
+
+    while (request.get() != nullptr) {
+      assert(!request.get()->complete);
+      assert(!request->m_is_send);
       m_sm_2_sm_network->Push(m_sid, request->target_shader_id, request, 256,
                               REQ_NET);
-      assert(!request->is_send);
-      request->send_request();
+      request->m_is_send = true;
       request = pipe_reg.get_next_open_cluster_request();
     }
   }
@@ -4966,17 +4967,7 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
 
   m_gpc_status.resize(maximum_thread_block_cluster);
 
-  if ((strcmp(m_config->sm_2_sm_network_type, "crossbar") == 0))
-    m_sm_2_sm_network = new Crossbar(m_shader_per_gpc, config, m_gpu);
-  else if ((strcmp(m_config->sm_2_sm_network_type, "ideal") == 0))
-    m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
-  else if ((strcmp(m_config->sm_2_sm_network_type, "ringbus") == 0))
-    m_sm_2_sm_network = new ringbus(m_shader_per_gpc, config, m_gpu);
-  else if ((strcmp(m_config->sm_2_sm_network_type, "h100") == 0))
-    m_sm_2_sm_network = new H100Model(m_shader_per_gpc, config, m_gpu);
-  // Network needs to be there, although it will not be used
-  else if ((strcmp(m_config->sm_2_sm_network_type, "none") == 0))
-    m_sm_2_sm_network = new ideal_network(m_shader_per_gpc, config, m_gpu);
+  m_sm_2_sm_network = new Crossbar(m_shader_per_gpc, config, m_gpu);
 }
 
 void gpu_processing_cluster::cycle() { m_sm_2_sm_network->Advance(); }

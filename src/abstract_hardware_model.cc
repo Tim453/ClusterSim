@@ -289,7 +289,8 @@ bool warp_inst_t::has_pending_cluster_request() {
   return false;
 }
 
-cluster_shmem_request *warp_inst_t::get_next_open_cluster_request() {
+std::shared_ptr<cluster_shmem_request>
+warp_inst_t::get_next_open_cluster_request() {
   if (m_pending_cluster_memory_requests.empty()) return nullptr;
 
   for (auto &request : m_pending_cluster_memory_requests) {
@@ -301,9 +302,10 @@ cluster_shmem_request *warp_inst_t::get_next_open_cluster_request() {
   return nullptr;
 }
 
-void warp_inst_t::response_arrived(class cluster_shmem_request *request) {
+void warp_inst_t::response_arrived(
+    std::shared_ptr<cluster_shmem_request> request) {
   for (auto &request_it : m_pending_cluster_memory_requests) {
-    if (request_it.first == request) {
+    if (request_it.first.get() == request.get()) {
       request_it.second = COMPLETE;
       request_it.first = nullptr;
       break;
@@ -312,7 +314,7 @@ void warp_inst_t::response_arrived(class cluster_shmem_request *request) {
 
   m_outstanding_cluster_requests--;
 
-  if (m_outstanding_cluster_requests < 0) m_outstanding_cluster_requests = 0;
+  // if (m_outstanding_cluster_requests < 0) m_outstanding_cluster_requests = 0;
   assert(m_outstanding_cluster_requests >= 0);
 }
 
@@ -418,9 +420,10 @@ void warp_inst_t::generate_mem_accesses() {
           }
           requestSize *= m_config->WORD_SIZE;
           // For now we don't store the address and thread in the message
-          class cluster_shmem_request *request = new cluster_shmem_request(
-              this, 0, is_write, m_isatomic, m_sid, target.first, 0,
-              max_bank_accesses, requestSize);
+          std::shared_ptr<cluster_shmem_request> request(
+              new cluster_shmem_request(this, 0, is_write, m_isatomic, m_sid,
+                                        target.first, 0, max_bank_accesses,
+                                        requestSize));
           m_pending_cluster_memory_requests.push_back({request, NOT_SEND});
         }
 

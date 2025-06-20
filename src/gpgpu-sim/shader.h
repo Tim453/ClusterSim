@@ -1350,7 +1350,7 @@ class cache_t;
 
 class ldst_unit : public pipelined_simd_unit {
  public:
-  ldst_unit(class sm_2_sm_network *network, mem_fetch_interface *icnt,
+  ldst_unit(class SM_2_SM_network *network, mem_fetch_interface *icnt,
             shader_core_mem_fetch_allocator *mf_allocator,
             shader_core_ctx *core, opndcoll_rfu_t *operand_collector,
             Scoreboard *scoreboard, const shader_core_config *config,
@@ -1446,7 +1446,7 @@ class ldst_unit : public pipelined_simd_unit {
   class shader_core_ctx *m_core;
   unsigned m_sid;
   unsigned m_tpc;
-  sm_2_sm_network *m_sm_2_sm_network;
+  SM_2_SM_network *m_sm_2_sm_network;
   int m_cluster_request_latency;
   cluster_shmem_request *m_cluster_request = nullptr;
   cluster_shmem_request *m_cluster_reply = nullptr;
@@ -2642,7 +2642,7 @@ class gpu_processing_cluster {
   unsigned m_shader_per_gpc = 1;
 
  public:
-  sm_2_sm_network *m_sm_2_sm_network;
+  SM_2_SM_network *m_sm_2_sm_network;
   gpu_processing_cluster(class gpgpu_sim *gpu, const shader_core_config *config,
                          unsigned id, unsigned shader_per_gpc);
   void add_cluster(class simt_core_cluster *cluster) {
@@ -2713,7 +2713,7 @@ class simt_core_cluster {
   unsigned get_maximum_thread_block_cluster() const {
     return m_maximum_thread_block_cluster;
   }
-  sm_2_sm_network *get_sm_2_sm_network() const { return m_sm_2_sm_network; }
+  SM_2_SM_network *get_sm_2_sm_network() const { return m_sm_2_sm_network; }
 
   gpu_processing_cluster *m_gpc;
   // Stores the number of ctas running in a cluster slot
@@ -2724,7 +2724,7 @@ class simt_core_cluster {
   unsigned m_maximum_thread_block_cluster;
 
  protected:
-  sm_2_sm_network *m_sm_2_sm_network;
+  SM_2_SM_network *m_sm_2_sm_network;
   unsigned m_cluster_id;
   gpgpu_sim *m_gpu;
   const shader_core_config *m_config;

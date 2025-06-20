@@ -194,6 +194,7 @@ enum _memory_op_t { no_memory_op = 0, memory_load, memory_store };
 #include <deque>
 #include <list>
 #include <map>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -1255,11 +1256,11 @@ class warp_inst_t : public inst_t {
     if (cycles > 0) cycles--;
     return cycles > 0;
   }
-  void response_arrived(class cluster_shmem_request *request);
+  void response_arrived(std::shared_ptr<class cluster_shmem_request> request);
   bool cluster_request_complete() {
     return m_outstanding_cluster_requests == 0;
   }
-  class cluster_shmem_request *get_next_open_cluster_request();
+  std::shared_ptr<cluster_shmem_request> get_next_open_cluster_request();
   bool has_pending_cluster_request();
   bool has_dispatch_delay() { return cycles > 0; }
 
@@ -1287,7 +1288,8 @@ class warp_inst_t : public inst_t {
                            // -- for instruction counting
 
   enum DSMEM_STATUS { NOT_SEND, IN_PROGRESS, COMPLETE };
-  std::vector<std::pair<class cluster_shmem_request *, DSMEM_STATUS>>
+  std::vector<
+      std::pair<std::shared_ptr<class cluster_shmem_request>, DSMEM_STATUS>>
       m_pending_cluster_memory_requests;
   int m_outstanding_cluster_requests;
 
