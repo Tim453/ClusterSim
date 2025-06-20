@@ -46,6 +46,15 @@ void ptx_cluster_info::add_cta(ptx_cta_info *cta, unsigned cluster_ctarank) {
   cta->set_cluster_cta_rank(cluster_ctarank);
 }
 
+bool ptx_cluster_info::is_complete() {
+  if (m_ctas_in_cluster.size() != cta_per_cluster) return false;
+
+  for (auto &cta : m_ctas_in_cluster) {
+    if (!cta.second->is_complete()) return false;
+  }
+  return true;
+}
+
 void ptx_cluster_info::clear() { m_ctas_in_cluster.clear(); }
 
 unsigned ptx_cluster_info::get_cta_rank_of_shared_memory_region(addr_t addr) {

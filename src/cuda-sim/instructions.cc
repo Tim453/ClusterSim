@@ -2100,6 +2100,7 @@ void bar_impl(const ptx_instruction *pIin, ptx_thread_info *thread) {
     switch (bar_op) {
       case WAIT_OPTION:
         if (thread->m_has_to_wait) {
+          assert(thread->m_cluster_info->threads_arrived != 0);
           thread->m_cluster_info->waiting_at_cluster_bar = true;
           if (thread->m_cluster_info->all_threads_arrived()) {
             thread->m_cluster_info->reset_arrive_status();

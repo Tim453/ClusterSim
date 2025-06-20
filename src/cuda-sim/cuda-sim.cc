@@ -2087,7 +2087,7 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
 
   static std::map<unsigned, memory_space *> shared_memory_lookup;
   static std::map<unsigned, memory_space *> sstarr_memory_lookup;
-  static std::map<unsigned, ptx_cluster_info *> ptx_cluster_lookup;
+  static std::list<ptx_cluster_info> ptx_cluster_lookup;
   static std::map<unsigned, ptx_cta_info *> ptx_cta_lookup;
   static std::map<unsigned, ptx_warp_info *> ptx_warp_lookup;
   static std::map<unsigned, std::map<unsigned, memory_space *> >
@@ -2143,17 +2143,28 @@ unsigned ptx_sim_init_thread(kernel_info_t &kernel,
   unsigned max_cta_per_sm = num_threads / cta_size;  // e.g., 256 / 48 = 5
   assert(max_cta_per_sm > 0);
 
-  if (ptx_cluster_lookup[cid] == NULL) {
-    cluster_info = new ptx_cluster_info(gpu->gpgpu_ctx);
-    ptx_cluster_lookup[cid] = cluster_info;
-  } else {
-    cluster_info = ptx_cluster_lookup[cid];
+  for (auto &cluster : ptx_cluster_lookup) {
+    if (cluster.ctas_in_cluster() != cluster.get_ctas_in_cluster()) {
+      cluster_info = &cluster;
+      break;
+    } else if (cluster.is_complete()) {
+      cluster_info = &cluster;
+      cluster_info->clear();
+      cluster_info->set_ctas_per_cluster(kernel.ctas_per_cluster());
+      break;
+    }
   }
+  if (cluster_info == NULL) {
+    ptx_cluster_lookup.push_back(gpu->gpgpu_ctx);
+    cluster_info = &ptx_cluster_lookup.back();
+    cluster_info->set_ctas_per_cluster(kernel.ctas_per_cluster());
+  }
+
   // If it is the first cta reset cluster_info
-  dim3 kernel_cluster3d = kernel.get_next_cluster3d();
-  if (kernel_cluster3d.x == 0 && kernel_cluster3d.y == 0 &&
-      kernel_cluster3d.z == 0)
-    cluster_info->clear();
+  // dim3 kernel_cluster3d = kernel.get_next_cluster3d();
+  // if (kernel_cluster3d.x == 0 && kernel_cluster3d.y == 0 &&
+  //     kernel_cluster3d.z == 0)
+  //   cluster_info->clear();
 
   // unsigned sm_idx = (tid/cta_size)*gpgpu_param_num_shaders + sid;
   unsigned sm_idx =

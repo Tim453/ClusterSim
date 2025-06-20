@@ -1875,60 +1875,6 @@ void shader_core_ctx::writeback() {
   }
 }
 
-void ldst_unit::process_cluster_request() {
-  // Handle Reply
-
-  auto reply = m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
-  if (reply != nullptr) {
-    assert(m_sid == reply->target_shader_id);
-    assert(!reply->complete);
-    reply->complete = true;
-    reply->get_warp()->response_arrived(reply);
-  }
-
-  // if (m_cluster_reply == nullptr)
-  //   m_cluster_reply =
-  //       (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REPLY_NET);
-
-  // if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic == false) {
-  //   assert(m_cluster_reply->is_response);
-  //   m_cluster_reply->get_warp()->response_arrived(m_cluster_reply);
-  //   m_cluster_reply = nullptr;
-  //   // The atomic instructions need to be resend
-  // } else if (m_cluster_reply != nullptr && m_cluster_reply->is_atomic ==
-  // true) {
-  //   if (m_cluster_request == nullptr) {
-  //     assert(m_cluster_request_latency == 0);
-  //     m_cluster_reply->atomic_sendback();
-  //     m_cluster_request = m_cluster_reply;
-  //     // ToDo Here we need to use the number of cycles it takes to do the
-  //     // calculation
-  //     m_cluster_request_latency = m_cluster_request->latency;
-  //     m_cluster_reply = nullptr;
-  //   }
-  // }
-
-  // // Handle Request
-  // if (m_cluster_request == nullptr && m_cluster_request_latency == 0) {
-  //   m_cluster_request =
-  //       (cluster_shmem_request *)m_sm_2_sm_network->Pop(m_sid, REQ_NET);
-  //   if (m_cluster_request == nullptr) return;
-  //   m_cluster_request_latency = m_cluster_request->latency;
-  // }
-
-  // if (m_cluster_request_latency > 0) m_cluster_request_latency--;
-
-  // assert(!m_cluster_request->is_response);
-  // if (m_sm_2_sm_network->HasBuffer(m_sid, 256, REPLY_NET) &&
-  //     m_cluster_request_latency == 0) {
-  //   m_cluster_request->send_response();
-  //   // ToDo use correct message size
-  //   m_sm_2_sm_network->Push(m_sid, m_cluster_request->origin_shader_id,
-  //                           m_cluster_request, 256, REPLY_NET);
-  //   m_cluster_request = nullptr;
-  // }
-}
-
 bool ldst_unit::shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
                              mem_stage_access_type &fail_type) {
   if (inst.space.get_type() != shared_space) return true;
@@ -2820,12 +2766,6 @@ void ldst_unit::cycle() {
       request = pipe_reg.get_next_open_cluster_request();
     }
   }
-
-  // Only process incomming requests when the local shared memory is not
-  // accessed
-  // if (pipe_reg.space.get_type() != shared_space ||
-  // !pipe_reg.has_dispatch_delay())
-  // process_cluster_request();
 
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
   mem_stage_access_type type;
@@ -4686,6 +4626,7 @@ unsigned gpu_processing_cluster::issue_parallel_cta_cluster() {
     }
   }
   assert(0);
+  return 0;
 }
 
 unsigned gpu_processing_cluster::issue_cta_cluster_to_gpc() {

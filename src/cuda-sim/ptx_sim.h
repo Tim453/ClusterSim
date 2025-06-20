@@ -170,11 +170,16 @@ class ptx_cluster_info {
   void reset_arrive_status();
   bool all_threads_arrived() const;
 
+  bool is_complete();
+  void set_ctas_per_cluster(int n) { cta_per_cluster = n; }
+  int get_ctas_in_cluster() const { return cta_per_cluster; }
+
   bool waiting_at_cluster_bar = false;
   int threads_arrived = 0;
 
  private:
   class gpgpu_context *gpgpu_ctx;
+  unsigned cta_per_cluster;
   std::map<unsigned, ptx_cta_info *> m_ctas_in_cluster;
 };
 
@@ -199,6 +204,9 @@ class ptx_cta_info {
   int get_shader_id() { return m_shader_id; }
   void add_cluster_info(ptx_cluster_info *cluster) { m_cluster_info = cluster; }
   void set_cluster_cta_rank(unsigned rank) { m_cluster_cta_rank = rank; }
+  bool is_complete() {
+    return m_threads_that_have_exited.size() == m_threads_in_cta.size();
+  }
 
  private:
   // backward pointer

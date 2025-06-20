@@ -289,6 +289,13 @@ bool warp_inst_t::has_pending_cluster_request() {
   return false;
 }
 
+bool warp_inst_t::cluster_request_complete() {
+  for (auto &req : m_pending_cluster_memory_requests) {
+    if (!req.first.get()->complete) return false;
+  }
+  return true;
+}
+
 std::shared_ptr<cluster_shmem_request>
 warp_inst_t::get_next_open_cluster_request() {
   if (m_pending_cluster_memory_requests.empty()) return nullptr;
@@ -300,22 +307,6 @@ warp_inst_t::get_next_open_cluster_request() {
     }
   }
   return nullptr;
-}
-
-void warp_inst_t::response_arrived(
-    std::shared_ptr<cluster_shmem_request> request) {
-  for (auto &request_it : m_pending_cluster_memory_requests) {
-    if (request_it.first.get() == request.get()) {
-      request_it.second = COMPLETE;
-      request_it.first = nullptr;
-      break;
-    }
-  }
-
-  m_outstanding_cluster_requests--;
-
-  // if (m_outstanding_cluster_requests < 0) m_outstanding_cluster_requests = 0;
-  assert(m_outstanding_cluster_requests >= 0);
 }
 
 void warp_inst_t::generate_mem_accesses() {
@@ -519,8 +510,6 @@ void warp_inst_t::generate_mem_accesses() {
         m_config->gpgpu_ctx->stats->ptx_file_line_stats_add_smem_bank_conflict(
             pc, total_accesses);
       }
-      assert(m_outstanding_cluster_requests == 0);
-      m_outstanding_cluster_requests = m_pending_cluster_memory_requests.size();
 
       break;
     }

@@ -118,7 +118,6 @@ void Crossbar::Advance() {
       assert(sid_to_gid(data->target_shader_id) == dst);
       assert(!data->complete);
       data->complete = true;
-      data->get_warp()->response_arrived(data);
       in_flight.erase(in_flight.begin() + i);
       i = 0;
     }
