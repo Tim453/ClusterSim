@@ -4908,7 +4908,11 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
 
   m_gpc_status.resize(maximum_thread_block_cluster);
 
-  m_sm_2_sm_network = new Crossbar(m_shader_per_gpc, config, m_gpu);
+  if ((strcmp(m_config->sm_2_sm_network_type, "crossbar") == 0)) {
+    m_sm_2_sm_network = new Crossbar(m_shader_per_gpc, config, m_gpu);
+  } else {
+    m_sm_2_sm_network = new IdealNetwork(m_shader_per_gpc, config, m_gpu);
+  }
 }
 
 void gpu_processing_cluster::cycle() { m_sm_2_sm_network->Advance(); }

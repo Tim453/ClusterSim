@@ -121,8 +121,45 @@ class Crossbar : public SM_2_SM_network {
   std::vector<std::pair<Message, uint64_t>> in_flight;
   std::vector<int> rr_pointers;
   uint64_t m_time;
-  const int m_latency = 171;
-  const int m_bandwidth = 11 * 8;
+  const int m_latency;
+  const int m_bandwidth;
+};
+
+class IdealNetwork : public SM_2_SM_network {
+ public:
+  IdealNetwork(unsigned n_shader, const class shader_core_config* config,
+               const class gpgpu_sim* gpu);
+  ~IdealNetwork() {}
+  void Init() {};
+  void Push(unsigned input_deviceID, unsigned output_deviceID,
+            std::shared_ptr<cluster_shmem_request> data, unsigned int size,
+            Interconnect_type network);
+  std::shared_ptr<cluster_shmem_request> Pop(unsigned ouput_deviceID,
+                                             Interconnect_type network);
+  void Advance();
+  bool Busy() const { return false; }
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const {
+    return true;
+  };
+
+  struct Message {
+    int src;
+    int dst;
+    int size;  // in bits
+    int sent_bits = 0;
+    uint64_t time_injected;
+    std::shared_ptr<cluster_shmem_request> data;
+    Message(int s, int d, int sz, uint64_t t,
+            std::shared_ptr<cluster_shmem_request> data)
+        : src(s), dst(d), size(sz), time_injected(t), data(data) {}
+  };
+
+ private:
+  std::vector<std::queue<Message>> input_queues;
+  std::vector<std::queue<std::shared_ptr<cluster_shmem_request>>> output_queues;
+  uint64_t m_time;
+  const int m_latency;  // Ideal network has no latency
 };
 
 #endif

@@ -4,34 +4,17 @@
 #include <utility>
 #include "gpu-sim.h"
 
-inct_config sm2sm_crossbar_config;
-
-bool bi_directional_ringbus;
-char* sm2sm_intersim_config;
+int sm2sm_latency = 171;  // Default latency for SM to SM network
+int sm2sm_bandwidth =
+    88;  // Default bandwidth for SM to SM network in bits/cycle
 
 void sm2sm_network_options(class OptionParser* opp) {
-  sm2sm_crossbar_config.subnets = 2;
-  sm2sm_crossbar_config.verbose = 0;
-
-  option_parser_register(opp, "-sm_2_sm_network_in_buffer_limit", OPT_INT32,
-                         &sm2sm_crossbar_config.in_buffer_limit,
-                         "Input Buffer Size of the SM 2 SM network", "32");
-  option_parser_register(opp, "-sm_2_sm_network_out_buffer_limit", OPT_INT32,
-                         &sm2sm_crossbar_config.out_buffer_limit,
-                         "Output Buffer Size of the SM 2 SM network", "32");
-  option_parser_register(opp, "-sm_2_sm_network_grant_cycles", OPT_INT32,
-                         &sm2sm_crossbar_config.grant_cycles,
-                         "Grant Cycles of the SM 2 SM network", "1");
+  option_parser_register(opp, "-sm_2_sm_network_latency", OPT_INT32,
+                         &sm2sm_latency, "Latency of the SM to SM network",
+                         "171");
   option_parser_register(
-      opp, "-sm_2_sm_network_arbiter_algo", OPT_INT32,
-      &sm2sm_crossbar_config.arbiter_algo,
-      "Arbiter Algorithm of the SM 2 SM network NAIVE_RR=0, iSLIP=1", "1");
-  option_parser_register(opp, "-bi_directional_ringbus", OPT_INT32,
-                         &bi_directional_ringbus,
-                         "Ringbus 0 = unidirectional, 1 = bidirectional", "0");
-  option_parser_register(opp, "-sm2sm_intersim_config_file", OPT_CSTR,
-                         &sm2sm_intersim_config, "Config file for intersim",
-                         "0");
+      opp, "-sm_2_sm_network_bw", OPT_INT32, &sm2sm_bandwidth,
+      "Bandwidth of the SM to SM network in bit/cycle", "88");
 }
 
 cluster_shmem_request::cluster_shmem_request(warp_inst_t* warp, addr_t address,
@@ -66,7 +49,9 @@ Crossbar::Crossbar(unsigned n_shader, const class shader_core_config* config,
     : SM_2_SM_network(n_shader, config, gpu),
       rr_pointers(n_shader, 0),
       input_queues(n_shader),
-      output_queues(n_shader) {}
+      output_queues(n_shader),
+      m_bandwidth(sm2sm_bandwidth),
+      m_latency(sm2sm_latency) {}
 
 void Crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
                     std::shared_ptr<cluster_shmem_request> data,
@@ -163,4 +148,53 @@ void Crossbar::Advance() {
     }
   }
   ++m_time;
+}
+
+IdealNetwork::IdealNetwork(unsigned n_shader, const shader_core_config* config,
+                           const gpgpu_sim* gpu)
+    : SM_2_SM_network(n_shader, config, gpu),
+      input_queues(n_shader),
+      output_queues(n_shader),
+      m_time(0),
+      m_latency(sm2sm_latency) {}
+
+void IdealNetwork::Push(unsigned input_deviceID, unsigned output_deviceID,
+                        std::shared_ptr<cluster_shmem_request> data,
+                        unsigned int size, Interconnect_type network) {
+  output_deviceID = sid_to_gid(output_deviceID);
+  input_deviceID = sid_to_gid(input_deviceID);
+  size = data->size * 8;
+  assert(data.get() != nullptr);
+  input_queues[input_deviceID].emplace(input_deviceID, output_deviceID, size,
+                                       m_time, data);
+}
+
+void IdealNetwork::Advance() {
+  // Quit early if no messages
+  bool empty = true;
+  for (const auto& node : input_queues) {
+    if (!node.empty()) {
+      empty = false;
+      break;
+    }
+  }
+  if (empty) return;
+
+  // Process all input queues
+
+  for (int i = 0; i < m_n_shader; i++) {
+    if (!input_queues[i].empty()) {
+      auto& msg = input_queues[i].front();
+      if (m_time - msg.time_injected > m_latency) {
+        msg.data->complete = true;
+        input_queues[i].pop();
+      }
+    }
+  }
+  ++m_time;
+}
+
+std::shared_ptr<cluster_shmem_request> IdealNetwork::Pop(
+    unsigned ouput_deviceID, Interconnect_type network) {
+  return nullptr;  // Ideal network does not have a pop operation
 }
