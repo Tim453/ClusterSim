@@ -162,4 +162,57 @@ class IdealNetwork : public SM_2_SM_network {
   const int m_latency;  // Ideal network has no latency
 };
 
+class Ringbus : public SM_2_SM_network {
+ public:
+  Ringbus(unsigned n_shader, const class shader_core_config* config,
+          const class gpgpu_sim* gpu);
+  ~Ringbus() {}
+  void Init() {};
+  void Push(unsigned input_deviceID, unsigned output_deviceID,
+            std::shared_ptr<cluster_shmem_request> data, unsigned int size,
+            Interconnect_type network);
+  std::shared_ptr<cluster_shmem_request> Pop(unsigned ouput_deviceID,
+                                             Interconnect_type network);
+  void Advance();
+  bool Busy() const;
+  bool HasBuffer(unsigned deviceID, unsigned int size,
+                 Interconnect_type network) const {
+    return true;
+  };
+
+  struct Message {
+    int src;
+    int dst;
+    int size;  // in bits
+    int sent_bits = 0;
+    int current_node;
+    uint64_t time_injected;
+    std::shared_ptr<cluster_shmem_request> data;
+    Message(int s, int d, int sz, uint64_t t,
+            std::shared_ptr<cluster_shmem_request> data)
+        : src(s),
+          dst(d),
+          size(sz),
+          current_node(s),
+          time_injected(t),
+          data(data) {}
+  };
+
+ private:
+  int next_node(int current) {
+    return (current + 1) % num_nodes;  // clockwise
+  }
+
+  std::vector<std::queue<Message>> input_queues;
+  std::vector<std::vector<Message>>
+      link_buffers;  // [node] = messages in transit to next node
+  std::vector<std::vector<int>>
+      link_ready_time;  // [node][slot] = time when link can next be used
+
+  uint64_t m_time;
+  const int m_latency;  // Latency per hop
+  const int num_nodes;
+  const int bandwidth;
+};
+
 #endif

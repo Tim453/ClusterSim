@@ -198,3 +198,92 @@ std::shared_ptr<cluster_shmem_request> IdealNetwork::Pop(
     unsigned ouput_deviceID, Interconnect_type network) {
   return nullptr;  // Ideal network does not have a pop operation
 }
+
+Ringbus::Ringbus(unsigned n_shader, const class shader_core_config* config,
+                 const class gpgpu_sim* gpu)
+    : SM_2_SM_network(n_shader, config, gpu),
+      input_queues(n_shader),
+      link_buffers(n_shader),
+      link_ready_time(n_shader),
+      num_nodes(n_shader),
+      m_time(0),
+      bandwidth(sm2sm_bandwidth),
+      m_latency(sm2sm_latency) {}
+
+void Ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
+                   std::shared_ptr<cluster_shmem_request> data,
+                   unsigned int size, Interconnect_type network) {
+  output_deviceID = sid_to_gid(output_deviceID);
+  input_deviceID = sid_to_gid(input_deviceID);
+  size = data->size * 8;
+  assert(data.get() != nullptr);
+  input_queues[input_deviceID].emplace(input_deviceID, output_deviceID, size,
+                                       m_time, data);
+}
+
+std::shared_ptr<cluster_shmem_request> Ringbus::Pop(unsigned ouput_deviceID,
+                                                    Interconnect_type network) {
+  return nullptr;  // ToDo
+}
+
+void Ringbus::Advance() {
+  if (!Busy()) return;
+
+  // 1. Move messages that finished hop
+  for (int node = 0; node < num_nodes; ++node) {
+    std::vector<Message> new_buffer;
+    for (Message& msg : link_buffers[node]) {
+      if (m_time - msg.time_injected >= m_latency) {
+        msg.current_node = next_node(msg.current_node);
+        if (msg.current_node == msg.dst) {
+          // std::cout << "Delivered message from " << msg.src << " to " <<
+          // msg.dst
+          //           << " at node " << node << "\n";
+          auto& data = msg.data;
+          assert(!data->complete);
+          data->complete = true;
+        } else {
+          input_queues[msg.current_node].push(msg);
+        }
+      } else {
+        new_buffer.push_back(msg);  // still in flight
+      }
+    }
+    link_buffers[node] = new_buffer;
+  }
+
+  // 2. Transmit messages onto links
+  for (int node = 0; node < num_nodes; ++node) {
+    if (!input_queues[node].empty()) {
+      Message& msg = input_queues[node].front();
+
+      // Check if we can send a chunk
+      int send_amount = std::min(bandwidth, msg.size - msg.sent_bits);
+      msg.sent_bits += send_amount;
+
+      if (msg.sent_bits >= msg.size) {
+        msg.time_injected = m_time;
+        link_buffers[node].push_back(msg);
+        input_queues[node].pop();
+      }
+    }
+  }
+
+  ++m_time;
+}
+
+bool Ringbus::Busy() const {
+  for (const auto& node : input_queues) {
+    if (!node.empty()) return true;
+  }
+
+  for (const auto& node : link_buffers) {
+    if (!node.empty()) return true;
+  }
+
+  for (const auto& node : link_ready_time) {
+    if (!node.empty()) return true;
+  }
+
+  return false;
+}

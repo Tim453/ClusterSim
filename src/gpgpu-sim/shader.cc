@@ -4910,6 +4910,8 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
 
   if ((strcmp(m_config->sm_2_sm_network_type, "crossbar") == 0)) {
     m_sm_2_sm_network = new Crossbar(m_shader_per_gpc, config, m_gpu);
+  } else if (strcmp(m_config->sm_2_sm_network_type, "ringbus") == 0) {
+    m_sm_2_sm_network = new Ringbus(m_shader_per_gpc, config, m_gpu);
   } else {
     m_sm_2_sm_network = new IdealNetwork(m_shader_per_gpc, config, m_gpu);
   }
