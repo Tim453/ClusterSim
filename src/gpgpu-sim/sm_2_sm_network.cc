@@ -58,7 +58,12 @@ void Crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
                     unsigned int size, Interconnect_type network) {
   output_deviceID = sid_to_gid(output_deviceID);
   input_deviceID = sid_to_gid(input_deviceID);
-  size = data->size * 8;
+  if (data.get()->is_atomic) {
+    size = data->size * 8 * 8;
+  } else {
+    size = data->size * 8;
+  }
+
   assert(data.get() != nullptr);
   input_queues[input_deviceID].emplace(input_deviceID, output_deviceID, size,
                                        m_time, data);
