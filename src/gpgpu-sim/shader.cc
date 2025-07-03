@@ -2604,7 +2604,16 @@ void ldst_unit::writeback() {
           m_core->dec_inst_in_pipeline(m_pipeline_reg[0]->warp_id());
           m_pipeline_reg[0]->clear();
           serviced_client = next_client;
+        } else if (!m_pipeline_reg[0]->empty() &&
+                   !m_pipeline_reg[0]->cluster_request_complete()) {
+          for (int i = m_pipeline_reg.size() - 1; i > 0; i--) {
+            if (m_pipeline_reg[i]->empty()) {
+              move_warp(m_pipeline_reg[i], m_pipeline_reg[0]);
+              break;
+            }
+          }
         }
+
         break;
       case 1:  // texture response
         if (m_L1T->access_ready()) {
@@ -2754,19 +2763,6 @@ void ldst_unit::cycle() {
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
-  if (pipe_reg.has_pending_cluster_request()) {
-    auto request = pipe_reg.get_next_open_cluster_request();
-
-    while (request.get() != nullptr) {
-      assert(!request.get()->complete);
-      assert(!request->m_is_send);
-      m_sm_2_sm_network->Push(m_sid, request->target_shader_id, request, 256,
-                              REQ_NET);
-      request->m_is_send = true;
-      request = pipe_reg.get_next_open_cluster_request();
-    }
-  }
-
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
   mem_stage_access_type type;
   bool done = true;
@@ -2781,6 +2777,19 @@ void ldst_unit::cycle() {
     m_stats->gpgpu_n_stall_shd_mem++;
     m_stats->gpu_stall_shd_mem_breakdown[type][rc_fail]++;
     return;
+  }
+
+  if (pipe_reg.has_pending_cluster_request()) {
+    auto request = pipe_reg.get_next_open_cluster_request();
+
+    while (request.get() != nullptr) {
+      assert(!request.get()->complete);
+      assert(!request->m_is_send);
+      m_sm_2_sm_network->Push(m_sid, request->target_shader_id, request, 256,
+                              REQ_NET);
+      request->m_is_send = true;
+      request = pipe_reg.get_next_open_cluster_request();
+    }
   }
 
   if (!pipe_reg.empty()) {
