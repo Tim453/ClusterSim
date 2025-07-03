@@ -1266,6 +1266,10 @@ class warp_inst_t : public inst_t {
   unsigned get_schd_id() const { return m_scheduler_id; }
   active_mask_t get_warp_active_mask() const { return m_warp_active_mask; }
 
+  int get_total_dmsme_req() const {
+    return m_pending_cluster_memory_requests.size();
+  }
+
  protected:
   unsigned m_uid;
   bool m_empty;
