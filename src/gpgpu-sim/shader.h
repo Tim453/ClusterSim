@@ -1476,6 +1476,9 @@ class ldst_unit : public pipelined_simd_unit {
   unsigned long long m_last_inst_gpu_sim_cycle;
   unsigned long long m_last_inst_gpu_tot_sim_cycle;
 
+  // Latency for local shmem when a dsmem request came in
+  int m_dsmem_latency = 0;
+
   std::vector<std::deque<mem_fetch *>> l1_latency_queue;
   void L1_latency_queue_cycle();
 };

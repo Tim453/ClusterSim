@@ -59,7 +59,7 @@ void Crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
   output_deviceID = sid_to_gid(output_deviceID);
   input_deviceID = sid_to_gid(input_deviceID);
   if (data.get()->is_atomic) {
-    size = data->size * 8 * 8;
+    size = data->size * 8 * 4;
   } else {
     size = data->size * 8;
   }
@@ -107,7 +107,7 @@ void Crossbar::Advance() {
       const auto dst = in_flight[i].first.dst;
       assert(sid_to_gid(data->target_shader_id) == dst);
       assert(!data->complete);
-      data->complete = true;
+      output_queues[dst].push(data);
       in_flight.erase(in_flight.begin() + i);
       i = 0;
     }
@@ -191,7 +191,7 @@ void IdealNetwork::Advance() {
     if (!input_queues[i].empty()) {
       auto& msg = input_queues[i].front();
       if (m_time - msg.time_injected > m_latency) {
-        msg.data->complete = true;
+        output_queues[msg.dst].push(msg.data);
         input_queues[i].pop();
       }
     }
@@ -201,7 +201,13 @@ void IdealNetwork::Advance() {
 
 std::shared_ptr<cluster_shmem_request> IdealNetwork::Pop(
     unsigned ouput_deviceID, Interconnect_type network) {
-  return nullptr;  // Ideal network does not have a pop operation
+  ouput_deviceID = sid_to_gid(ouput_deviceID);
+  if (!output_queues[ouput_deviceID].empty()) {
+    auto result = output_queues[ouput_deviceID].front();
+    output_queues[ouput_deviceID].pop();
+    return result;
+  }
+  return nullptr;
 }
 
 Ringbus::Ringbus(unsigned n_shader, const class shader_core_config* config,

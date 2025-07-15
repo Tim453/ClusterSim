@@ -2761,6 +2761,16 @@ void ldst_unit::cycle() {
     if (m_config->m_L1D_config.l1_latency > 0) L1_latency_queue_cycle();
   }
 
+  auto response = m_sm_2_sm_network->Pop(m_sid, REQ_NET);
+  if (response != nullptr) {
+    response->complete = true;
+    m_dsmem_latency = 6;
+  }
+  m_dsmem_latency > 0 ? m_dsmem_latency-- : m_dsmem_latency = 0;
+  if (m_dsmem_latency > 0) {
+    return;
+  }
+
   warp_inst_t &pipe_reg = *m_dispatch_reg;
 
   enum mem_stage_stall_type rc_fail = NO_RC_FAIL;
