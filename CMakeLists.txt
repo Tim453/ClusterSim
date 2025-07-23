@@ -28,14 +28,14 @@ option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)
 option(BUILD_TEST "Build Tests" ON)
 
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-
-#set(CMAKE_CXX_FLAGS "-O3")
-
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3")
+
+# set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+# set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -51,9 +51,12 @@ if(GPGPUSIM_POWER_MODEL)
     add_compile_definitions(GPGPUSIM_POWER_MODEL)
     set(POWER_MODEL_OBJ  "$<TARGET_OBJECTS:mcpat>")
 endif()
-if(TRACING_ON)
-add_compile_definitions(TRACING_ON)
-endif()
+
+add_compile_definitions(
+    # The condition for adding TRACING_ON is:
+    # (Current build config is Debug) OR (CMake variable TRACING_ON is TRUE)
+    $<$<OR:$<CONFIG:Debug>,$<BOOL:${TRACING_ON}>>:TRACING_ON>
+)
 
 if(OPENGL_FOUND AND OPENGL_SUPPORT)
     add_compile_definitions(OPENGL_SUPPORT)
