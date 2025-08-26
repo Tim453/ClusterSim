@@ -51,7 +51,8 @@ Crossbar::Crossbar(unsigned n_shader, const class shader_core_config* config,
       input_queues(n_shader),
       output_queues(n_shader),
       m_bandwidth(sm2sm_bandwidth),
-      m_latency(sm2sm_latency) {}
+      m_latency(sm2sm_latency),
+      m_time(0) {}
 
 void Crossbar::Push(unsigned input_deviceID, unsigned output_deviceID,
                     std::shared_ptr<cluster_shmem_request> data,
@@ -213,10 +214,9 @@ std::shared_ptr<cluster_shmem_request> IdealNetwork::Pop(
 Ringbus::Ringbus(unsigned n_shader, const class shader_core_config* config,
                  const class gpgpu_sim* gpu)
     : SM_2_SM_network(n_shader, config, gpu),
-      input_queues(n_shader),
-      link_buffers(n_shader),
-      link_ready_time(n_shader),
+      output_queues(n_shader),
       num_nodes(n_shader),
+      ring_(n_shader),
       m_time(0),
       bandwidth(sm2sm_bandwidth),
       m_latency(sm2sm_latency) {}
@@ -226,73 +226,48 @@ void Ringbus::Push(unsigned input_deviceID, unsigned output_deviceID,
                    unsigned int size, Interconnect_type network) {
   output_deviceID = sid_to_gid(output_deviceID);
   input_deviceID = sid_to_gid(input_deviceID);
-  size = data->size * 8;
-  assert(data.get() != nullptr);
-  input_queues[input_deviceID].emplace(input_deviceID, output_deviceID, size,
-                                       m_time, data);
+  Message msg = {input_deviceID, output_deviceID, data,
+                 size,           m_latency,       input_deviceID};
+  ring_[input_deviceID].push(msg);
 }
 
-std::shared_ptr<cluster_shmem_request> Ringbus::Pop(unsigned ouput_deviceID,
+std::shared_ptr<cluster_shmem_request> Ringbus::Pop(unsigned output_deviceID,
                                                     Interconnect_type network) {
-  return nullptr;  // ToDo
+  output_deviceID = sid_to_gid(output_deviceID);
+  auto& buf = output_queues[output_deviceID];
+  if (buf.empty()) return nullptr;
+
+  auto msg = buf.front();
+  buf.pop();
+  return msg.data;
 }
 
 void Ringbus::Advance() {
   if (!Busy()) return;
 
-  // 1. Move messages that finished hop
-  for (int node = 0; node < num_nodes; ++node) {
-    std::vector<Message> new_buffer;
-    for (Message& msg : link_buffers[node]) {
-      if (m_time - msg.time_injected >= m_latency) {
-        msg.current_node = next_node(msg.current_node);
-        if (msg.current_node == msg.dst) {
-          // std::cout << "Delivered message from " << msg.src << " to " <<
-          // msg.dst
-          //           << " at node " << node << "\n";
-          auto& data = msg.data;
-          assert(!data->complete);
-          data->complete = true;
-        } else {
-          input_queues[msg.current_node].push(msg);
-        }
-      } else {
-        new_buffer.push_back(msg);  // still in flight
-      }
-    }
-    link_buffers[node] = new_buffer;
-  }
+  for (int i = 0; i < num_nodes; i++) {
+    if (ring_[i].empty()) continue;
 
-  // 2. Transmit messages onto links
-  for (int node = 0; node < num_nodes; ++node) {
-    if (!input_queues[node].empty()) {
-      Message& msg = input_queues[node].front();
+    auto& msg = ring_[i].front();
 
-      // Check if we can send a chunk
-      int send_amount = std::min(bandwidth, msg.size - msg.sent_bits);
-      msg.sent_bits += send_amount;
-
-      if (msg.sent_bits >= msg.size) {
-        msg.time_injected = m_time;
-        link_buffers[node].push_back(msg);
-        input_queues[node].pop();
-      }
+    if (msg.output_id == i) {
+      std::cout << "Moved message from " << msg.input_id << " to " << i << "\n";
+      output_queues[i].push(ring_[i].front());
+      ring_[i].pop();
+    } else if (msg.remaining_latency <= 0) {
+      const int nn = this->next_node(i);
+      msg.current_position = nn;
+      msg.remaining_latency = m_latency;
+      ring_[nn].push(msg);
+      ring_[i].pop();
+    } else {
+      msg.remaining_latency--;
     }
   }
-
-  ++m_time;
 }
 
 bool Ringbus::Busy() const {
-  for (const auto& node : input_queues) {
-    if (!node.empty()) return true;
-  }
-
-  for (const auto& node : link_buffers) {
-    if (!node.empty()) return true;
-  }
-
-  for (const auto& node : link_ready_time) {
+  for (const auto& node : ring_) {
     if (!node.empty()) return true;
   }
 

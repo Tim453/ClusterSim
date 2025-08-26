@@ -181,21 +181,12 @@ class Ringbus : public SM_2_SM_network {
   };
 
   struct Message {
-    int src;
-    int dst;
-    int size;  // in bits
-    int sent_bits = 0;
-    int current_node;
-    uint64_t time_injected;
+    unsigned input_id;
+    unsigned output_id;
     std::shared_ptr<cluster_shmem_request> data;
-    Message(int s, int d, int sz, uint64_t t,
-            std::shared_ptr<cluster_shmem_request> data)
-        : src(s),
-          dst(d),
-          size(sz),
-          current_node(s),
-          time_injected(t),
-          data(data) {}
+    unsigned size;
+    int remaining_latency;
+    unsigned current_position;
   };
 
  private:
@@ -203,11 +194,8 @@ class Ringbus : public SM_2_SM_network {
     return (current + 1) % num_nodes;  // clockwise
   }
 
-  std::vector<std::queue<Message>> input_queues;
-  std::vector<std::vector<Message>>
-      link_buffers;  // [node] = messages in transit to next node
-  std::vector<std::vector<int>>
-      link_ready_time;  // [node][slot] = time when link can next be used
+  std::vector<std::queue<Message>> ring_;
+  std::vector<std::queue<Message>> output_queues;
 
   uint64_t m_time;
   const int m_latency;  // Latency per hop
