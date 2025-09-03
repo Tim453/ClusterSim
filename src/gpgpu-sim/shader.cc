@@ -2696,6 +2696,16 @@ inst->space.get_type() != shared_space) { unsigned warp_id = inst->warp_id();
 void ldst_unit::cycle() {
   writeback();
 
+  auto response = m_sm_2_sm_network->Pop(m_sid, REQ_NET);
+  if (response != nullptr) {
+    response->complete = true;
+    m_dsmem_latency = 6;
+  }
+  m_dsmem_latency > 0 ? m_dsmem_latency-- : m_dsmem_latency = 0;
+  if (m_dsmem_latency > 0) {
+    return;
+  }
+
   for (unsigned stage = 0; (stage + 1) < m_pipeline_depth; stage++)
     if (m_pipeline_reg[stage]->empty() && !m_pipeline_reg[stage + 1]->empty())
       move_warp(m_pipeline_reg[stage], m_pipeline_reg[stage + 1]);
@@ -2759,16 +2769,6 @@ void ldst_unit::cycle() {
   if (m_L1D) {
     m_L1D->cycle();
     if (m_config->m_L1D_config.l1_latency > 0) L1_latency_queue_cycle();
-  }
-
-  auto response = m_sm_2_sm_network->Pop(m_sid, REQ_NET);
-  if (response != nullptr) {
-    response->complete = true;
-    m_dsmem_latency = 6;
-  }
-  m_dsmem_latency > 0 ? m_dsmem_latency-- : m_dsmem_latency = 0;
-  if (m_dsmem_latency > 0) {
-    return;
   }
 
   warp_inst_t &pipe_reg = *m_dispatch_reg;

@@ -108,6 +108,7 @@ void Crossbar::Advance() {
       const auto dst = in_flight[i].first.dst;
       assert(sid_to_gid(data->target_shader_id) == dst);
       assert(!data->complete);
+      data->complete = true;
       output_queues[dst].push(data);
       in_flight.erase(in_flight.begin() + i);
       i = 0;
