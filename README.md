@@ -67,15 +67,15 @@ export GPUSIM_CONFIG=<PATH_TO_CONFIG>/gpgpusim.config
 
 ---
 
-## ⚠️ Limitations
+### ⚠️ Limitations
 
 * **Thread Block Clusters** are only supported in performance simulation mode.
 * Functional-only simulation with clusters is **not supported**.
-
+* Kernels compiled with debug symbols ("-G") do not work
 ---
 
 
-## Additional information
+### Notes
 
 If you use ClusterSim in your research please cite
 
