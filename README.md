@@ -80,10 +80,10 @@ export GPUSIM_CONFIG=<PATH_TO_CONFIG>/gpgpusim.config
 If you use ClusterSim in your research please cite
 
 ```bibtex
-@misc{ClusterSim,
+@article{ClusterSim,
     title={ClusterSim: Modeling Thread Block Clusters in Hopper GPUs},
-    url={https://hdl.handle.net/11420/57345},
-    DOI={https://doi.org/10.15480/882.15858}
+    url = {https://tore.tuhh.de/handle/11420/57345},
+    doi = {10.15480/882.15858},
     author={Lühnen, Tim and Behera, Jyotirman and Tripathy, Devashree and Lal, Sohan},
     year={2025}
 }

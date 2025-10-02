@@ -1,5 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+type: article
 authors:
 - family-names: "Lühnen"
   given-names: "Tim"
@@ -7,11 +8,26 @@ authors:
   given-names: "Jyotirman"
 - family-names: "Tripathy"
   given-names: "Devashree"
+  orcid: "https://orcid.org/0000-0003-3246-6246"
 - family-names: "Lal"
   given-names: "Sohan"
+  orcid: "https://orcid.org/0000-0002-2325-1705"
 title: "ClusterSim"
-identifiers:
-  - type: doi
-    value: 10.15480/882.15858
 date-released: '2025-10-02'
-url: "https://hdl.handle.net/11420/57345"
+url: "https://github.com/Tim453/ClusterSim"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Lühnen"
+    given-names: "Tim"
+  - family-names: "Behera"
+    given-names: "Jyotirman"
+  - family-names: "Tripathy"
+    given-names: "Devashree"
+    orcid: "https://orcid.org/0000-0003-3246-6246"
+  - family-names: "Lal"
+    given-names: "Sohan"
+    orcid: "https://orcid.org/0000-0002-2325-1705"
+  doi: "10.15480/882.15858"
+  title: "ClusterSim: Modeling Thread Block Clusters in Hopper GPUs"
+  year: 2025
