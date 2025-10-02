@@ -25,7 +25,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 option(GPGPUSIM_POWER_MODEL    			"Enable GPU Sim Power model" OFF)
 option(TRACING_ON    			"Enable Tracing" OFF)
 option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)
-option(BUILD_TEST "Build Tests" ON)
 
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
@@ -72,11 +71,6 @@ add_subdirectory(cuobjdump_to_ptxplus)
 add_subdirectory(libcuda)
 add_subdirectory(src)
 
-if(BUILD_TEST)
-    enable_testing()
-    add_subdirectory(test)
-endif()
-
 if(OpenCL_FOUND)
     add_subdirectory(libopencl)
     add_library(OpenCL SHARED
@@ -108,6 +102,7 @@ add_library(cudart_static STATIC
     ${POWER_MODEL_OBJ}
 )
 
+target_link_libraries(cudart PUBLIC ZLIB::ZLIB)
 target_link_libraries(cudart_static ZLIB::ZLIB)
 
 set_target_properties(cudart PROPERTIES
@@ -120,3 +115,6 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script
 #                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12)
 # ADD_CUSTOM_TARGET(cudart11 ALL
 #                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.11.0)
+
+
+add_subdirectory(benchmarks)

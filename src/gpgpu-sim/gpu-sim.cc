@@ -447,12 +447,14 @@ void shader_core_config::reg_options(class OptionParser *opp) {
       opp, "-sm_2_sm_network_type", OPT_CSTR, &sm_2_sm_network_type,
       "Network type to connect the SMs in a cluster", "crossbar");
   option_parser_register(opp, "-dsmem_st_latency", OPT_UINT32,
-                         &dsmem_st_latency, "Latency for DSMEM requests", "40");
+                         &dsmem_st_latency,
+                         "Latency for DSMEM requests (Unused)", "1");
   option_parser_register(opp, "-dsmem_ld_latency", OPT_UINT32,
-                         &dsmem_ld_latency, "Latency for DSMEM requests", "40");
+                         &dsmem_ld_latency,
+                         "Latency for DSMEM requests (Unused)", "1");
   option_parser_register(opp, "-dsmem_atomic_latency", OPT_UINT32,
-                         &dsmem_atomic_latency, "Latency for DSMEM requests",
-                         "40");
+                         &dsmem_atomic_latency,
+                         "Latency for DSMEM requests (Unused)", "1");
   option_parser_register(
       opp, "-sm_2_sm_network_log", OPT_BOOL, &sm_2_sm_network_log,
       "Log the number of open Requests/Replys for each Cycle", "0");

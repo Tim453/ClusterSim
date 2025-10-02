@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Lühnen"
+  given-names: "Tim"
+- family-names: "Behera"
+  given-names: "Jyotirman"
+- family-names: "Tripathy"
+  given-names: "Devashree"
+- family-names: "Lal"
+  given-names: "Sohan"
+title: "ClusterSim"
+identifiers:
+  - type: doi
+    value: 10.15480/882.15858
+date-released: '2025-10-02'
+url: "https://hdl.handle.net/11420/57345"
