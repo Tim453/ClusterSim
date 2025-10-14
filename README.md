@@ -5,10 +5,14 @@ It is built on top of [GPGPU-Sim](https://github.com/gpgpu-sim/gpgpu-sim_distrib
 
 ---
 
-## ✨ Key Differences from GPGPU-Sim
+## New features compared to GPGPU-Sim 4.0
 
-* Support for **CUDA Thread Block Clusters** and **Distributed Shared Memory**
-* Microbenchmarks (in `benchmarks/`) for studying the SM-to-SM interconnect and the Thread Block scheduler
+* Group cores into GPCs with `gpgpu_n_cores_per_gpc` parameter
+* New Special registers: `%cluster_ctaid`, `%cluster_ctarank`, `%cluster_nctaid`, `%cluster_nctarank`...
+* New Instructions:  `mapa`, `barrier.cluster`
+* New directives: `.explicitcluster`, `.maxclusterrank`, `.reqnctapercluster`
+* New API calls: `cudaLaunchKernelExC`, `cudaMallocManaged`,
+* Simulationmodel for the SM to SM interconnect
 
 ---
 
@@ -65,13 +69,6 @@ export GPUSIM_CONFIG=<PATH_TO_CONFIG>/gpgpusim.config
 ./build/bin/network
 ```
 
----
-
-### ⚠️ Limitations
-
-* **Thread Block Clusters** are only supported in performance simulation mode.
-* Functional-only simulation with clusters is **not supported**.
-* Kernels compiled with debug symbols ("-G") do not work
 ---
 
 
