@@ -26,16 +26,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "dram_sched.h"
 #include "../abstract_hardware_model.h"
+#include "dram_sched.h"
 #include "gpu-misc.h"
 #include "gpu-sim.h"
 #include "mem_latency_stat.h"
 
 frfcfs_scheduler::frfcfs_scheduler(const memory_config *config, dram_t *dm,
-                                   memory_stats_t *stats) {
+                                   ThreadSafe<memory_stats_t> &stats)
+    : m_stats(stats) {
   m_config = config;
-  m_stats = stats;
   m_num_pending = 0;
   m_num_write_pending = 0;
   m_dram = dm;
@@ -87,23 +87,24 @@ void frfcfs_scheduler::add_req(dram_req_t *req) {
 }
 
 void frfcfs_scheduler::data_collection(unsigned int bank) {
+  auto ms = m_stats.access();
   if (m_dram->m_gpu->gpu_sim_cycle > row_service_timestamp[bank]) {
     curr_row_service_time[bank] =
         m_dram->m_gpu->gpu_sim_cycle - row_service_timestamp[bank];
     if (curr_row_service_time[bank] >
-        m_stats->max_servicetime2samerow[m_dram->id][bank])
-      m_stats->max_servicetime2samerow[m_dram->id][bank] =
+        ms->max_servicetime2samerow[m_dram->id][bank])
+      ms->max_servicetime2samerow[m_dram->id][bank] =
           curr_row_service_time[bank];
   }
   curr_row_service_time[bank] = 0;
   row_service_timestamp[bank] = m_dram->m_gpu->gpu_sim_cycle;
-  if (m_stats->concurrent_row_access[m_dram->id][bank] >
-      m_stats->max_conc_access2samerow[m_dram->id][bank]) {
-    m_stats->max_conc_access2samerow[m_dram->id][bank] =
-        m_stats->concurrent_row_access[m_dram->id][bank];
+  if (ms->concurrent_row_access[m_dram->id][bank] >
+      ms->max_conc_access2samerow[m_dram->id][bank]) {
+    ms->max_conc_access2samerow[m_dram->id][bank] =
+        ms->concurrent_row_access[m_dram->id][bank];
   }
-  m_stats->concurrent_row_access[m_dram->id][bank] = 0;
-  m_stats->num_activates[m_dram->id][bank]++;
+  ms->concurrent_row_access[m_dram->id][bank] = 0;
+  ms->num_activates[m_dram->id][bank]++;
 }
 
 dram_req_t *frfcfs_scheduler::schedule(unsigned bank, unsigned curr_row) {
@@ -172,8 +173,8 @@ dram_req_t *frfcfs_scheduler::schedule(unsigned bank, unsigned curr_row) {
       m_dram->hits_read_num++;
   }
 
-  m_stats->concurrent_row_access[m_dram->id][bank]++;
-  m_stats->row_access[m_dram->id][bank]++;
+  m_stats.access()->concurrent_row_access[m_dram->id][bank]++;
+  m_stats.access()->row_access[m_dram->id][bank]++;
   m_current_last_row[bank]->pop_back();
 
   m_current_queue[bank].erase(next);
@@ -207,23 +208,26 @@ void frfcfs_scheduler::print(FILE *fp) {
 void dram_t::scheduler_frfcfs() {
   unsigned mrq_latency;
   frfcfs_scheduler *sched = m_frfcfs_scheduler;
-  while (!mrqq->empty()) {
-    dram_req_t *req = mrqq->pop();
+  {
+    auto ms = m_stats.access();  // aquire stats lock
+    while (!mrqq->empty()) {
+      dram_req_t *req = mrqq->pop();
 
-    // Power stats
-    // if(req->data->get_type() != READ_REPLY && req->data->get_type() !=
-    // WRITE_ACK)
-    m_stats->total_n_access++;
+      // Power stats
+      // if(req->data->get_type() != READ_REPLY && req->data->get_type() !=
+      // WRITE_ACK)
+      ms->total_n_access++;
 
-    if (req->data->get_type() == WRITE_REQUEST) {
-      m_stats->total_n_writes++;
-    } else if (req->data->get_type() == READ_REQUEST) {
-      m_stats->total_n_reads++;
+      if (req->data->get_type() == WRITE_REQUEST) {
+        ms->total_n_writes++;
+      } else if (req->data->get_type() == READ_REQUEST) {
+        ms->total_n_reads++;
+      }
+
+      req->data->set_status(IN_PARTITION_MC_INPUT_QUEUE,
+                            m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
+      sched->add_req(req);
     }
-
-    req->data->set_status(IN_PARTITION_MC_INPUT_QUEUE,
-                          m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
-    sched->add_req(req);
   }
 
   dram_req_t *req;
@@ -241,13 +245,13 @@ void dram_t::scheduler_frfcfs() {
         if (m_config->gpgpu_memlatency_stat) {
           mrq_latency = m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle -
                         bk[b]->mrq->timestamp;
-          m_stats->tot_mrq_latency += mrq_latency;
-          m_stats->tot_mrq_num++;
+          m_stats.access()->tot_mrq_latency += mrq_latency;
+          m_stats.access()->tot_mrq_num++;
           bk[b]->mrq->timestamp =
               m_gpu->gpu_tot_sim_cycle + m_gpu->gpu_sim_cycle;
-          m_stats->mrq_lat_table[LOGB2(mrq_latency)]++;
-          if (mrq_latency > m_stats->max_mrq_latency) {
-            m_stats->max_mrq_latency = mrq_latency;
+          m_stats.access()->mrq_lat_table[LOGB2(mrq_latency)]++;
+          if (mrq_latency > m_stats.access()->max_mrq_latency) {
+            m_stats.access()->max_mrq_latency = mrq_latency;
           }
         }
 

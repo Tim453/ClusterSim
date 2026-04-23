@@ -123,7 +123,10 @@ typedef tr1_hash_map<ptx_file_line, ptx_file_line_stats, hash_ptx_file_line>
     ptx_file_line_stats_map_t;
 #endif
 
+// TODO: this needs to made thread-safe, since otherwise would have to give each
+// cluster its own instance and that sounds annoying
 static ptx_file_line_stats_map_t ptx_file_line_stats_tracker;
+static std::mutex ptx_file_line_stats_tracker_mut;
 
 // output statistics to a file
 void ptx_stats::ptx_file_line_stats_write_file() {
@@ -139,20 +142,23 @@ void ptx_stats::ptx_file_line_stats_write_file() {
       "kernel line : count latency dram_traffic smem_bk_conflicts smem_warp "
       "gmem_access_generated gmem_warp exposed_latency warp_divergence "
       "dsmem_latency\n");
-  for (it = ptx_file_line_stats_tracker.begin();
-       it != ptx_file_line_stats_tracker.end(); it++) {
-    fprintf(pfile, "%s %i : ", it->first.st.c_str(), it->first.line);
-    fprintf(pfile, "%lu ", it->second.exec_count);
-    fprintf(pfile, "%llu ", it->second.latency);
-    fprintf(pfile, "%llu ", it->second.dram_traffic);
-    fprintf(pfile, "%llu ", it->second.smem_n_way_bank_conflict_total);
-    fprintf(pfile, "%lu ", it->second.smem_warp_count);
-    fprintf(pfile, "%llu ", it->second.gmem_n_access_total);
-    fprintf(pfile, "%lu ", it->second.gmem_warp_count);
-    fprintf(pfile, "%llu ", it->second.exposed_latency);
-    fprintf(pfile, "%llu ", it->second.warp_divergence);
-    fprintf(pfile, "%llu ", it->second.dsmem_latency);
-    fprintf(pfile, "\n");
+  {
+    std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+    for (it = ptx_file_line_stats_tracker.begin();
+         it != ptx_file_line_stats_tracker.end(); it++) {
+      fprintf(pfile, "%s %i : ", it->first.st.c_str(), it->first.line);
+      fprintf(pfile, "%lu ", it->second.exec_count);
+      fprintf(pfile, "%llu ", it->second.latency);
+      fprintf(pfile, "%llu ", it->second.dram_traffic);
+      fprintf(pfile, "%llu ", it->second.smem_n_way_bank_conflict_total);
+      fprintf(pfile, "%lu ", it->second.smem_warp_count);
+      fprintf(pfile, "%llu ", it->second.gmem_n_access_total);
+      fprintf(pfile, "%lu ", it->second.gmem_warp_count);
+      fprintf(pfile, "%llu ", it->second.exposed_latency);
+      fprintf(pfile, "%llu ", it->second.warp_divergence);
+      fprintf(pfile, "%llu ", it->second.dsmem_latency);
+      fprintf(pfile, "\n");
+    }
   }
   fflush(pfile);
   fclose(pfile);
@@ -161,6 +167,8 @@ void ptx_stats::ptx_file_line_stats_write_file() {
 // attribute one more execution count to this ptx instruction
 // counting the number of threads (not warps) executing this instruction
 void ptx_file_line_stats_add_exec_count(const ptx_instruction *pInsn) {
+  std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+
   ptx_file_line_stats_tracker[ptx_file_line(pInsn->source_file(),
                                             pInsn->source_line())]
       .exec_count += 1;
@@ -172,10 +180,13 @@ void ptx_file_line_stats_add_exec_count(const ptx_instruction *pInsn) {
 void ptx_stats::ptx_file_line_stats_add_latency(unsigned pc, unsigned latency) {
   const ptx_instruction *pInsn = gpgpu_ctx->pc_to_instruction(pc);
 
-  if (pInsn != NULL)
+  if (pInsn != NULL) {
+    std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+
     ptx_file_line_stats_tracker[ptx_file_line(pInsn->source_file(),
                                               pInsn->source_line())]
         .latency += latency;
+  }
 }
 
 // attribute dram traffic to this ptx instruction (specified by the pc)
@@ -184,10 +195,12 @@ void ptx_stats::ptx_file_line_stats_add_dram_traffic(unsigned pc,
                                                      unsigned dram_traffic) {
   const ptx_instruction *pInsn = gpgpu_ctx->pc_to_instruction(pc);
 
-  if (pInsn != NULL)
+  if (pInsn != NULL) {
+    std::lock_guard lock(ptx_file_line_stats_tracker_mut);
     ptx_file_line_stats_tracker[ptx_file_line(pInsn->source_file(),
                                               pInsn->source_line())]
         .dram_traffic += dram_traffic;
+  }
 }
 
 void ptx_stats::ptx_file_line_stats_add_dsmem_latency(unsigned pc,
@@ -209,6 +222,8 @@ void ptx_stats::ptx_file_line_stats_add_smem_bank_conflict(
   const ptx_instruction *pInsn = gpgpu_ctx->pc_to_instruction(pc);
 
   if (pInsn != NULL) {
+    std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+
     ptx_file_line_stats &line_stats = ptx_file_line_stats_tracker[ptx_file_line(
         pInsn->source_file(), pInsn->source_line())];
     line_stats.smem_n_way_bank_conflict_total += n_way_bkconflict;
@@ -224,6 +239,8 @@ void ptx_stats::ptx_file_line_stats_add_uncoalesced_gmem(unsigned pc,
   const ptx_instruction *pInsn = gpgpu_ctx->pc_to_instruction(pc);
 
   if (pInsn != NULL) {
+    std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+
     ptx_file_line_stats &line_stats = ptx_file_line_stats_tracker[ptx_file_line(
         pInsn->source_file(), pInsn->source_line())];
     line_stats.gmem_n_access_total += n_access;
@@ -259,6 +276,8 @@ class ptx_inflight_memory_insn_tracker {
     insn_count_map::const_iterator i_exlatinsn;
 
     i_exlatinsn = exlat_insnmap.begin();
+    std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+
     for (; i_exlatinsn != exlat_insnmap.end(); ++i_exlatinsn) {
       const ptx_instruction *pInsn = i_exlatinsn->first;
       ptx_file_line_stats &line_stats =
@@ -306,7 +325,9 @@ void ptx_stats::ptx_file_line_stats_add_warp_divergence(
     unsigned pc, unsigned n_way_divergence) {
   const ptx_instruction *pInsn = gpgpu_ctx->pc_to_instruction(pc);
 
-  ptx_file_line_stats &line_stats = ptx_file_line_stats_tracker[ptx_file_line(
-      pInsn->source_file(), pInsn->source_line())];
-  line_stats.warp_divergence += n_way_divergence;
+  std::lock_guard lock(ptx_file_line_stats_tracker_mut);
+
+  ptx_file_line_stats_tracker[ptx_file_line(pInsn->source_file(),
+                                            pInsn->source_line())]
+      .warp_divergence += n_way_divergence;
 }

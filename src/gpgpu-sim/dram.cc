@@ -46,11 +46,11 @@ template class fifo_pipeline<mem_fetch>;
 template class fifo_pipeline<dram_req_t>;
 
 dram_t::dram_t(unsigned int partition_id, const memory_config *config,
-               memory_stats_t *stats, memory_partition_unit *mp,
-               gpgpu_sim *gpu) {
+               ThreadSafe<memory_stats_t> &stats, memory_partition_unit *mp,
+               gpgpu_sim *gpu)
+    : m_stats(stats) {
   id = partition_id;
   m_memory_partition_unit = mp;
-  m_stats = stats;
   m_config = config;
   m_gpu = gpu;
 
@@ -265,7 +265,7 @@ void dram_t::push(class mem_fetch *data) {
     max_mrqs_temp = (max_mrqs_temp > mrqq->get_length()) ? max_mrqs_temp
                                                          : mrqq->get_length();
   }
-  m_stats->memlatstat_dram_access(data);
+  m_stats.access()->memlatstat_dram_access(data);
 }
 
 void dram_t::scheduler_fifo() {
@@ -683,9 +683,13 @@ bool dram_t::issue_row_command(int j) {
 }
 
 // if mrq is being serviced by dram, gets popped after CL latency fulfilled
-class mem_fetch *dram_t::return_queue_pop() { return returnq->pop(); }
+class mem_fetch *dram_t::return_queue_pop() {
+  return returnq->pop();
+}
 
-class mem_fetch *dram_t::return_queue_top() { return returnq->top(); }
+class mem_fetch *dram_t::return_queue_top() {
+  return returnq->top();
+}
 
 void dram_t::print(FILE *simFile) const {
   unsigned i;
@@ -838,17 +842,17 @@ void dram_t::visualizer_print(gzFile visualizer_file) {
   // dram access type classification
   for (unsigned j = 0; j < m_config->nbk; j++) {
     gzprintf(visualizer_file, "dramglobal_acc_r: %u %u %u\n", id, j,
-             m_stats->mem_access_type_stats[GLOBAL_ACC_R][id][j]);
+             m_stats.access()->mem_access_type_stats[GLOBAL_ACC_R][id][j]);
     gzprintf(visualizer_file, "dramglobal_acc_w: %u %u %u\n", id, j,
-             m_stats->mem_access_type_stats[GLOBAL_ACC_W][id][j]);
+             m_stats.access()->mem_access_type_stats[GLOBAL_ACC_W][id][j]);
     gzprintf(visualizer_file, "dramlocal_acc_r: %u %u %u\n", id, j,
-             m_stats->mem_access_type_stats[LOCAL_ACC_R][id][j]);
+             m_stats.access()->mem_access_type_stats[LOCAL_ACC_R][id][j]);
     gzprintf(visualizer_file, "dramlocal_acc_w: %u %u %u\n", id, j,
-             m_stats->mem_access_type_stats[LOCAL_ACC_W][id][j]);
+             m_stats.access()->mem_access_type_stats[LOCAL_ACC_W][id][j]);
     gzprintf(visualizer_file, "dramconst_acc_r: %u %u %u\n", id, j,
-             m_stats->mem_access_type_stats[CONST_ACC_R][id][j]);
+             m_stats.access()->mem_access_type_stats[CONST_ACC_R][id][j]);
     gzprintf(visualizer_file, "dramtexture_acc_r: %u %u %u\n", id, j,
-             m_stats->mem_access_type_stats[TEXTURE_ACC_R][id][j]);
+             m_stats.access()->mem_access_type_stats[TEXTURE_ACC_R][id][j]);
   }
 }
 

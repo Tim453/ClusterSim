@@ -42,6 +42,10 @@
 #include "addrdec.h"
 #include "gpu-cache.h"
 #include "shader.h"
+#include "util.h"
+
+// external thread_pool implementation
+#include "BS_thread_pool.hpp"
 
 // constants for statistics printouts
 #define GPU_RSTAT_SHD_INFO 0x1
@@ -552,6 +556,7 @@ class gpgpu_sim : public gpgpu_t {
            (m_config.gpu_max_completed_cta_opt &&
             (gpu_completed_cta >= m_config.gpu_max_completed_cta_opt));
   }
+  // void consolidate_shader_stats();
   void print_stats();
   void update_stats();
   void deadlock_check();
@@ -615,6 +620,7 @@ class gpgpu_sim : public gpgpu_t {
 
   // backward pointer
   class gpgpu_context *gpgpu_ctx;
+  std::vector<class simt_core_cluster *> m_cluster;
 
  private:
   // clocks
@@ -625,7 +631,7 @@ class gpgpu_sim : public gpgpu_t {
   void shader_print_runtime_stat(FILE *fout);
   void shader_print_l1_miss_stat(FILE *fout) const;
   void shader_print_cache_stats(FILE *fout) const;
-  void shader_print_scheduler_stat(FILE *fout, bool print_dynamic_info) const;
+  void shader_print_scheduler_stat(FILE *fout, bool print_dynamic_info);
   void visualizer_printstat();
   void print_shader_cycle_distro(FILE *fout) const;
 
@@ -634,7 +640,6 @@ class gpgpu_sim : public gpgpu_t {
  protected:
   ///// data /////
   std::vector<gpu_processing_cluster> m_gpcs;
-  std::vector<class simt_core_cluster *> m_cluster;
   class memory_partition_unit **m_memory_partition_unit;
   class memory_sub_partition **m_memory_sub_partition;
 
@@ -644,9 +649,9 @@ class gpgpu_sim : public gpgpu_t {
   std::list<unsigned> m_finished_kernel;
   // m_total_cta_launched == per-kernel count. gpu_tot_issued_cta == global
   // count.
-  unsigned long long m_total_cta_launched;
-  unsigned long long gpu_tot_issued_cta;
-  unsigned gpu_completed_cta;
+  std::atomic<unsigned long long> m_total_cta_launched = {0};
+  std::atomic<unsigned long long> gpu_tot_issued_cta = {0};
+  std::atomic<unsigned> gpu_completed_cta = {0};
 
   unsigned m_last_cluster_issue;
   float *average_pipeline_duty_cycle;
@@ -669,8 +674,8 @@ class gpgpu_sim : public gpgpu_t {
   const memory_config *m_memory_config;
 
   // stats
-  class shader_core_stats *m_shader_stats;
-  class memory_stats_t *m_memory_stats;
+  ThreadSafe<class shader_core_stats> m_shader_stats;
+  ThreadSafe<class memory_stats_t> m_memory_stats;
   class power_stat_t *m_power_stats;
   class gpgpu_sim_wrapper *m_gpgpusim_wrapper;
   unsigned long long last_gpu_sim_insn;
@@ -691,6 +696,10 @@ class gpgpu_sim : public gpgpu_t {
   void clear_executed_kernel_info();  //< clear the kernel information after
                                       // stat printout
   virtual void createSIMTCluster() = 0;
+
+  // gpgpu-sim wide thread-pool (right now only used for
+  // simt_core_cluster::cycle(), might expand in future)
+  BS::thread_pool m_pool;
 
  public:
   unsigned long long gpu_sim_insn;

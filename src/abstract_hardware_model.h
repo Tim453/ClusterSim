@@ -195,8 +195,11 @@ enum _memory_op_t { no_memory_op = 0, memory_load, memory_store };
 #include <list>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <vector>
+
+#include "gpgpu-sim/util.h"
 
 #if !defined(__VECTOR_TYPES_H__)
 #include "vector_types.h"
@@ -1103,12 +1106,12 @@ const unsigned MAX_ACCESSES_PER_INSN_PER_THREAD = 8;
 class warp_inst_t : public inst_t {
  public:
   // constructors
-  warp_inst_t() {
+  warp_inst_t() : m_pending_cluster_memory_requests() {
     m_uid = 0;
     m_empty = true;
     m_config = NULL;
   }
-  warp_inst_t(const core_config *config) {
+  warp_inst_t(const core_config *config) : m_pending_cluster_memory_requests() {
     m_uid = 0;
     assert(config->warp_size <= MAX_WARP_SIZE);
     m_config = config;

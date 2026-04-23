@@ -35,9 +35,12 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 #include "../../libcuda/gpgpu_context.h"
+
+typedef std::lock_guard<std::mutex> mtx_lock;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -81,16 +84,20 @@ void try_snap_shot(unsigned long long current_cycle) {
 static unsigned long long spill_interval = 0;
 static unsigned long long next_spill_cycle = 0;
 static std::list<spill_log_interface *> list_spill_log;
+static std::mutex list_spill_log_lock;
 
 void add_spill_log(spill_log_interface *spill_log) {
+  mtx_lock g(list_spill_log_lock);
   list_spill_log.push_back(spill_log);
 }
 
 void remove_spill_log(spill_log_interface *spill_log) {
+  mtx_lock g(list_spill_log_lock);
   list_spill_log.remove(spill_log);
 }
 
 void set_spill_interval(unsigned long long interval) {
+  mtx_lock g(list_spill_log_lock);
   spill_interval = interval;
   next_spill_cycle = spill_interval;
 }
@@ -99,6 +106,7 @@ void spill_log_to_file(FILE *fout, int final,
                        unsigned long long current_cycle) {
   if (!final && spill_interval == 0) return;
   if (!final && current_cycle <= next_spill_cycle) return;
+  mtx_lock g(list_spill_log_lock);
 
   fprintf(fout, "\n");  // ensure that the spill occurs at a new line
   std::list<spill_log_interface *>::iterator i_spill_log =
@@ -116,10 +124,12 @@ void spill_log_to_file(FILE *fout, int final,
 
 static int n_thread_CFloggers = 0;
 static thread_CFlocality **thread_CFlogger = NULL;
+static std::mutex thread_CFlogger_lock;
 
 void create_thread_CFlogger(gpgpu_context *ctx, int n_loggers, int n_threads,
                             address_type start_pc,
                             unsigned long long logging_interval) {
+  mtx_lock g(thread_CFlogger_lock);
   destroy_thread_CFlogger();
 
   n_thread_CFloggers = n_loggers;
@@ -153,16 +163,21 @@ void destroy_thread_CFlogger() {
 void cflog_update_thread_pc(int logger_id, int thread_id, address_type pc) {
   if (thread_CFlogger == NULL) return;  // this means no visualizer output
   if (thread_id < 0) return;
+
+  mtx_lock g(thread_CFlogger_lock);
   thread_CFlogger[logger_id]->update_thread_pc(thread_id, pc);
 }
 
 // deprecated
 void cflog_snapshot(int logger_id, unsigned long long cycle) {
+  mtx_lock g(thread_CFlogger_lock);
   thread_CFlogger[logger_id]->snap_shot(cycle);
 }
 
 void cflog_print(FILE *fout) {
   if (thread_CFlogger == NULL) return;  // this means no visualizer output
+
+  mtx_lock g(thread_CFlogger_lock);
   for (int i = 0; i < n_thread_CFloggers; i++) {
     thread_CFlogger[i]->print_histo(fout);
   }
@@ -170,6 +185,8 @@ void cflog_print(FILE *fout) {
 
 void cflog_visualizer_print(FILE *fout) {
   if (thread_CFlogger == NULL) return;  // this means no visualizer output
+
+  mtx_lock g(thread_CFlogger_lock);
   for (int i = 0; i < n_thread_CFloggers; i++) {
     thread_CFlogger[i]->print_visualizer(fout);
   }
@@ -177,6 +194,8 @@ void cflog_visualizer_print(FILE *fout) {
 
 void cflog_visualizer_gzprint(gzFile fout) {
   if (thread_CFlogger == NULL) return;  // this means no visualizer output
+
+  mtx_lock g(thread_CFlogger_lock);
   for (int i = 0; i < n_thread_CFloggers; i++) {
     thread_CFlogger[i]->print_visualizer(fout);
   }
@@ -187,8 +206,10 @@ void cflog_visualizer_gzprint(gzFile fout) {
 int insn_warp_occ_logger::s_ids = 0;
 
 static std::vector<insn_warp_occ_logger> iwo_logger;
+static std::mutex iwo_logger_lock;
 
 void insn_warp_occ_create(int n_loggers, int simd_width) {
+  mtx_lock g(iwo_logger_lock);
   iwo_logger.clear();
   iwo_logger.assign(n_loggers, insn_warp_occ_logger(simd_width));
   for (unsigned i = 0; i < iwo_logger.size(); i++) {
@@ -198,10 +219,13 @@ void insn_warp_occ_create(int n_loggers, int simd_width) {
 
 void insn_warp_occ_log(int logger_id, address_type pc, int warp_occ) {
   if (warp_occ <= 0) return;
+
+  mtx_lock g(iwo_logger_lock);
   iwo_logger[logger_id].log(pc, warp_occ);
 }
 
 void insn_warp_occ_print(FILE *fout) {
+  mtx_lock g(iwo_logger_lock);
   for (unsigned i = 0; i < iwo_logger.size(); i++) {
     iwo_logger[i].print(fout);
   }
@@ -216,9 +240,11 @@ int linear_histogram_logger::s_ids = 0;
 /////////////////////////////////////////////////////////////////////////////////////
 
 static std::vector<linear_histogram_logger> s_warp_occ_logger;
+static std::mutex s_warp_occ_logger_lock;
 
 void shader_warp_occ_create(int n_loggers, int simd_width,
                             unsigned long long logging_interval) {
+  mtx_lock g(s_warp_occ_logger_lock);
   // simd_width + 1 to include the case with full warp
   s_warp_occ_logger.assign(
       n_loggers,
@@ -231,14 +257,17 @@ void shader_warp_occ_create(int n_loggers, int simd_width,
 }
 
 void shader_warp_occ_log(int logger_id, int warp_occ) {
+  mtx_lock g(s_warp_occ_logger_lock);
   s_warp_occ_logger[logger_id].log(warp_occ);
 }
 
 void shader_warp_occ_snapshot(int logger_id, unsigned long long current_cycle) {
+  mtx_lock g(s_warp_occ_logger_lock);
   s_warp_occ_logger[logger_id].snap_shot(current_cycle);
 }
 
 void shader_warp_occ_print(FILE *fout) {
+  mtx_lock g(s_warp_occ_logger_lock);
   for (unsigned i = 0; i < s_warp_occ_logger.size(); i++) {
     s_warp_occ_logger[i].print(fout);
   }
@@ -251,9 +280,11 @@ void shader_warp_occ_print(FILE *fout) {
 static int s_mem_acc_logger_n_dram = 0;
 static int s_mem_acc_logger_n_bank = 0;
 static std::vector<linear_histogram_logger> s_mem_acc_logger;
+static std::mutex s_mem_acc_logger_lock;
 
 void shader_mem_acc_create(int n_loggers, int n_dram, int n_bank,
                            unsigned long long logging_interval) {
+  mtx_lock g(s_mem_acc_logger_lock);
   // (n_bank + 1) to space data out; 2x to separate read and write
   s_mem_acc_logger.assign(
       n_loggers, linear_histogram_logger(2 * n_dram * (n_bank + 1),
@@ -270,6 +301,8 @@ void shader_mem_acc_create(int n_loggers, int n_dram, int n_bank,
 
 void shader_mem_acc_log(int logger_id, int dram_id, int bank, char rw) {
   if (s_mem_acc_logger_n_dram == 0) return;
+
+  mtx_lock g(s_mem_acc_logger_lock);
   int write_offset = 0;
   switch (rw) {
     case 'r':
@@ -287,10 +320,12 @@ void shader_mem_acc_log(int logger_id, int dram_id, int bank, char rw) {
 }
 
 void shader_mem_acc_snapshot(int logger_id, unsigned long long current_cycle) {
+  mtx_lock g(s_mem_acc_logger_lock);
   s_mem_acc_logger[logger_id].snap_shot(current_cycle);
 }
 
 void shader_mem_acc_print(FILE *fout) {
+  mtx_lock g(s_mem_acc_logger_lock);
   for (unsigned i = 0; i < s_mem_acc_logger.size(); i++) {
     s_mem_acc_logger[i].print(fout);
   }
@@ -303,8 +338,10 @@ void shader_mem_acc_print(FILE *fout) {
 static bool s_mem_lat_logger_used = false;
 static int s_mem_lat_logger_nbins = 48;  // up to 2^24 = 16M
 static std::vector<linear_histogram_logger> s_mem_lat_logger;
+static std::mutex s_mem_lat_logger_lock;
 
 void shader_mem_lat_create(int n_loggers, unsigned long long logging_interval) {
+  mtx_lock g(s_mem_lat_logger_lock);
   s_mem_lat_logger.assign(
       n_loggers, linear_histogram_logger(s_mem_lat_logger_nbins,
                                          logging_interval, "ShdrMemLat"));
@@ -320,6 +357,7 @@ void shader_mem_lat_create(int n_loggers, unsigned long long logging_interval) {
 
 void shader_mem_lat_log(int logger_id, int latency) {
   if (s_mem_lat_logger_used == false) return;
+  mtx_lock g(s_mem_lat_logger_lock);
   if (latency > (1 << (s_mem_lat_logger_nbins / 2)))
     assert(0);  // guard for out of bound bin
   assert(latency > 0);
@@ -353,10 +391,12 @@ void shader_mem_lat_log(int logger_id, int latency) {
 }
 
 void shader_mem_lat_snapshot(int logger_id, unsigned long long current_cycle) {
+  mtx_lock g(s_mem_lat_logger_lock);
   s_mem_lat_logger[logger_id].snap_shot(current_cycle);
 }
 
 void shader_mem_lat_print(FILE *fout) {
+  mtx_lock g(s_mem_lat_logger_lock);
   for (unsigned i = 0; i < s_mem_lat_logger.size(); i++) {
     s_mem_lat_logger[i].print(fout);
   }
@@ -368,6 +408,7 @@ void shader_mem_lat_print(FILE *fout) {
 
 static int s_cache_access_logger_n_types = 0;
 static std::vector<linear_histogram_logger> s_cache_access_logger;
+static std::mutex s_cache_access_logger_lock;
 
 int get_shader_normal_cache_id() { return NORMALS; }
 int get_shader_texture_cache_id() { return TEXTURE; }
@@ -376,6 +417,7 @@ int get_shader_instruction_cache_id() { return INSTRUCTION; }
 
 void shader_cache_access_create(int n_loggers, int n_types,
                                 unsigned long long logging_interval) {
+  mtx_lock g(s_cache_access_logger_lock);
   // There are different type of cache (x2 for recording accesses and misses)
   s_cache_access_logger.assign(
       n_loggers,
@@ -392,10 +434,12 @@ void shader_cache_access_create(int n_loggers, int n_types,
 void shader_cache_access_log(int logger_id, int type, int miss) {
   if (s_cache_access_logger_n_types == 0) return;
   if (logger_id < 0) return;
+
   assert(type == NORMALS || type == TEXTURE || type == CONSTANT ||
          type == INSTRUCTION);
   assert(miss == 0 || miss == 1);
 
+  mtx_lock g(s_cache_access_logger_lock);
   s_cache_access_logger[logger_id].log(2 * type + miss);
 }
 
@@ -406,10 +450,12 @@ void shader_cache_access_unlog(int logger_id, int type, int miss) {
          type == INSTRUCTION);
   assert(miss == 0 || miss == 1);
 
+  mtx_lock g(s_cache_access_logger_lock);
   s_cache_access_logger[logger_id].unlog(2 * type + miss);
 }
 
 void shader_cache_access_print(FILE *fout) {
+  mtx_lock g(s_cache_access_logger_lock);
   for (unsigned i = 0; i < s_cache_access_logger.size(); i++) {
     s_cache_access_logger[i].print(fout);
   }
@@ -421,9 +467,11 @@ void shader_cache_access_print(FILE *fout) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 static linear_histogram_logger *s_CTA_count_logger = NULL;
+static std::mutex s_CTA_count_logger_lock;
 
 void shader_CTA_count_create(int n_shaders,
                              unsigned long long logging_interval) {
+  std::lock_guard<std::mutex> g(s_CTA_count_logger_lock);
   // only need one logger to track all the shaders
   if (s_CTA_count_logger != NULL) delete s_CTA_count_logger;
   s_CTA_count_logger = new linear_histogram_logger(n_shaders, logging_interval,
@@ -439,6 +487,7 @@ void shader_CTA_count_create(int n_shaders,
 void shader_CTA_count_log(int shader_id, int nCTAadded) {
   if (s_CTA_count_logger == NULL) return;
 
+  std::lock_guard<std::mutex> g(s_CTA_count_logger_lock);
   for (int i = 0; i < nCTAadded; i++) {
     s_CTA_count_logger->log(shader_id);
   }
@@ -447,6 +496,7 @@ void shader_CTA_count_log(int shader_id, int nCTAadded) {
 void shader_CTA_count_unlog(int shader_id, int nCTAdone) {
   if (s_CTA_count_logger == NULL) return;
 
+  std::lock_guard<std::mutex> g(s_CTA_count_logger_lock);
   for (int i = 0; i < nCTAdone; i++) {
     s_CTA_count_logger->unlog(shader_id);
   }
@@ -454,16 +504,22 @@ void shader_CTA_count_unlog(int shader_id, int nCTAdone) {
 
 void shader_CTA_count_print(FILE *fout) {
   if (s_CTA_count_logger == NULL) return;
+
+  std::lock_guard<std::mutex> g(s_CTA_count_logger_lock);
   s_CTA_count_logger->print(fout);
 }
 
 void shader_CTA_count_visualizer_print(FILE *fout) {
   if (s_CTA_count_logger == NULL) return;
+
+  std::lock_guard<std::mutex> g(s_CTA_count_logger_lock);
   s_CTA_count_logger->print_visualizer(fout);
 }
 
 void shader_CTA_count_visualizer_gzprint(gzFile fout) {
   if (s_CTA_count_logger == NULL) return;
+
+  std::lock_guard<std::mutex> g(s_CTA_count_logger_lock);
   s_CTA_count_logger->print_visualizer(fout);
 }
 

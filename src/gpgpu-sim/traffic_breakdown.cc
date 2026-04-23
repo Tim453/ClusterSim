@@ -1,7 +1,7 @@
 #include "traffic_breakdown.h"
 #include "mem_fetch.h"
 
-void traffic_breakdown::print(FILE* fout) {
+void traffic_breakdown::print(FILE* fout) const {
   for (traffic_stat_t::const_iterator i_stat = m_stats.begin();
        i_stat != m_stats.end(); i_stat++) {
     unsigned int byte_transferred = 0;
@@ -21,7 +21,11 @@ void traffic_breakdown::print(FILE* fout) {
 }
 
 void traffic_breakdown::record_traffic(class mem_fetch* mf, unsigned int size) {
-  m_stats[classify_memfetch(mf)][size] += 1;
+  std::string type = classify_memfetch(mf);
+  unsigned int packet_size_value = size;
+  m_stats[type][packet_size_value] += 1;
+
+  //  m_stats[classify_memfetch(mf)][size] += 1;
 }
 
 std::string traffic_breakdown::classify_memfetch(class mem_fetch* mf) {

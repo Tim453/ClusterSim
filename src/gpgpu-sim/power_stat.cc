@@ -28,15 +28,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "power_stat.h"
 #include "../abstract_hardware_model.h"
 #include "../cuda-sim/ptx-stats.h"
 #include "dram.h"
 #include "gpu-misc.h"
 #include "gpu-sim.h"
 #include "mem_fetch.h"
+#include "power_stat.h"
 #include "shader.h"
 #include "stat-tool.h"
+#include "util.h"
 #include "visualizer.h"
 
 #include <stdio.h>
@@ -45,12 +46,11 @@
 
 power_mem_stat_t::power_mem_stat_t(const memory_config *mem_config,
                                    const shader_core_config *shdr_config,
-                                   memory_stats_t *mem_stats,
-                                   shader_core_stats *shdr_stats) {
+                                   ThreadSafe<memory_stats_t> &mem_stats,
+                                   ThreadSafe<shader_core_stats> &shdr_stats)
+    : m_core_stats(shdr_stats), m_mem_stats(mem_stats) {
   assert(mem_config->m_valid);
-  m_mem_stats = mem_stats;
   m_config = mem_config;
-  m_core_stats = shdr_stats;
   m_core_config = shdr_config;
 
   init();
@@ -110,7 +110,7 @@ void power_stat_t::clear() {
 
 void power_mem_stat_t::init() {
   shmem_access[CURRENT_STAT_IDX] =
-      m_core_stats->gpgpu_n_shmem_bank_access;  // Shared memory access
+      m_core_stats.access()->gpgpu_n_shmem_bank_access;  // Shared memory access
   shmem_access[PREV_STAT_IDX] =
       (unsigned *)calloc(m_core_config->num_shader(), sizeof(unsigned));
 
@@ -188,12 +188,12 @@ void power_mem_stat_t::print(FILE *fout) const {
 }
 
 power_core_stat_t::power_core_stat_t(const shader_core_config *shader_config,
-                                     shader_core_stats *core_stats) {
+                                     ThreadSafe<shader_core_stats> &core_stats)
+    : m_core_stats(core_stats) {
   assert(shader_config->m_valid);
   m_config = shader_config;
   shader_core_power_stats_pod *pod = this;
   memset(pod, 0, sizeof(shader_core_power_stats_pod));
-  m_core_stats = core_stats;
 
   init();
 }
@@ -274,48 +274,45 @@ void power_core_stat_t::print(FILE *fout) {
   }
 }
 void power_core_stat_t::init() {
-  m_pipeline_duty_cycle[CURRENT_STAT_IDX] = m_core_stats->m_pipeline_duty_cycle;
-  m_num_decoded_insn[CURRENT_STAT_IDX] = m_core_stats->m_num_decoded_insn;
-  m_num_FPdecoded_insn[CURRENT_STAT_IDX] = m_core_stats->m_num_FPdecoded_insn;
-  m_num_INTdecoded_insn[CURRENT_STAT_IDX] = m_core_stats->m_num_INTdecoded_insn;
-  m_num_storequeued_insn[CURRENT_STAT_IDX] =
-      m_core_stats->m_num_storequeued_insn;
-  m_num_loadqueued_insn[CURRENT_STAT_IDX] = m_core_stats->m_num_loadqueued_insn;
-  m_num_ialu_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_ialu_acesses;
-  m_num_fp_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_fp_acesses;
-  m_num_imul_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_imul_acesses;
-  m_num_imul24_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_imul24_acesses;
-  m_num_imul32_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_imul32_acesses;
-  m_num_fpmul_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_fpmul_acesses;
-  m_num_idiv_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_idiv_acesses;
-  m_num_fpdiv_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_fpdiv_acesses;
-  m_num_dp_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_dp_acesses;
-  m_num_dpmul_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_dpmul_acesses;
-  m_num_dpdiv_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_dpdiv_acesses;
-  m_num_sp_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_sp_acesses;
-  m_num_sfu_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_sfu_acesses;
-  m_num_sqrt_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_sqrt_acesses;
-  m_num_log_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_log_acesses;
-  m_num_sin_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_sin_acesses;
-  m_num_exp_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_exp_acesses;
-  m_num_tensor_core_acesses[CURRENT_STAT_IDX] =
-      m_core_stats->m_num_tensor_core_acesses;
-  m_num_const_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_const_acesses;
-  m_num_tex_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_tex_acesses;
-  m_num_mem_acesses[CURRENT_STAT_IDX] = m_core_stats->m_num_mem_acesses;
-  m_num_sp_committed[CURRENT_STAT_IDX] = m_core_stats->m_num_sp_committed;
-  m_num_sfu_committed[CURRENT_STAT_IDX] = m_core_stats->m_num_sfu_committed;
-  m_num_mem_committed[CURRENT_STAT_IDX] = m_core_stats->m_num_mem_committed;
-  m_read_regfile_acesses[CURRENT_STAT_IDX] =
-      m_core_stats->m_read_regfile_acesses;
-  m_write_regfile_acesses[CURRENT_STAT_IDX] =
-      m_core_stats->m_write_regfile_acesses;
-  m_non_rf_operands[CURRENT_STAT_IDX] = m_core_stats->m_non_rf_operands;
-  m_active_sp_lanes[CURRENT_STAT_IDX] = m_core_stats->m_active_sp_lanes;
-  m_active_sfu_lanes[CURRENT_STAT_IDX] = m_core_stats->m_active_sfu_lanes;
-  m_active_exu_threads[CURRENT_STAT_IDX] = m_core_stats->m_active_exu_threads;
-  m_active_exu_warps[CURRENT_STAT_IDX] = m_core_stats->m_active_exu_warps;
-  m_num_tex_inst[CURRENT_STAT_IDX] = m_core_stats->m_num_tex_inst;
+  auto ms = m_core_stats.access();
+  m_pipeline_duty_cycle[CURRENT_STAT_IDX] = ms->m_pipeline_duty_cycle;
+  m_num_decoded_insn[CURRENT_STAT_IDX] = ms->m_num_decoded_insn;
+  m_num_FPdecoded_insn[CURRENT_STAT_IDX] = ms->m_num_FPdecoded_insn;
+  m_num_INTdecoded_insn[CURRENT_STAT_IDX] = ms->m_num_INTdecoded_insn;
+  m_num_storequeued_insn[CURRENT_STAT_IDX] = ms->m_num_storequeued_insn;
+  m_num_loadqueued_insn[CURRENT_STAT_IDX] = ms->m_num_loadqueued_insn;
+  m_num_ialu_acesses[CURRENT_STAT_IDX] = ms->m_num_ialu_acesses;
+  m_num_fp_acesses[CURRENT_STAT_IDX] = ms->m_num_fp_acesses;
+  m_num_imul_acesses[CURRENT_STAT_IDX] = ms->m_num_imul_acesses;
+  m_num_imul24_acesses[CURRENT_STAT_IDX] = ms->m_num_imul24_acesses;
+  m_num_imul32_acesses[CURRENT_STAT_IDX] = ms->m_num_imul32_acesses;
+  m_num_fpmul_acesses[CURRENT_STAT_IDX] = ms->m_num_fpmul_acesses;
+  m_num_idiv_acesses[CURRENT_STAT_IDX] = ms->m_num_idiv_acesses;
+  m_num_fpdiv_acesses[CURRENT_STAT_IDX] = ms->m_num_fpdiv_acesses;
+  m_num_dp_acesses[CURRENT_STAT_IDX] = ms->m_num_dp_acesses;
+  m_num_dpmul_acesses[CURRENT_STAT_IDX] = ms->m_num_dpmul_acesses;
+  m_num_dpdiv_acesses[CURRENT_STAT_IDX] = ms->m_num_dpdiv_acesses;
+  m_num_sp_acesses[CURRENT_STAT_IDX] = ms->m_num_sp_acesses;
+  m_num_sfu_acesses[CURRENT_STAT_IDX] = ms->m_num_sfu_acesses;
+  m_num_sqrt_acesses[CURRENT_STAT_IDX] = ms->m_num_sqrt_acesses;
+  m_num_log_acesses[CURRENT_STAT_IDX] = ms->m_num_log_acesses;
+  m_num_sin_acesses[CURRENT_STAT_IDX] = ms->m_num_sin_acesses;
+  m_num_exp_acesses[CURRENT_STAT_IDX] = ms->m_num_exp_acesses;
+  m_num_tensor_core_acesses[CURRENT_STAT_IDX] = ms->m_num_tensor_core_acesses;
+  m_num_const_acesses[CURRENT_STAT_IDX] = ms->m_num_const_acesses;
+  m_num_tex_acesses[CURRENT_STAT_IDX] = ms->m_num_tex_acesses;
+  m_num_mem_acesses[CURRENT_STAT_IDX] = ms->m_num_mem_acesses;
+  m_num_sp_committed[CURRENT_STAT_IDX] = ms->m_num_sp_committed;
+  m_num_sfu_committed[CURRENT_STAT_IDX] = ms->m_num_sfu_committed;
+  m_num_mem_committed[CURRENT_STAT_IDX] = ms->m_num_mem_committed;
+  m_read_regfile_acesses[CURRENT_STAT_IDX] = ms->m_read_regfile_acesses;
+  m_write_regfile_acesses[CURRENT_STAT_IDX] = ms->m_write_regfile_acesses;
+  m_non_rf_operands[CURRENT_STAT_IDX] = ms->m_non_rf_operands;
+  m_active_sp_lanes[CURRENT_STAT_IDX] = ms->m_active_sp_lanes;
+  m_active_sfu_lanes[CURRENT_STAT_IDX] = ms->m_active_sfu_lanes;
+  m_active_exu_threads[CURRENT_STAT_IDX] = ms->m_active_exu_threads;
+  m_active_exu_warps[CURRENT_STAT_IDX] = ms->m_active_exu_warps;
+  m_num_tex_inst[CURRENT_STAT_IDX] = ms->m_num_tex_inst;
 
   m_pipeline_duty_cycle[PREV_STAT_IDX] =
       (float *)calloc(m_config->num_shader(), sizeof(float));
@@ -475,9 +472,10 @@ void power_core_stat_t::save_stats() {
 
 power_stat_t::power_stat_t(const shader_core_config *shader_config,
                            float *average_pipeline_duty_cycle,
-                           float *active_sms, shader_core_stats *shader_stats,
+                           float *active_sms,
+                           ThreadSafe<shader_core_stats> &shader_stats,
                            const memory_config *mem_config,
-                           memory_stats_t *memory_stats) {
+                           ThreadSafe<memory_stats_t> &memory_stats) {
   assert(shader_config->m_valid);
   assert(mem_config->m_valid);
   pwr_core_stat = new power_core_stat_t(shader_config, shader_stats);

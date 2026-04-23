@@ -122,9 +122,11 @@ void *gpgpu_sim_thread_concurrent(void *ctx_ptr) {
 
       // performance simulation
       if (ctx->the_gpgpusim->g_the_gpu->active()) {
+        pthread_mutex_lock(&(ctx->the_gpgpusim->g_sim_lock));
         ctx->the_gpgpusim->g_the_gpu->cycle();
         sim_cycles = true;
         ctx->the_gpgpusim->g_the_gpu->deadlock_check();
+        pthread_mutex_unlock(&(ctx->the_gpgpusim->g_sim_lock));
       } else {
         if (ctx->the_gpgpusim->g_the_gpu->cycle_insn_cta_max_hit()) {
           ctx->the_gpgpusim->g_stream_manager->stop_all_running_kernels();

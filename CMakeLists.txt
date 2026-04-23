@@ -26,6 +26,7 @@ option(GPGPUSIM_POWER_MODEL    			"Enable GPU Sim Power model" OFF)
 option(TRACING_ON    			"Enable Tracing" OFF)
 option(OPENGL_SUPPORT "Enable OpenGL Support" OFF)
 
+set(WORKER_THREADS 0 CACHE STRING "Number of worker threads to use for the core-cyle threadpool (0=default sets the number of threads to the amount of hardware-threads)")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
@@ -59,6 +60,11 @@ add_compile_definitions(
 
 if(OPENGL_FOUND AND OPENGL_SUPPORT)
     add_compile_definitions(OPENGL_SUPPORT)
+endif()
+
+if(WORKER_THREADS GREATER 0)
+  add_compile_definitions(GPGPUSIM_WORKER_THREADS=${WORKER_THREADS})
+  message(GPGPUSIM_WORKER_THREADS=${WORKER_THREADS})
 endif()
 
 

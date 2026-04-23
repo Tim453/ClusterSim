@@ -8,10 +8,10 @@
 class traffic_breakdown {
  public:
   traffic_breakdown(const std::string& network_name)
-      : m_network_name(network_name) {}
+      : m_network_name(network_name), m_stats() {}
 
   // print the stats
-  void print(FILE* fout);
+  void print(FILE* fout) const;
 
   // record the amount and type of traffic introduced by this mem_fetch object
   void record_traffic(class mem_fetch* mf, unsigned int size);

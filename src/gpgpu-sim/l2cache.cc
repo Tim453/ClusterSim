@@ -72,10 +72,10 @@ mem_fetch *partition_mf_allocator::alloc(
                     wid, sid, tpc, m_memory_config, cycle, original_mf);
   return mf;
 }
-memory_partition_unit::memory_partition_unit(unsigned partition_id,
-                                             const memory_config *config,
-                                             class memory_stats_t *stats,
-                                             class gpgpu_sim *gpu)
+
+memory_partition_unit::memory_partition_unit(
+    unsigned partition_id, const memory_config *config,
+    ThreadSafe<class memory_stats_t> &stats, class gpgpu_sim *gpu)
     : m_id(partition_id),
       m_config(config),
       m_stats(stats),
@@ -417,13 +417,12 @@ void memory_partition_unit::print(FILE *fp) const {
   m_dram->print(fp);
 }
 
-memory_sub_partition::memory_sub_partition(unsigned sub_partition_id,
-                                           const memory_config *config,
-                                           class memory_stats_t *stats,
-                                           class gpgpu_sim *gpu) {
+memory_sub_partition::memory_sub_partition(
+    unsigned sub_partition_id, const memory_config *config,
+    ThreadSafe<class memory_stats_t> &stats, class gpgpu_sim *gpu)
+    : m_stats(stats) {
   m_id = sub_partition_id;
   m_config = config;
-  m_stats = stats;
   m_gpu = gpu;
   m_memcpy_cycle_offset = 0;
 
@@ -783,7 +782,7 @@ memory_sub_partition::breakdown_request_to_sector_requests(mem_fetch *mf) {
 
 void memory_sub_partition::push(mem_fetch *m_req, unsigned long long cycle) {
   if (m_req) {
-    m_stats->memlatstat_icnt2mem_pop(m_req);
+    m_stats.access()->memlatstat_icnt2mem_pop(m_req);
     std::vector<mem_fetch *> reqs;
     if (m_config->m_L2_config.m_cache_type == SECTOR)
       reqs = breakdown_request_to_sector_requests(m_req);
@@ -870,10 +869,10 @@ void memory_sub_partition::visualizer_print(gzFile visualizer_file) {
   cache_sub_stats_pw temp_sub_stats;
   get_L2cache_sub_stats_pw(temp_sub_stats);
 
-  m_stats->L2_read_miss += temp_sub_stats.read_misses;
-  m_stats->L2_write_miss += temp_sub_stats.write_misses;
-  m_stats->L2_read_hit += temp_sub_stats.read_hits;
-  m_stats->L2_write_hit += temp_sub_stats.write_hits;
+  m_stats.access()->L2_read_miss += temp_sub_stats.read_misses;
+  m_stats.access()->L2_write_miss += temp_sub_stats.write_misses;
+  m_stats.access()->L2_read_hit += temp_sub_stats.read_hits;
+  m_stats.access()->L2_write_hit += temp_sub_stats.write_hits;
 
   clear_L2cache_stats_pw();
 }

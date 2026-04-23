@@ -27,7 +27,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "mem_latency_stat.h"
 #include "../abstract_hardware_model.h"
 #include "../cuda-sim/ptx-stats.h"
 #include "dram.h"
@@ -35,6 +34,7 @@
 #include "gpu-misc.h"
 #include "gpu-sim.h"
 #include "mem_fetch.h"
+#include "mem_latency_stat.h"
 #include "shader.h"
 #include "stat-tool.h"
 #include "visualizer.h"
@@ -231,6 +231,10 @@ void memory_stats_t::memlatstat_dram_access(mem_fetch *mf) {
       totalbankwrites[dram_id][bank] +=
           ceil(mf->get_data_size() / m_memory_config->dram_atom_size);
     } else {
+      assert(mf->get_sid() < m_n_shader);
+      assert(dram_id < m_memory_config->m_n_mem);
+      assert(bank < m_memory_config->nbk);
+
       bankreads[mf->get_sid()][dram_id][bank]++;
       shader_mem_acc_log(mf->get_sid(), dram_id, bank, 'r');
       totalbankreads[dram_id][bank] +=
@@ -268,7 +272,8 @@ void memory_stats_t::memlatstat_lat_pw() {
   }
 }
 
-void memory_stats_t::memlatstat_print(unsigned n_mem, unsigned gpu_mem_n_bk) {
+void memory_stats_t::memlatstat_print(unsigned n_mem,
+                                      unsigned gpu_mem_n_bk) const {
   unsigned i, j, k, l, m;
   unsigned max_bank_accesses, min_bank_accesses, max_chip_accesses,
       min_chip_accesses;

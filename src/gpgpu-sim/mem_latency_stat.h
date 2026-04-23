@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <zlib.h>
+#include <cstdlib>
 #include <map>
 
 class memory_config;
@@ -40,12 +41,22 @@ class memory_stats_t {
                  const class shader_core_config *shader_config,
                  const memory_config *mem_config, const class gpgpu_sim *gpu);
 
+  //   memory_stats_t(const memory_stats_t &) =
+  //       delete;  // delete copy constructor (since we have pointers)
+  //   memory_stats_t &operator=(const memory_stats_t &) =
+  //       delete;  // delete copy-assignment
+
+  //   memory_stats_t(memory_stats_t &&) =
+  //       delete;  // move constructor (since we have pointers)
+  //   memory_stats_t &operator=(memory_stats_t &&) =
+  //       delete;  // delete move-assignment
+
   unsigned memlatstat_done(class mem_fetch *mf);
   void memlatstat_read_done(class mem_fetch *mf);
   void memlatstat_dram_access(class mem_fetch *mf);
   void memlatstat_icnt2mem_pop(class mem_fetch *mf);
   void memlatstat_lat_pw();
-  void memlatstat_print(unsigned n_mem, unsigned gpu_mem_n_bk);
+  void memlatstat_print(unsigned n_mem, unsigned gpu_mem_n_bk) const;
 
   void visualizer_print(gzFile visualizer_file);
 
