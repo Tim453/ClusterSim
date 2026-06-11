@@ -366,6 +366,10 @@ addr_t shared_to_generic(unsigned smid, addr_t addr) {
   return SHARED_GENERIC_START + smid * SHARED_MEM_SIZE_MAX + addr;
 }
 
+addr_t cluster_to_generic(addr_t compact_cluster_addr) {
+  return SHARED_GENERIC_START + compact_cluster_addr;
+}
+
 addr_t global_to_generic(addr_t addr) { return addr; }
 
 bool isspace_shared(unsigned smid, addr_t addr) {

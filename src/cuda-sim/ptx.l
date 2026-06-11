@@ -225,6 +225,8 @@ breakaddr  TC; yylval->int_value = BREAKADDR_OP; return OPCODE;
 \.reg    TC; return REG_DIRECTIVE;
 \.reqntid TC; return REQNTID_DIRECTIVE;
 \.section TC; return SECTION_DIRECTIVE;
+\.shared::cluster TC; return SHARED_CLUSTER_DIRECTIVE;
+\.shared::cta TC; return SHARED_DIRECTIVE;
 \.shared  TC; return SHARED_DIRECTIVE;
 \.sreg   TC; return SREG_DIRECTIVE;
 \.sstarr TC; return SSTARR_DIRECTIVE;

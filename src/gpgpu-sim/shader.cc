@@ -2812,8 +2812,8 @@ void ldst_unit::cycle() {
     while (request.get() != nullptr) {
       assert(!request.get()->complete);
       assert(!request->m_is_send);
-      (*m_sm_2_sm_network->access())
-          ->Push(m_sid, request->target_shader_id, request, 256, REQ_NET);
+      (*sm2sm_net)->Push(m_sid, request->target_shader_id, request, 256,
+                         REQ_NET);
       request->m_is_send = true;
       request = pipe_reg.get_next_open_cluster_request();
     }

@@ -112,15 +112,17 @@ target_link_libraries(cudart PUBLIC ZLIB::ZLIB)
 target_link_libraries(cudart_static ZLIB::ZLIB)
 
 set_target_properties(cudart PROPERTIES
-    VERSION 12
+    VERSION 13
+)
+
+add_custom_command(TARGET cudart POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+        $<TARGET_FILE_NAME:cudart>
+        ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12
+    COMMENT "Creating libcudart.so.12 symlink"
 )
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/linux-so-version.txt")
-
-# ADD_CUSTOM_TARGET(cudart12 ALL
-#                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.12)
-# ADD_CUSTOM_TARGET(cudart11 ALL
-#                   COMMAND ${CMAKE_COMMAND} -E create_symlink libcudart.so ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libcudart.so.11.0)
 
 
 add_subdirectory(benchmarks)

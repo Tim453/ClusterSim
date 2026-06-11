@@ -124,6 +124,7 @@ symbol_table *gpgpu_context::init_parser(const char *ptx_filename) {
   g_ptx_token_decode[reg_space] = "reg_space";
   g_ptx_token_decode[local_space] = "local_space";
   g_ptx_token_decode[shared_space] = "shared_space";
+  g_ptx_token_decode[shared_cluster_space] = "shared_cluster_space";
   g_ptx_token_decode[param_space_unclassified] = "param_space_unclassified";
   g_ptx_token_decode[param_space_kernel] = "param_space_kernel";
   g_ptx_token_decode[param_space_local] = "param_space_local";

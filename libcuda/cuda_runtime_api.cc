@@ -229,7 +229,10 @@ struct _cuda_device_id *gpgpu_context::GPGPUSim_Init() {
     prop->sharedMemPerBlock = the_gpu->shared_mem_per_block();
     prop->regsPerBlock = the_gpu->num_registers_per_block();
     prop->warpSize = the_gpu->wrp_size();
+
+#if (CUDART_VERSION <= 12800)
     prop->clockRate = the_gpu->shader_clock();
+#endif
 #if (CUDART_VERSION >= 2010)
     prop->multiProcessorCount = the_gpu->get_config().num_shader();
 #endif
@@ -3740,6 +3743,37 @@ void CUDARTAPI __cudaRegisterFunction(void **fatCubinHandle,
                                       dim3 *gDim) {
   cudaRegisterFunctionInternal(fatCubinHandle, hostFun, deviceFun, deviceName,
                                thread_limit, tid, bid, bDim, gDim);
+}
+
+// Body of the CUkern_st opaque type (forward-declared in driver_types.h as
+// typedef struct CUkern_st *cudaKernel_t). Stores the host-side function
+// pointer so the handle can be resolved back to a simulator kernel entry.
+struct CUkern_st {
+  const void *hostFun;
+};
+
+cudaError_t CUDARTAPI __cudaGetKernel(cudaKernel_t *kernelPtr,
+                                      const void *fun) {
+  static std::map<const void *, CUkern_st> s_kernel_map;
+  s_kernel_map.emplace(fun, CUkern_st{fun});
+  *kernelPtr = &s_kernel_map.at(fun);
+  return cudaSuccess;
+}
+
+cudaError_t CUDARTAPI __cudaLaunchKernel(cudaKernel_t kernel, dim3 gridDim,
+                                         dim3 blockDim, void **args,
+                                         size_t sharedMem,
+                                         cudaStream_t stream) {
+  return cudaLaunchKernelInternal((const char *)kernel->hostFun, gridDim,
+                                  blockDim, (const void **)args, sharedMem,
+                                  stream);
+}
+
+cudaError_t CUDARTAPI __cudaLaunchKernel_ptsz(cudaKernel_t kernel, dim3 gridDim,
+                                              dim3 blockDim, void **args,
+                                              size_t sharedMem,
+                                              cudaStream_t stream) {
+  return __cudaLaunchKernel(kernel, gridDim, blockDim, args, sharedMem, stream);
 }
 
 extern void __cudaRegisterVar(

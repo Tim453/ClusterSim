@@ -1663,15 +1663,24 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
         shared_to_generic(thread->get_hw_sid(), effective_address);
     cta_rank =
         cluster_info->get_cta_rank_of_shared_memory_region(generic_address);
+  } else if (space == shared_cluster_space) {
+    // effective_address is a compact cluster address from mapa.u32
+    addr_t generic_address = cluster_to_generic(effective_address);
+    cta_rank =
+        cluster_info->get_cta_rank_of_shared_memory_region(generic_address);
+    unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
+    effective_address = generic_to_shared(target_smid, generic_address);
+    space = shared_space;
   }
   assert(space == global_space || space == shared_space);
 
   memory_space *mem = NULL;
+
   if (space == global_space)
     mem = thread->get_global_memory();
-  else if (space == shared_space) {
+  else if (space == shared_space)
     mem = cluster_info->get_cta(cta_rank)->get_shared_memory();
-  } else
+  else
     abort();
 
   // Copy value pointed to in operand 'a' into register 'd'
@@ -1943,13 +1952,9 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   // SYNTAX
   // atom.space.operation.type d, a, b[, c]; (now read in callback)
 
-  // obtain memory space of the operation
   memory_space_t space = pI->get_space();
 
-  // get the memory address
   const operand_info &src1 = pI->src1();
-  // const operand_info &dst  = pI->dst();  // not needed for effective address
-  // calculation
   unsigned i_type = pI->get_type();
   ptx_reg_t src1_data;
   src1_data = thread->get_operand_value(src1, src1, i_type, thread, 1);
@@ -1957,8 +1962,25 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
 
   addr_t effective_address_final;
 
-  // handle generic memory space by converting it to global
-  if (space == undefined_space) {
+  if (space == shared_cluster_space) {
+    // effective_address is a compact cluster address produced by mapa.u32:
+    //   target_shader_id * SHARED_MEM_SIZE_MAX + local_offset
+    // Reconstruct the full generic address and route to the correct CTA.
+    addr_t full_generic = cluster_to_generic(effective_address);
+    unsigned smid = thread->get_hw_sid();
+    space = shared_space;
+    if (isspace_shared(smid, full_generic)) {
+      effective_address_final = generic_to_shared(smid, full_generic);
+      thread->m_last_shared_memory_target_shader_id = smid;
+    } else {
+      ptx_cluster_info *cluster_info = thread->m_cluster_info;
+      unsigned cta_rank =
+          cluster_info->get_cta_rank_of_shared_memory_region(full_generic);
+      unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
+      thread->m_last_shared_memory_target_shader_id = target_smid;
+      effective_address_final = generic_to_shared(target_smid, full_generic);
+    }
+  } else if (space == undefined_space) {
     if (whichspace(effective_address) == global_space) {
       effective_address_final = generic_to_global(effective_address);
       space = global_space;
@@ -1988,7 +2010,6 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
     effective_address_final = effective_address;
   }
 
-  // Check state space
   assert(space == global_space || space == shared_space);
 
   thread->m_last_effective_address = effective_address_final;
@@ -4611,15 +4632,24 @@ void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
     exit(EXIT_FAILURE);
   }
 
-  int shader_id = thread->get_hw_sid();
   int target_shader_id =
       thread->m_cluster_info->get_cta(b.u32)->get_shader_id();
-  assert(a.u64 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX > 0);
-  addr_t addr = a.u64 + (target_shader_id - shader_id) * SHARED_MEM_SIZE_MAX;
 
+  // The input address is a CTA-local shared memory offset (as assigned by the
+  // symbol table; e.g. 0 for the base of a .shared variable).
+  // U32: produce a compact cluster address = target_shader_id *
+  // SHARED_MEM_SIZE_MAX + offset,
+  //      which atom_impl converts to a generic address via SHARED_GENERIC_START
+  //      + compact.
+  // U64: produce the full 64-bit generic address directly.
   switch (i_type) {
+    case U32_TYPE:
+      d.u32 = (uint32_t)((addr_t)target_shader_id * SHARED_MEM_SIZE_MAX +
+                         (addr_t)a.u32);
+      break;
     case U64_TYPE:
-      d.u64 = addr;
+      d.u64 = SHARED_GENERIC_START +
+              (addr_t)target_shader_id * SHARED_MEM_SIZE_MAX + a.u64;
       break;
     default:
       printf("Execution error: type mismatch with instruction\n");

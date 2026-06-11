@@ -82,6 +82,7 @@ class ptx_recognizer;
 %token  REQNTID_DIRECTIVE
 %token  SECTION_DIRECTIVE
 %token  SHARED_DIRECTIVE
+%token  SHARED_CLUSTER_DIRECTIVE
 %token  SREG_DIRECTIVE
 %token	SSTARR_DIRECTIVE
 %token  STRUCT_DIRECTIVE
@@ -392,6 +393,7 @@ addressable_spec: CONST_DIRECTIVE {  recognizer->add_space_spec(const_space,$1);
 	| LOCAL_DIRECTIVE 	  {  recognizer->add_space_spec(local_space,0); }
 	| PARAM_DIRECTIVE 	  {  recognizer->add_space_spec(param_space_unclassified,0); }
 	| SHARED_DIRECTIVE 	  {  recognizer->add_space_spec(shared_space,0); }
+	| SHARED_CLUSTER_DIRECTIVE {  recognizer->add_space_spec(shared_cluster_space,0); }
 	| SSTARR_DIRECTIVE    {  recognizer->add_space_spec(sstarr_space,0); }
 	| SURF_DIRECTIVE 	  {  recognizer->add_space_spec(surf_space,0); }
 	| TEX_DIRECTIVE 	  {  recognizer->add_space_spec(tex_space,0); }

@@ -49,6 +49,7 @@ enum _memory_space_t {
   reg_space,
   local_space,
   shared_space,
+  shared_cluster_space,
   sstarr_space,
   param_space_unclassified,
   param_space_kernel, /* global to all threads in a kernel : read-only */
