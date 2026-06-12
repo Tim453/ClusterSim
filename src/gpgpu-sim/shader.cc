@@ -4617,7 +4617,10 @@ unsigned gpu_processing_cluster::issue_loadBalanced_cta_cluster() {
         ctas_to_issue--;
         core->issue_block2core(*m_kernel, free_cluster_slot);
       }
-      if (ctas_to_issue == 0) return m_kernel->ctas_per_cluster();
+      if (ctas_to_issue == 0) {
+        m_gpc_status.at(free_cluster_slot) = m_kernel->ctas_per_cluster();
+        return m_kernel->ctas_per_cluster();
+      }
     }
   }
   assert(0);

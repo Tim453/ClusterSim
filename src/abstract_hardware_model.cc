@@ -358,6 +358,7 @@ void warp_inst_t::generate_mem_accesses() {
       unsigned subwarp_size = m_config->warp_size / m_config->mem_warp_parts;
       unsigned total_accesses = 0;
       bool ignore_request = false;
+      assert(m_pending_cluster_memory_requests.empty());
       for (unsigned subwarp = 0; subwarp < m_config->mem_warp_parts;
            subwarp++) {
         // data structures used per part warp
@@ -395,7 +396,6 @@ void warp_inst_t::generate_mem_accesses() {
           }
         }
 
-        assert(m_pending_cluster_memory_requests.empty());
         // Calculate Bank Conflicts for Cluster requests
         for (auto &target : cluster_requests) {
           // look for the bank with the maximum number of access to
