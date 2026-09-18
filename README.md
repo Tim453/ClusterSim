@@ -11,12 +11,12 @@ It is built on top of [GPGPU-Sim](https://github.com/gpgpu-sim/gpgpu-sim_distrib
 * New Special registers: `%cluster_ctaid`, `%cluster_ctarank`, `%cluster_nctaid`, `%cluster_nctarank`...
 * New Instructions:  `mapa`, `barrier.cluster`
 * New directives: `.explicitcluster`, `.maxclusterrank`, `.reqnctapercluster`
-* New API calls: `cudaLaunchKernelExC`, `cudaMallocManaged`,
-* Simulationmodel for the SM to SM interconnect
+* New API calls: `cudaLaunchKernelExC`, `cudaMallocManaged`
+* Simulation model for the SM-to-SM interconnect
 
 ---
 
-## ⚙️ Setup
+## Setup
 
 ### Dependencies
 
@@ -35,7 +35,7 @@ export PATH=$PATH:/usr/local/cuda/bin
 
 ---
 
-### 🔨 Build
+### Build
 
 The simulator builds as a shared library. CUDA applications linked against `cudart` (as a shared library) can be run on the simulator by adjusting the dynamic link loader path.
 
@@ -47,7 +47,7 @@ make -j
 
 ---
 
-### ▶️ Run
+### Run
 
 By default, ClusterSim uses the configuration file at
 `configs/tested-cfgs/SM90_H100/gpgpusim.config`.
@@ -55,16 +55,16 @@ By default, ClusterSim uses the configuration file at
 You can change this via the `GPUSIM_CONFIG` environment variable.
 
 ```bash
-# If not already in rpath:
+# If not already in rpath
 source enable_simulator.sh
 
-# Verify CUDA program links to simulator’s libcudart
+# Verify the CUDA program links to the simulator's libcudart
 ldd build/bin/network
 
 # Run a CUDA program
 ./build/bin/network
 
-# Change GPU config
+# Change the GPU configuration
 export GPUSIM_CONFIG=<PATH_TO_CONFIG>/gpgpusim.config
 ./build/bin/network
 ```
@@ -77,12 +77,27 @@ export GPUSIM_CONFIG=<PATH_TO_CONFIG>/gpgpusim.config
 If you use ClusterSim in your research please cite
 
 ```bibtex
-@article{ClusterSim,
-    title={ClusterSim: Modeling Thread Block Clusters in Hopper GPUs},
-    url = {https://tore.tuhh.de/handle/11420/57345},
-    doi = {10.15480/882.15858},
-    author={Lühnen, Tim and Behera, Jyotirman and Tripathy, Devashree and Lal, Sohan},
-    year={2025}
+@INPROCEEDINGS {11241997,
+  author = { Luhnen, Tim and Behera, Jyotirman and Tripathy, Devashree and Lal, Sohan },
+  booktitle = { 2025 IEEE International Symposium on Workload Characterization (IISWC) },
+  title = {{ ClusterSim: Modeling Thread Block Clusters in Hopper GPUs }},
+  year = {2025},
+  pages = {504-515},
+  doi = {10.1109/IISWC66894.2025.00048},
+  url = {https://doi.ieeecomputersociety.org/10.1109/IISWC66894.2025.00048},
+  publisher = {IEEE Computer Society},
+  address = {Los Alamitos, CA, USA},
+  month =Oct
+}
+
+@inproceedings{sachs2026accelerating,
+  title={Accelerating GPGPU Simulation by Strategically Parallelizing the Compute Bottleneck},
+  doi={10.4230/OASIcs.PARMA-DITAM.2026.6},
+  url={https://drops.dagstuhl.de/entities/document/10.4230/OASIcs.PARMA-DITAM.2026.6}
+  author={Sachs, Jakob and Lühnen, Tim and Lal, Sohan},
+  booktitle={17th Workshop on Parallel Programming and Run-Time Management Techniques for Many-Core Architectures and 15th Workshop on Design Tools and Architectures for Multicore Embedded Computing Platforms (PARMA-DITAM 2026)},
+  year={2026},
+  organization={Schloss Dagstuhl--Leibniz-Zentrum für Informatik}
 }
 ```
 

@@ -1891,6 +1891,12 @@ bool ldst_unit::shared_cycle(warp_inst_t &inst, mem_stage_stall_type &rc_fail,
 
   if (inst.active_count() == 0) return true;
 
+  if (m_dsmem_latency > 0) {
+    fail_type = S_MEM;
+    rc_fail = BK_CONF;
+    return false;
+  }
+
   if (inst.has_dispatch_delay()) {
     m_stats.access()->gpgpu_n_shmem_bank_access[m_sid]++;
   }
@@ -2435,6 +2441,21 @@ void pipelined_simd_unit::cycle() {
     if (!m_dispatch_reg->dispatch_delay()) {
       int start_stage =
           m_dispatch_reg->latency - m_dispatch_reg->initiation_interval;
+      if (start_stage < 0 || start_stage >= (int)m_pipeline_depth) {
+        // A silent out-of-bounds access here swaps a garbage pointer into
+        // m_dispatch_reg; fail loudly instead. This is almost always a
+        // ptx_opcode_latency/ptx_opcode_initiation configuration error.
+        printf(
+            "GPGPU-Sim uArch: ERROR ** instruction at pc=0x%llx with latency "
+            "%u and initiation interval %u does not fit the %u-stage pipeline "
+            "of the %s unit (check -ptx_opcode_latency_*/"
+            "-ptx_opcode_initiation_* in the config)\n",
+            m_dispatch_reg->pc, m_dispatch_reg->latency,
+            m_dispatch_reg->initiation_interval, m_pipeline_depth,
+            m_name.c_str());
+        fflush(stdout);
+        abort();
+      }
       move_warp(m_pipeline_reg[start_stage], m_dispatch_reg);
       active_insts_in_pipeline++;
     }
@@ -2713,14 +2734,13 @@ void ldst_unit::cycle() {
   writeback();
 
   auto sm2sm_net = m_sm_2_sm_network->access();
-  auto response = (*sm2sm_net)->Pop(m_sid, REQ_NET);
-  if (response != nullptr) {
-    response->complete = true;
-    m_dsmem_latency = 6;
-  }
-  m_dsmem_latency > 0 ? m_dsmem_latency-- : m_dsmem_latency = 0;
-  if (m_dsmem_latency > 0) {
-    return;
+  if (m_dsmem_latency > 0) m_dsmem_latency--;
+  if (m_dsmem_latency == 0) {
+    auto response = (*sm2sm_net)->Pop(m_sid, REQ_NET);
+    if (response != nullptr) {
+      response->complete = true;
+      m_dsmem_latency = 6;
+    }
   }
 
   for (unsigned stage = 0; (stage + 1) < m_pipeline_depth; stage++)
@@ -2875,12 +2895,8 @@ void shader_core_ctx::register_cta_thread_exit(unsigned cluster_slot,
     // Increment the completed CTAs
     m_stats.access()->ctas_completed++;
     m_gpu->inc_completed_cta();
-    m_n_active_cta--;
     m_barriers.deallocate_barrier(cluster_slot, cta_num);
     shader_CTA_count_unlog(m_sid, 1);
-
-    assert(m_cluster->m_gpc->m_gpc_status.at(cluster_slot) > 0);
-    m_cluster->m_gpc->m_gpc_status.at(cluster_slot)--;
 
     SHADER_DPRINTF(
         LIVENESS,
@@ -2888,33 +2904,53 @@ void shader_core_ctx::register_cta_thread_exit(unsigned cluster_slot,
         cta_num, m_gpu->gpu_sim_cycle, m_gpu->gpu_tot_sim_cycle,
         m_n_active_cta);
 
-    if (m_n_active_cta == 0) {
-      SHADER_DPRINTF(
-          LIVENESS,
-          "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
-          kernel->get_uid(), kernel->name().c_str());
-      fflush(stdout);
+    // The CTA's hardware slot (incl. its distributed shared memory) stays
+    // allocated until every CTA of its thread block cluster has exited.
+    gpu_processing_cluster *gpc = m_cluster->m_gpc;
+    m_cta_slots_held.insert(cta_num);
+    gpc->m_pending_cta_release.at(cluster_slot)
+        .push_back({this, cta_num, kernel});
 
-      // Shader can only be empty when no more cta are dispatched
-      if (kernel != m_kernel) {
-        assert(m_kernel == NULL || !m_gpu->kernel_more_cta_left(m_kernel));
-      }
-      m_kernel = NULL;
+    assert(gpc->m_gpc_status.at(cluster_slot) > 0);
+    gpc->m_gpc_status.at(cluster_slot)--;
+    if (gpc->m_gpc_status.at(cluster_slot) == 0) {
+      for (auto &pending : gpc->m_pending_cta_release.at(cluster_slot))
+        pending.core->release_cta_resources(pending.cta_num, pending.kernel);
+      gpc->m_pending_cta_release.at(cluster_slot).clear();
     }
+  }
+}
 
-    // Jin: for concurrent kernels on sm
-    release_shader_resource_1block(cta_num, *kernel);
-    kernel->dec_running();
-    if (!m_gpu->kernel_more_cta_left(kernel)) {
-      if (!kernel->running()) {
-        SHADER_DPRINTF(LIVENESS,
-                       "GPGPU-Sim uArch: GPU detected kernel %u \'%s\' "
-                       "finished on shader %u.\n",
-                       kernel->get_uid(), kernel->name().c_str(), m_sid);
+void shader_core_ctx::release_cta_resources(unsigned cta_num,
+                                            kernel_info_t *kernel) {
+  m_cta_slots_held.erase(cta_num);
+  m_n_active_cta--;
 
-        if (m_kernel == kernel) m_kernel = NULL;
-        m_gpu->set_kernel_done(kernel);
-      }
+  if (m_n_active_cta == 0) {
+    SHADER_DPRINTF(LIVENESS,
+                   "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
+                   kernel->get_uid(), kernel->name().c_str());
+    fflush(stdout);
+
+    // Shader can only be empty when no more cta are dispatched
+    if (kernel != m_kernel) {
+      assert(m_kernel == NULL || !m_gpu->kernel_more_cta_left(m_kernel));
+    }
+    m_kernel = NULL;
+  }
+
+  // Jin: for concurrent kernels on sm
+  release_shader_resource_1block(cta_num, *kernel);
+  kernel->dec_running();
+  if (!m_gpu->kernel_more_cta_left(kernel)) {
+    if (!kernel->running()) {
+      SHADER_DPRINTF(LIVENESS,
+                     "GPGPU-Sim uArch: GPU detected kernel %u \'%s\' "
+                     "finished on shader %u.\n",
+                     kernel->get_uid(), kernel->name().c_str(), m_sid);
+
+      if (m_kernel == kernel) m_kernel = NULL;
+      m_gpu->set_kernel_done(kernel);
     }
   }
 }
@@ -3879,12 +3915,12 @@ bool barrier_set_t::warp_waiting_at_cluster_barrier(unsigned cta_id,
                                                     unsigned warp_id) {
   if (m_ptx_cluster_info[warp_id] == nullptr) return false;
 
-  if (m_ptx_cluster_info[warp_id]->waiting_at_cluster_bar)
-    return true;
-  else {
-    m_ptx_cluster_info[warp_id] = nullptr;
-    return false;
-  }
+  ptx_thread_info *thread =
+      m_shader->get_thread_info().at(warp_id * m_warp_size);
+  if (thread != nullptr && thread->m_has_to_wait) return true;
+
+  m_ptx_cluster_info[warp_id] = nullptr;
+  return false;
 }
 
 void barrier_set_t::dump() {
@@ -4951,6 +4987,7 @@ gpu_processing_cluster::gpu_processing_cluster(class gpgpu_sim *gpu,
                                           m_shader_per_gpc;
 
   m_gpc_status.resize(maximum_thread_block_cluster);
+  m_pending_cta_release.resize(maximum_thread_block_cluster);
 
   // Wrap the network in ThreadSafe for cross-thread access safety
   m_sm_2_sm_network = new ThreadSafe<SM_2_SM_network *>(nullptr);

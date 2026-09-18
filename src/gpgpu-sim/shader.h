@@ -2491,6 +2491,7 @@ class shader_core_ctx : public core_t {
   void fetch();
   void register_cta_thread_exit(unsigned cluster_slot, unsigned cta_num,
                                 kernel_info_t *kernel);
+  void release_cta_resources(unsigned cta_num, kernel_info_t *kernel);
 
   void decode();
 
@@ -2564,6 +2565,9 @@ class shader_core_ctx : public core_t {
   unsigned m_n_active_cta;  // number of Cooperative Thread Arrays (blocks)
                             // currently running on this shader.
   unsigned m_cta_status[MAX_CTA_PER_SHADER];  // CTAs status
+  // CTA slots whose block has exited but whose thread block cluster is still
+  // running; their resources stay allocated until the cluster completes.
+  std::set<unsigned> m_cta_slots_held;
   unsigned m_not_completed;  // number of threads to be completed (==0 when all
                              // thread on this core completed)
   std::bitset<MAX_THREAD_PER_SM> m_active_threads;
@@ -2695,6 +2699,14 @@ class gpu_processing_cluster {
   int get_total_free_cta_slots() const;
   unsigned issue_cta_cluster_to_gpc();
   std::vector<unsigned> m_gpc_status;
+  // CTAs that have exited but whose thread block cluster is still running;
+  // their core resources are released once the whole cluster completes.
+  struct pending_cta_release {
+    shader_core_ctx *core;
+    unsigned cta_num;
+    kernel_info_t *kernel;
+  };
+  std::vector<std::vector<pending_cta_release>> m_pending_cta_release;
   void cycle();
 
   friend class gpgpu_sim;

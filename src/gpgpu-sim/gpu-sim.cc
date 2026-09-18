@@ -1814,7 +1814,10 @@ void shader_core_ctx::issue_block2core(kernel_info_t &kernel,
   else
     max_cta_per_core = m_config->max_cta_per_core;
   for (unsigned i = 0; i < max_cta_per_core; i++) {
-    if (m_cta_status[i] == 0) {
+    // Slots held by an exited CTA of a still-running thread block cluster
+    // keep their resources (e.g. distributed shared memory) allocated and
+    // must not be reused yet.
+    if (m_cta_status[i] == 0 && !m_cta_slots_held.count(i)) {
       free_cta_hw_id = i;
       break;
     }
@@ -1910,6 +1913,7 @@ void shader_core_ctx::issue_block2core(kernel_info_t &kernel,
                  "initialized @(%lld,%lld)\n",
                  free_cta_hw_id, start_thread, end_thread, m_gpu->gpu_sim_cycle,
                  m_gpu->gpu_tot_sim_cycle);
+  delete g_checkpoint;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////

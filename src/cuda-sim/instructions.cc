@@ -1664,8 +1664,9 @@ void atom_callback(const inst_t *inst, ptx_thread_info *thread) {
     cta_rank =
         cluster_info->get_cta_rank_of_shared_memory_region(generic_address);
   } else if (space == shared_cluster_space) {
-    // effective_address is a compact cluster address from mapa.u32
-    addr_t generic_address = cluster_to_generic(effective_address);
+    // effective_address is a compact cluster-window address from mapa.u32
+    addr_t generic_address =
+        cluster_to_generic(thread->get_hw_sid(), effective_address);
     cta_rank =
         cluster_info->get_cta_rank_of_shared_memory_region(generic_address);
     unsigned target_smid = cluster_info->get_cta(cta_rank)->get_shader_id();
@@ -1963,11 +1964,12 @@ void atom_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   addr_t effective_address_final;
 
   if (space == shared_cluster_space) {
-    // effective_address is a compact cluster address produced by mapa.u32:
-    //   target_shader_id * SHARED_MEM_SIZE_MAX + local_offset
+    // effective_address is a compact cluster-window address produced by
+    // mapa.u32: (target_shader_id + 1) * SHARED_MEM_SIZE_MAX + local_offset,
+    // with values < SHARED_MEM_SIZE_MAX meaning the executing CTA itself.
     // Reconstruct the full generic address and route to the correct CTA.
-    addr_t full_generic = cluster_to_generic(effective_address);
     unsigned smid = thread->get_hw_sid();
+    addr_t full_generic = cluster_to_generic(smid, effective_address);
     space = shared_space;
     if (isspace_shared(smid, full_generic)) {
       effective_address_final = generic_to_shared(smid, full_generic);
@@ -3672,6 +3674,15 @@ void cvta_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
       case shared_space:
         to_addr_hw = generic_to_shared(smid, from_addr_hw);
         break;
+      case shared_cluster_space:
+        // generic shared address -> compact shared::cluster window address:
+        // (target_shader_id + 1) * SHARED_MEM_SIZE_MAX + offset (see
+        // mapa_impl / cluster_to_generic).
+        assert(from_addr_hw >= SHARED_GENERIC_START &&
+               from_addr_hw < GLOBAL_HEAP_START);
+        to_addr_hw = (from_addr_hw - SHARED_GENERIC_START) +
+                     SHARED_MEM_SIZE_MAX;
+        break;
       case local_space:
         to_addr_hw = generic_to_local(smid, hwtid, from_addr_hw);
         break;
@@ -3685,6 +3696,10 @@ void cvta_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
     switch (space.get_type()) {
       case shared_space:
         to_addr_hw = shared_to_generic(smid, from_addr_hw);
+        break;
+      case shared_cluster_space:
+        // compact shared::cluster window address -> generic
+        to_addr_hw = cluster_to_generic(smid, from_addr_hw);
         break;
       case local_space:
         to_addr_hw = local_to_generic(smid, hwtid, from_addr_hw) +
@@ -3915,6 +3930,30 @@ void decode_space(memory_space_t &space, ptx_thread_info *thread,
     case const_space:
       mem = thread->get_global_memory();
       break;
+    case shared_cluster_space: {
+      // effective address is a compact cluster-window address produced by
+      // mapa.u32: (target_shader_id + 1) * SHARED_MEM_SIZE_MAX + offset,
+      // with values < SHARED_MEM_SIZE_MAX meaning the executing CTA's own
+      // shared::cta window. Reconstruct the full generic address and route
+      // to the correct CTA, mirroring the atom_impl handling.
+      addr_t full_generic = cluster_to_generic(smid, addr);
+      if (isspace_shared(smid, full_generic)) {
+        mem = thread->m_shared_mem;
+        addr = generic_to_shared(smid, full_generic);
+        thread->m_last_shared_memory_target_shader_id = smid;
+      } else {
+        ptx_cluster_info *cluster_info = thread->m_cluster_info;
+        unsigned cta_rank =
+            cluster_info->get_cta_rank_of_shared_memory_region(full_generic);
+        unsigned target_smid =
+            cluster_info->get_cta(cta_rank)->get_shader_id();
+        thread->m_last_shared_memory_target_shader_id = target_smid;
+        addr = generic_to_shared(target_smid, full_generic);
+        mem = cluster_info->get_cta(cta_rank)->get_shared_memory();
+      }
+      space = shared_space;
+      break;
+    }
     case generic_space:
       if (thread->get_ptx_version().ver() >= 2.0) {
         // convert generic address to memory space address
@@ -4635,22 +4674,39 @@ void mapa_impl(const ptx_instruction *pI, ptx_thread_info *thread) {
   int target_shader_id =
       thread->m_cluster_info->get_cta(b.u32)->get_shader_id();
 
-  // The input address is a CTA-local shared memory offset (as assigned by the
-  // symbol table; e.g. 0 for the base of a .shared variable).
-  // U32: produce a compact cluster address = target_shader_id *
-  // SHARED_MEM_SIZE_MAX + offset,
-  //      which atom_impl converts to a generic address via SHARED_GENERIC_START
-  //      + compact.
+  // The input address is a shared window address: either a CTA-local
+  // shared::cta offset (< SHARED_MEM_SIZE_MAX) or an already-compact
+  // shared::cluster address (>= SHARED_MEM_SIZE_MAX); extract the segment
+  // offset either way.
+  // U32: produce a compact cluster-window address =
+  //      (target_shader_id + 1) * SHARED_MEM_SIZE_MAX + offset.
+  //      Values < SHARED_MEM_SIZE_MAX are reserved for the executing CTA's
+  //      own shared::cta window (PTX: a shared::cta address is also a valid
+  //      shared::cluster address), so the encoding starts one slot up.
   // U64: produce the full 64-bit generic address directly.
   switch (i_type) {
-    case U32_TYPE:
-      d.u32 = (uint32_t)((addr_t)target_shader_id * SHARED_MEM_SIZE_MAX +
-                         (addr_t)a.u32);
+    case U32_TYPE: {
+      addr_t off = (addr_t)a.u32;
+      if (off >= SHARED_MEM_SIZE_MAX)
+        off = (off - SHARED_MEM_SIZE_MAX) % SHARED_MEM_SIZE_MAX;
+      d.u32 = (uint32_t)(((addr_t)target_shader_id + 1) * SHARED_MEM_SIZE_MAX +
+                         off);
       break;
-    case U64_TYPE:
+    }
+    case U64_TYPE: {
+      // PTX: mapa.u64 takes a *generic* shared address and returns the
+      // generic address of the same offset in CTA b. (nvcc emits
+      // cvta.shared.u64 + mapa.u64.) Also accept a raw CTA-local offset for
+      // pre-CUDA-13 style inputs; the ranges cannot collide.
+      addr_t off;
+      if (a.u64 >= SHARED_GENERIC_START && a.u64 < GLOBAL_HEAP_START)
+        off = (a.u64 - SHARED_GENERIC_START) % SHARED_MEM_SIZE_MAX;
+      else
+        off = a.u64 % SHARED_MEM_SIZE_MAX;
       d.u64 = SHARED_GENERIC_START +
-              (addr_t)target_shader_id * SHARED_MEM_SIZE_MAX + a.u64;
+              (addr_t)target_shader_id * SHARED_MEM_SIZE_MAX + off;
       break;
+    }
     default:
       printf("Execution error: type mismatch with instruction\n");
       assert(0);

@@ -366,8 +366,16 @@ addr_t shared_to_generic(unsigned smid, addr_t addr) {
   return SHARED_GENERIC_START + smid * SHARED_MEM_SIZE_MAX + addr;
 }
 
-addr_t cluster_to_generic(addr_t compact_cluster_addr) {
-  return SHARED_GENERIC_START + compact_cluster_addr;
+addr_t cluster_to_generic(unsigned smid, addr_t compact_cluster_addr) {
+  // Compact shared::cluster window encoding:
+  //   (target_shader_id + 1) * SHARED_MEM_SIZE_MAX + offset
+  // Values below SHARED_MEM_SIZE_MAX are shared::cta-window addresses of the
+  // *executing* CTA: the PTX ISA guarantees a shared::cta address is also a
+  // valid shared::cluster address (CUDA 13 codegen relies on this by feeding
+  // if-converted local/remote selects into a single ld/st.shared::cluster).
+  if (compact_cluster_addr < SHARED_MEM_SIZE_MAX)
+    return shared_to_generic(smid, compact_cluster_addr);
+  return SHARED_GENERIC_START + (compact_cluster_addr - SHARED_MEM_SIZE_MAX);
 }
 
 addr_t global_to_generic(addr_t addr) { return addr; }
@@ -780,17 +788,29 @@ void ptx_instruction::set_bar_type() {
   }
 }
 
+// Configs may list fewer entries than the simulator expects; replicate the
+// last parsed value into the remaining slots instead of leaving them as
+// uninitialized stack memory (which ends up as instruction latencies and
+// initiation intervals).
+static void fill_unparsed_entries(unsigned *arr, int n_parsed, int n_total) {
+  if (n_parsed < 1) {
+    arr[0] = 1;
+    n_parsed = 1;
+  }
+  for (int i = n_parsed; i < n_total; i++) arr[i] = arr[n_parsed - 1];
+}
+
 void ptx_instruction::set_opcode_and_latency() {
   unsigned int_latency[6];
   unsigned fp_latency[5];
   unsigned dp_latency[5];
-  unsigned sfu_latency;
-  unsigned tensor_latency;
+  unsigned sfu_latency = 8;
+  unsigned tensor_latency = 64;
   unsigned int_init[6];
   unsigned fp_init[5];
   unsigned dp_init[5];
-  unsigned sfu_init;
-  unsigned tensor_init;
+  unsigned sfu_init = 8;
+  unsigned tensor_init = 64;
   /*
    * [0] ADD,SUB
    * [1] MAX,Min
@@ -799,32 +819,43 @@ void ptx_instruction::set_opcode_and_latency() {
    * [4] DIV
    * [5] SHFL
    */
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_int, "%u,%u,%u,%u,%u,%u",
-         &int_latency[0], &int_latency[1], &int_latency[2], &int_latency[3],
-         &int_latency[4], &int_latency[5]);
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_fp, "%u,%u,%u,%u,%u",
-         &fp_latency[0], &fp_latency[1], &fp_latency[2], &fp_latency[3],
-         &fp_latency[4]);
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_dp, "%u,%u,%u,%u,%u",
-         &dp_latency[0], &dp_latency[1], &dp_latency[2], &dp_latency[3],
-         &dp_latency[4]);
+  int n_parsed =
+      sscanf(gpgpu_ctx->func_sim->opcode_latency_int, "%u,%u,%u,%u,%u,%u",
+             &int_latency[0], &int_latency[1], &int_latency[2],
+             &int_latency[3], &int_latency[4], &int_latency[5]);
+  fill_unparsed_entries(int_latency, n_parsed, 6);
+  n_parsed = sscanf(gpgpu_ctx->func_sim->opcode_latency_fp, "%u,%u,%u,%u,%u",
+                    &fp_latency[0], &fp_latency[1], &fp_latency[2],
+                    &fp_latency[3], &fp_latency[4]);
+  fill_unparsed_entries(fp_latency, n_parsed, 5);
+  n_parsed = sscanf(gpgpu_ctx->func_sim->opcode_latency_dp, "%u,%u,%u,%u,%u",
+                    &dp_latency[0], &dp_latency[1], &dp_latency[2],
+                    &dp_latency[3], &dp_latency[4]);
+  fill_unparsed_entries(dp_latency, n_parsed, 5);
   sscanf(gpgpu_ctx->func_sim->opcode_latency_sfu, "%u", &sfu_latency);
   sscanf(gpgpu_ctx->func_sim->opcode_latency_tensor, "%u", &tensor_latency);
-  sscanf(gpgpu_ctx->func_sim->opcode_initiation_int, "%u,%u,%u,%u,%u,%u",
-         &int_init[0], &int_init[1], &int_init[2], &int_init[3], &int_init[4],
-         &int_init[5]);
-  sscanf(gpgpu_ctx->func_sim->opcode_initiation_fp, "%u,%u,%u,%u,%u",
-         &fp_init[0], &fp_init[1], &fp_init[2], &fp_init[3], &fp_init[4]);
-  sscanf(gpgpu_ctx->func_sim->opcode_initiation_dp, "%u,%u,%u,%u,%u",
-         &dp_init[0], &dp_init[1], &dp_init[2], &dp_init[3], &dp_init[4]);
+  n_parsed =
+      sscanf(gpgpu_ctx->func_sim->opcode_initiation_int, "%u,%u,%u,%u,%u,%u",
+             &int_init[0], &int_init[1], &int_init[2], &int_init[3],
+             &int_init[4], &int_init[5]);
+  fill_unparsed_entries(int_init, n_parsed, 6);
+  n_parsed =
+      sscanf(gpgpu_ctx->func_sim->opcode_initiation_fp, "%u,%u,%u,%u,%u",
+             &fp_init[0], &fp_init[1], &fp_init[2], &fp_init[3], &fp_init[4]);
+  fill_unparsed_entries(fp_init, n_parsed, 5);
+  n_parsed =
+      sscanf(gpgpu_ctx->func_sim->opcode_initiation_dp, "%u,%u,%u,%u,%u",
+             &dp_init[0], &dp_init[1], &dp_init[2], &dp_init[3], &dp_init[4]);
+  fill_unparsed_entries(dp_init, n_parsed, 5);
   sscanf(gpgpu_ctx->func_sim->opcode_initiation_sfu, "%u", &sfu_init);
   sscanf(gpgpu_ctx->func_sim->opcode_initiation_tensor, "%u", &tensor_init);
-  sscanf(gpgpu_ctx->func_sim->cdp_latency_str, "%u,%u,%u,%u,%u",
-         &gpgpu_ctx->func_sim->cdp_latency[0],
-         &gpgpu_ctx->func_sim->cdp_latency[1],
-         &gpgpu_ctx->func_sim->cdp_latency[2],
-         &gpgpu_ctx->func_sim->cdp_latency[3],
-         &gpgpu_ctx->func_sim->cdp_latency[4]);
+  n_parsed = sscanf(gpgpu_ctx->func_sim->cdp_latency_str, "%u,%u,%u,%u,%u",
+                    &gpgpu_ctx->func_sim->cdp_latency[0],
+                    &gpgpu_ctx->func_sim->cdp_latency[1],
+                    &gpgpu_ctx->func_sim->cdp_latency[2],
+                    &gpgpu_ctx->func_sim->cdp_latency[3],
+                    &gpgpu_ctx->func_sim->cdp_latency[4]);
+  fill_unparsed_entries(gpgpu_ctx->func_sim->cdp_latency, n_parsed, 5);
 
   if (!m_operands.empty()) {
     std::vector<operand_info>::iterator it;

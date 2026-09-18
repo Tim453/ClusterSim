@@ -1331,7 +1331,7 @@ size_t get_kernel_code_size(class function_info *entry);
 class checkpoint {
  public:
   checkpoint();
-  ~checkpoint() { printf("clasfsfss destructed\n"); }
+  ~checkpoint() {}
 
   void load_global_mem(class memory_space *temp_mem, char *f1name);
   void store_global_mem(class memory_space *mem, char *fname, char *format);
